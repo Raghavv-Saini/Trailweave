@@ -28,7 +28,7 @@ This document is the **Single Authoritative Product Requirements Document (PRD v
 - **REST APIs & Gemini Tool Contracts**: [`docs/API_SPEC.md`](API_SPEC.md)
 - **Ubiquitous Domain Terminology**: [`GLOSSARY.md`](../GLOSSARY.md)
 - **Architecture Decision Records**: [`docs/adr/`](adr/) (ADR 0001–0006)
-- **Active Operational Gaps & Backlog**: [`.scratch/gap-analysis/`](../.scratch/gap-analysis/spec.md)
+- **Active Operational Gaps & Backlog**: [`docs/tickets/backlog-gaps/`](tickets/backlog-gaps/spec.md)
 
 | **SECTION** | **WHAT IT DEFINES** |
 | :--- | :--- |

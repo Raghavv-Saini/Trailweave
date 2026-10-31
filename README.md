@@ -41,7 +41,8 @@ All project specifications and design documents are organized according to indus
 | **[`docs/API_SPEC.md`](docs/API_SPEC.md)** | **API Specifications & Gemini Tool Contracts**. REST API endpoint tables, payload contracts, optimistic concurrency error handling (`HTTP 409`), and native Gemini function calling schemas. |
 | **[`GLOSSARY.md`](GLOSSARY.md)** | **Ubiquitous Domain Terminology**. Canonical definitions for `Place`, `CommunityCuratedTrail`, `Artisan`, `TripRevision`, `ReplanProposal`, etc. Enforced across all code. |
 | **[`docs/adr/`](docs/adr/)** | **Architecture Decision Records**. Immutable records of architectural choices: <br/> • [ADR 0001: Mobile PWA & FastAPI Stack](docs/adr/0001-trailweave-architecture.md)<br/> • [ADR 0002: Pivot to User-Curated Trails](docs/adr/0002-pivot-to-user-curated-itineraries.md)<br/> • [ADR 0003: Multi-Day Relative Duration Model](docs/adr/0003-multiday-relative-duration-model.md)<br/> • [ADR 0004: AI Companion & Smart Geofencing](docs/adr/0004-ai-travel-companion-and-smart-geofencing.md)<br/> • [ADR 0005: Unified Trip Engine & Concurrency](docs/adr/0005-unified-trip-engine-and-active-companion.md)<br/> • [ADR 0006: Dual Artisan Offerings & Preferences](docs/adr/0006-artisan-workshop-offerings-and-tourist-preferences.md) |
-| **[`.scratch/gap-analysis/`](.scratch/gap-analysis/spec.md)** | **Operational Gaps & Edge Cases Backlog**. Tracks 6 open design questions (workshop capacity, in-transit delays, publishing moderation, Old City vehicle bans, multi-day night transitions, haveli offline caching). |
+| **[`docs/tickets/`](docs/tickets/README.md)** | **Hackathon Execution Board & Tickets**. 13 vertical-slice tickets organized into 4 parallel developer tracks for the 48-hour build. |
+| **[`docs/tickets/backlog-gaps/`](docs/tickets/backlog-gaps/spec.md)** | **Operational Gaps & Edge Cases Backlog**. Tracks 6 open design questions (workshop capacity, in-transit delays, publishing moderation, Old City vehicle bans, multi-day night transitions, haveli offline caching). |
 | **[`docs/archive/`](docs/archive/)** | **Archived Historical Briefs**. Preserves earlier revision briefs (`flows.md`, `FairPath_Changes_Since_Trip_to_Trail_Spec.md`) for provenance. |
 
 ---
@@ -94,6 +95,7 @@ All project specifications and design documents are organized according to indus
 │   ├── API_SPEC.md                    # REST APIs & Gemini Function Calling Specs
 │   ├── adr/                           # Architecture Decision Records (0001–0006)
 │   ├── agents/                        # Domain docs and triage guidelines
-│   └── archive/                       # Archived historical briefs
-└── .scratch/                          # Active edge-case backlog & issue tracking
+│   ├── archive/                       # Archived historical briefs
+│   └── tickets/                       # 13 vertical-slice tickets across 4 developer tracks
+└── skills-lock.json                   # Agent skills lockfile
 ```

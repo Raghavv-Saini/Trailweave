@@ -4,7 +4,7 @@
 
 ### Issue tracker
 
-Local markdown files under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+Local markdown files under `docs/tickets/`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

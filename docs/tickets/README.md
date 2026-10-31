@@ -99,6 +99,13 @@ docs/tickets/
 │   └── 12-admin-curation-verification-portal.md
 └── track-5-integration-demo/                         <-- All 4 Devs
     └── 13-hackathon-demo-flow-simulations.md
+└── backlog-gaps/                                     <-- Post-MVP / Edge-Case Log
+    ├── 01-workshop-capacity-policy.md
+    ├── 02-in-transit-delays-missed-checkins.md
+    ├── 03-community-trail-publishing-moderation.md
+    ├── 04-old-city-pedestrian-zones.md
+    ├── 05-multiday-overnight-transitions.md
+    └── 06-offline-caching-havelis.md
 ```
 
 ---
