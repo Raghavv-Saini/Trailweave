@@ -861,14 +861,21 @@ export default function ArtisanOnboardAndCataloguePage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setActiveTab("portal")}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-bold text-xs text-center cursor-pointer transition-colors shadow-2xs"
+                    className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-bold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                   >
                     मेरी दुकान और कैटलॉग खोलें (Manage My Catalogue) &rarr;
                   </button>
+                  <Link
+                    href="/admin"
+                    className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>क्यूरेटर पोर्टल खोलें (Open /admin to Approve) &rarr;</span>
+                  </Link>
                 </div>
               </div>
             )}
@@ -1367,7 +1374,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                     )}
                   </div>
 
-                  {activeSession.profile.approval_status === "approved" && (
+                  {activeSession.profile.approval_status === "approved" ? (
                     <div className="pt-1">
                       <Link
                         href="/artisans"
@@ -1375,6 +1382,17 @@ export default function ArtisanOnboardAndCataloguePage() {
                       >
                         <span>सार्वजनिक कारीगर डायरेक्टरी (/artisans) में अपनी दुकान देखें</span>
                         <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-amber-900 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200">
+                      <span>आपकी प्रोफ़ाइल समीक्षाधीन है। व्यवस्थापक स्वीकृति के बाद यह डायरेक्टरी में लाइव होगी।</span>
+                      <Link
+                        href="/admin"
+                        className="font-bold underline text-emerald-800 shrink-0 hover:text-emerald-950 flex items-center gap-1"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>/admin में स्वीकृति दें &rarr;</span>
                       </Link>
                     </div>
                   )}
