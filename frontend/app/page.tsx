@@ -8,6 +8,7 @@ import {
   ArrowRight,
   Calendar,
   Award,
+  Mic,
 } from "lucide-react";
 import { Header } from "@/components/common/Header";
 import { BottomNav } from "@/components/common/BottomNav";
@@ -119,6 +120,32 @@ export default function Home() {
             <ArrowRight className="w-4 h-4 text-neutral-400 shrink-0 mt-2 group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
+
+        {/* Artisan Role Switcher / Hindi Voice Onboarding CTA (ADR 0010 & Ticket 10) */}
+        <Link
+          href="/artisans/onboard"
+          className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 via-orange-50/70 to-amber-50 border border-amber-200/90 hover:border-[#E05A2B] transition-all shadow-2xs flex items-center justify-between gap-3 group"
+        >
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#E05A2B] text-white flex items-center justify-center shrink-0 shadow-xs">
+              <Mic className="w-4 h-4" />
+            </div>
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-200/70 text-amber-950">
+                  कारीगर पोर्टल • Artisan Mode
+                </span>
+              </div>
+              <h3 className="font-bold text-xs text-neutral-900 group-hover:text-[#E05A2B] transition-colors">
+                क्या आप उदयपुर के कारीगर हैं? हिंदी आवाज़ से जुड़ें
+              </h3>
+              <p className="text-[11px] text-neutral-600 leading-snug">
+                4-अंकों के पिन और 1-टैप हिंदी वॉइस नोट से अपनी दुकान और कलाकृतियों का कैटलॉग जोड़ें।
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="w-4 h-4 text-[#E05A2B] shrink-0 group-hover:translate-x-1 transition-transform" />
+        </Link>
 
         {/* Quick Category Chips */}
         <div className="space-y-2">

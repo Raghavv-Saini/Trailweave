@@ -1,5 +1,13 @@
 from app.schemas.places import PlaceBase, PlaceResponse
-from app.schemas.artisans import ArtisanBase, ArtisanResponse
+from app.schemas.artisans import (
+    ArtisanBase,
+    ArtisanResponse,
+    ArtisanOnboardRequest,
+    ArtisanLoginRequest,
+    ArtisanCatalogueAddRequest,
+    ArtisanCatalogueDeleteRequest,
+    ArtisanPortalProfileResponse,
+)
 from app.schemas.trips import TripResponse, TripStopResponse, ItineraryVersionResponse
 from app.schemas.replan import (
     ReplanOperation,
@@ -21,6 +29,11 @@ __all__ = [
     "PlaceResponse",
     "ArtisanBase",
     "ArtisanResponse",
+    "ArtisanOnboardRequest",
+    "ArtisanLoginRequest",
+    "ArtisanCatalogueAddRequest",
+    "ArtisanCatalogueDeleteRequest",
+    "ArtisanPortalProfileResponse",
     "TripResponse",
     "TripStopResponse",
     "ItineraryVersionResponse",

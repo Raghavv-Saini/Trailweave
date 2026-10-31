@@ -1,5 +1,5 @@
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ArtisanBase(BaseModel):
@@ -8,6 +8,7 @@ class ArtisanBase(BaseModel):
     place_id: str
     phone_number: Optional[str] = None
     bio: Optional[str] = None
+    catalogue_images: List[str] = Field(default_factory=list)
     has_workshop: bool = False
     workshop_fee_inr: float = 0
     workshop_duration_minutes: int = 45
@@ -18,6 +19,64 @@ class ArtisanBase(BaseModel):
 class ArtisanResponse(ArtisanBase):
     id: str
     address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    opening_time: Optional[str] = None
+    closing_time: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ArtisanOnboardRequest(BaseModel):
+    phone_number: str
+    pin: str
+    audio_base64: Optional[str] = None
+    transcript_hint: Optional[str] = None
+    text_message: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    catalogue_images: List[str] = Field(default_factory=list)
+
+
+class ArtisanLoginRequest(BaseModel):
+    phone_number: str
+    pin: str
+
+
+class ArtisanCatalogueAddRequest(BaseModel):
+    phone_number: str
+    pin: str
+    image_urls: List[str] = Field(default_factory=list)
+
+
+class ArtisanCatalogueDeleteRequest(BaseModel):
+    phone_number: str
+    pin: str
+    image_url: Optional[str] = None
+    image_urls: List[str] = Field(default_factory=list)
+
+
+class ArtisanPortalProfileResponse(BaseModel):
+    id: str
+    source_type: str = "draft"  # "draft" or "artisan"
+    approval_status: str = "draft"  # "draft", "approved", "rejected"
+    artisan_name: str
+    craft_type: str
+    phone_number: str
+    place_name: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    has_workshop: bool = False
+    workshop_fee_inr: float = 0.0
+    workshop_duration_minutes: int = 45
+    workshop_description: Optional[str] = None
+    opening_time: Optional[str] = "10:00"
+    closing_time: Optional[str] = "19:30"
+    admin_brief: Optional[str] = None
+    missing_info_checklist: List[str] = Field(default_factory=list)
+    raw_transcript: Optional[str] = None
+    catalogue_images: List[str] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -63,4 +122,3 @@ class TransientArtisanRecommendationRequest(BaseModel):
     travel_mode: str = "auto_rickshaw"
     preference: str = "both"
     max_detour_minutes: int = 15
-
