@@ -60,5 +60,29 @@ test("Artisan Onboarding & Catalogue Portal (/artisans/onboard) supports Hindi v
     onboardSource.includes("/artisans/me/catalogue"),
     "Must support adding and removing catalogue photos via /api/artisans/me/catalogue"
   );
+
+  // Verify removed unneeded audio file and photo URL inputs
+  assert.ok(
+    !onboardSource.includes('accept="audio/*"'),
+    "Audio file upload input (accept='audio/*') must be removed"
+  );
+  assert.ok(
+    !onboardSource.includes("FileAudio"),
+    "FileAudio icon must be removed"
+  );
+  assert.ok(
+    !onboardSource.includes('type="url"'),
+    "Manual photo URL text input must be removed"
+  );
+
+  // Verify UI color scheme matches Mewar Indigo palette instead of bright orange
+  assert.ok(
+    !onboardSource.includes("#E05A2B"),
+    "Legacy orange color (#E05A2B) must not be present in the Artisan Onboarding UI"
+  );
+  assert.ok(
+    onboardSource.includes("#1E3A5F"),
+    "Artisan Onboarding UI must match the platform Mewar Indigo (#1E3A5F) palette"
+  );
 });
 

@@ -35,3 +35,8 @@ A zero-barrier, Hindi-first Web/PWA onboarding and self-service catalogue portal
    - Added `POST /api/artisans/onboard`, `POST /api/artisans/login`, `POST /api/artisans/me/catalogue`, and `DELETE /api/artisans/me/catalogue` in [`backend/app/api/v1/artisans.py`](../../../backend/app/api/v1/artisans.py) and updated [`backend/app/db/schema.sql`](../../../backend/app/db/schema.sql).
 4. **Verification**:
    - Verified with [`backend/tests/test_artisan_onboarding.py`](../../../backend/tests/test_artisan_onboarding.py) and [`frontend/tests/artisan_onboarding.test.mjs`](../../../frontend/tests/artisan_onboarding.test.mjs) + `npx tsc --noEmit` (all 12 frontend tests and backend tests passing).
+
+### UI Refinement & Input Streamlining (2026-11-01)
+- Removed unnecessary audio file upload button and handler; retained zero-barrier 1-tap live voice recording, transcript, and demo voice presets.
+- Removed manual photo URL input fields from both Onboarding and Returning Artisan Catalogue views; streamlined photo collection strictly to direct camera/gallery upload (`<input type="file" accept="image/*" multiple>`) and craft sample presets.
+- Re-skinned `/artisans/onboard` and `/artisans` from legacy orange (`#E05A2B`) to platform-wide Mewar Indigo (`#1E3A5F`), Haveli Gold (`#9E7432`), and Limestone/Sand tokens. Verified with 24 frontend tests, `tsc --noEmit`, and 52 backend tests.
