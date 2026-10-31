@@ -792,35 +792,39 @@ async def list_artisans(
             )
         )
 
-    if not results:
-        for a_id, a in IN_MEMORY_APPROVED_ARTISANS.items():
-            if has_workshop is not None and a.get("has_workshop") != has_workshop:
-                continue
-            if max_fee is not None and a.get("workshop_fee_inr", 0) > max_fee:
-                continue
-            if craft_type and craft_type.lower() not in a.get("craft_type", "").lower():
-                continue
-            results.append(
-                ArtisanResponse(
-                    id=a.get("id", a_id),
-                    artisan_name=a.get("artisan_name", ""),
-                    craft_type=a.get("craft_type", ""),
-                    place_id=a.get("place_id", a_id),
-                    address=a.get("address"),
-                    latitude=a.get("latitude"),
-                    longitude=a.get("longitude"),
-                    opening_time=a.get("opening_time"),
-                    closing_time=a.get("closing_time"),
-                    phone_number=a.get("phone_number"),
-                    bio=a.get("bio"),
-                    catalogue_images=a.get("catalogue_images", []),
-                    has_workshop=a.get("has_workshop", False),
-                    workshop_fee_inr=float(a.get("workshop_fee_inr", 0)),
-                    workshop_duration_minutes=a.get("workshop_duration_minutes", 45),
-                    workshop_description=a.get("workshop_description"),
-                    profile_status=a.get("approval_status", "approved"),
-                )
+    # Merge any in-memory approved artisans not already present from DB
+    existing_ids = {item.id for item in results}
+    for a_id, a in IN_MEMORY_APPROVED_ARTISANS.items():
+        record_id = a.get("id", a_id)
+        if record_id in existing_ids:
+            continue
+        if has_workshop is not None and a.get("has_workshop") != has_workshop:
+            continue
+        if max_fee is not None and a.get("workshop_fee_inr", 0) > max_fee:
+            continue
+        if craft_type and craft_type.lower() not in a.get("craft_type", "").lower():
+            continue
+        results.append(
+            ArtisanResponse(
+                id=record_id,
+                artisan_name=a.get("artisan_name", ""),
+                craft_type=a.get("craft_type", ""),
+                place_id=a.get("place_id", a_id),
+                address=a.get("address"),
+                latitude=a.get("latitude"),
+                longitude=a.get("longitude"),
+                opening_time=a.get("opening_time"),
+                closing_time=a.get("closing_time"),
+                phone_number=a.get("phone_number"),
+                bio=a.get("bio"),
+                catalogue_images=a.get("catalogue_images", []),
+                has_workshop=a.get("has_workshop", False),
+                workshop_fee_inr=float(a.get("workshop_fee_inr", 0)),
+                workshop_duration_minutes=a.get("workshop_duration_minutes", 45),
+                workshop_description=a.get("workshop_description"),
+                profile_status=a.get("approval_status", "approved"),
             )
+        )
 
     return results
 

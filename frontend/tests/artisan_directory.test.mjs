@@ -136,3 +136,46 @@ test("Artisan Studio Profile view (/artisans/[id]) includes rich bio, catalogue 
   );
 });
 
+test("Artisan Onboarding to Directory real-time sync & new listing indicators", () => {
+  const directorySource = fs.readFileSync(
+    path.resolve("app/artisans/page.tsx"),
+    "utf-8"
+  );
+  const cardSource = fs.readFileSync(
+    path.resolve("components/artisans/ArtisanCard.tsx"),
+    "utf-8"
+  );
+  const onboardSource = fs.readFileSync(
+    path.resolve("app/artisans/onboard/page.tsx"),
+    "utf-8"
+  );
+  const nextConfigSource = fs.readFileSync(
+    path.resolve("next.config.ts"),
+    "utf-8"
+  );
+
+  // 1. Directory hydrates from localStorage approved artisans
+  assert.ok(
+    directorySource.includes("trailweave_approved_artisans"),
+    "Directory must hydrate approved artisans from localStorage for instant sync"
+  );
+
+  // 2. Card renders New Listing badge
+  assert.ok(
+    cardSource.includes("नई लिस्टिंग") || cardSource.includes("New"),
+    "Artisan card must display a New Listing badge for newly onboarded artisans"
+  );
+
+  // 3. Onboard page links to /admin for approval
+  assert.ok(
+    onboardSource.includes("/admin"),
+    "Onboard page must provide direct link to /admin to review and approve newly onboarded studios"
+  );
+
+  // 4. Next.js config includes API rewrites
+  assert.ok(
+    nextConfigSource.includes("rewrites") && nextConfigSource.includes("/api/:path*"),
+    "next.config.ts must proxy /api requests to FastAPI backend"
+  );
+});
+

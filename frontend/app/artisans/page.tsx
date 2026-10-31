@@ -32,21 +32,64 @@ export default function ArtisansDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isBasketOpen, setIsBasketOpen] = useState<boolean>(false);
 
-  // Fetch artisans from backend with fallback to mock data
+  // Fetch artisans from backend with fallback to mock data & localStorage
   useEffect(() => {
     let isMounted = true;
     async function fetchArtisans() {
+      let backendData: MockArtisan[] = [];
       try {
         const res = await fetch("/api/artisans");
         if (res.ok) {
           const data = await res.json();
-          if (isMounted && Array.isArray(data) && data.length > 0) {
-            setArtisans(data);
-            return;
+          if (Array.isArray(data) && data.length > 0) {
+            backendData = data;
           }
         }
       } catch {
-        // Fall back to client-side MOCK_ARTISANS
+        // Fall back to direct backend URL if proxy isn't active
+        try {
+          const directApiBase =
+            process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+          const res = await fetch(`${directApiBase}/artisans`);
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              backendData = data;
+            }
+          }
+        } catch {
+          // Fall back to client-side MOCK_ARTISANS
+        }
+      }
+
+      // Read locally approved artisans for instant offline/demo persistence
+      let localApproved: MockArtisan[] = [];
+      if (typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem("trailweave_approved_artisans");
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) {
+              localApproved = parsed;
+            }
+          }
+        } catch {
+          // ignore storage error
+        }
+      }
+
+      if (isMounted) {
+        const baseList = backendData.length > 0 ? backendData : MOCK_ARTISANS;
+        // Merge localApproved at the top, deduplicating by id
+        const merged: MockArtisan[] = [...localApproved];
+        const seenIds = new Set(localApproved.map((a) => a.id));
+        for (const item of baseList) {
+          if (!seenIds.has(item.id)) {
+            seenIds.add(item.id);
+            merged.push(item);
+          }
+        }
+        setArtisans(merged);
       }
     }
     fetchArtisans();
