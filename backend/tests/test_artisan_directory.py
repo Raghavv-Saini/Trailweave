@@ -202,6 +202,48 @@ async def test_artisan_detail_profile_and_404():
         assert e.status_code == 404
 
 
+@pytest.mark.asyncio
+async def test_approved_artisan_syncs_to_directory():
+    """Verify that newly approved artisan from admin portal immediately syncs to /artisans directory."""
+    db = _DummyDbSession()
+    new_id = "artisan_test_potter_sync"
+    IN_MEMORY_APPROVED_ARTISANS[new_id] = {
+        "id": new_id,
+        "place_id": "place_test_potter_sync_studio",
+        "artisan_name": "Ratan Lal Kumhar",
+        "craft_type": "Molela Terracotta Sculpting",
+        "phone_number": "+919829099112",
+        "place_name": "Ratan Lal Heritage Terracotta Studio",
+        "address": "Molela / Hathi Pole, Udaipur",
+        "latitude": 24.585,
+        "longitude": 73.687,
+        "bio": "National award-winning Molela clay muralist.",
+        "has_workshop": True,
+        "workshop_fee_inr": 250.0,
+        "workshop_duration_minutes": 50,
+        "workshop_description": "Hands-on votive plaque making.",
+        "opening_time": "10:00",
+        "closing_time": "19:00",
+        "approval_status": "approved",
+        "catalogue_images": ["https://images.unsplash.com/photo-terracotta-sync"],
+    }
+
+    # 1. Directory list should immediately include the new approved artisan
+    artisans = await list_artisans(db=db)
+    found = next((a for a in artisans if a.id == new_id), None)
+    assert found is not None
+    assert found.artisan_name == "Ratan Lal Kumhar"
+    assert found.craft_type == "Molela Terracotta Sculpting"
+    assert found.workshop_fee_inr == 250.0
+    assert found.catalogue_images == ["https://images.unsplash.com/photo-terracotta-sync"]
+
+    # 2. Detail lookup should retrieve full record
+    detail = await get_artisan_details(artisan_id=new_id, db=db)
+    assert detail.id == new_id
+    assert detail.artisan_name == "Ratan Lal Kumhar"
+    assert detail.bio == "National award-winning Molela clay muralist."
+
+
 def _drive_coroutine(coro):
     """Drives a deterministic async test coroutine without creating socketpairs."""
     try:
@@ -217,4 +259,5 @@ if __name__ == "__main__":
     _drive_coroutine(test_artisan_directory_filter_workshop_and_fee())
     _drive_coroutine(test_artisan_directory_filter_craft_type())
     _drive_coroutine(test_artisan_detail_profile_and_404())
-    print("All 4 backend Ticket 11 Artisan Directory & Detail tests passed!")
+    _drive_coroutine(test_approved_artisan_syncs_to_directory())
+    print("All 5 backend Ticket 11 Artisan Directory & Detail tests passed!")

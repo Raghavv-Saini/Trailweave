@@ -328,6 +328,19 @@ export default function AdminPortalPage() {
     };
 
     setArtisans((prev) => [newArtisan, ...prev.filter((a) => a.id !== newArtisan.id)]);
+
+    // Persist to local approved artisans storage for seamless demo & offline continuity
+    if (typeof window !== "undefined") {
+      try {
+        const rawSaved = localStorage.getItem("trailweave_approved_artisans");
+        const list: MockArtisan[] = rawSaved ? JSON.parse(rawSaved) : [];
+        const updatedList = [newArtisan, ...list.filter((a) => a.id !== newArtisan.id)];
+        localStorage.setItem("trailweave_approved_artisans", JSON.stringify(updatedList));
+      } catch {
+        // Storage fallback
+      }
+    }
+
     showToast(`✓ Master artisan "${payload.artisan_name}" approved & published to canonical directory!`);
   };
 

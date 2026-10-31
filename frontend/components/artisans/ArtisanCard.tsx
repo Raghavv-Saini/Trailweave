@@ -69,6 +69,11 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
 
           {/* Craft Badge on Photo */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || artisan.is_new) && (
+              <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-600 text-white px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 animate-pulse">
+                <Sparkles className="w-2.5 h-2.5" /> नई लिस्टिंग (New)
+              </span>
+            )}
             <span className="text-[10px] font-bold uppercase tracking-wider bg-white/95 text-[#1E3A5F] px-2.5 py-1 rounded-full shadow-xs backdrop-blur-xs">
               {artisan.craft_type}
             </span>
@@ -102,9 +107,16 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
         </div>
       ) : (
         <div className="px-4 pt-4 flex items-center justify-between">
-          <span className="text-[10px] font-bold text-[#1E3A5F] uppercase tracking-wider bg-[#1E3A5F]/10 px-2 py-0.5 rounded-md border border-[#1E3A5F]/20">
-            {artisan.craft_type}
-          </span>
+          <div className="flex items-center gap-1.5">
+            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || artisan.is_new) && (
+              <span className="text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white px-2 py-0.5 rounded-md shadow-xs">
+                नई लिस्टिंग (New)
+              </span>
+            )}
+            <span className="text-[10px] font-bold text-[#1E3A5F] uppercase tracking-wider bg-[#1E3A5F]/10 px-2 py-0.5 rounded-md border border-[#1E3A5F]/20">
+              {artisan.craft_type}
+            </span>
+          </div>
           {artisan.has_workshop && (
             <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center gap-0.5">
               <IndianRupee className="w-3 h-3 stroke-[2.2]" />

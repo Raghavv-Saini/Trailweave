@@ -290,11 +290,20 @@ async def approve_artisan_draft(
 
         await db.execute(
             text("""
-                INSERT INTO artisans (id, place_id, craft_type, phone_number, pin_hash, profile_status, has_workshop, workshop_fee_inr, workshop_duration_minutes, workshop_description, catalogue_images)
-                VALUES (:artisan_id, :place_id, :craft, :phone, :pin, 'approved', :has_ws, :fee, :dur, :desc, :imgs)
+                INSERT INTO artisans (
+                    id, place_id, artisan_name, craft_type, phone_number, pin_hash,
+                    bio, profile_status, has_workshop, workshop_fee_inr,
+                    workshop_duration_minutes, workshop_description, catalogue_images
+                )
+                VALUES (
+                    :artisan_id, :place_id, :artisan_name, :craft, :phone, :pin,
+                    :bio, 'approved', :has_ws, :fee, :dur, :desc, CAST(:imgs AS jsonb)
+                )
                 ON CONFLICT (id) DO UPDATE SET
+                    artisan_name = EXCLUDED.artisan_name,
                     craft_type = EXCLUDED.craft_type,
                     phone_number = EXCLUDED.phone_number,
+                    bio = EXCLUDED.bio,
                     profile_status = 'approved',
                     has_workshop = EXCLUDED.has_workshop,
                     workshop_fee_inr = EXCLUDED.workshop_fee_inr,
@@ -305,14 +314,16 @@ async def approve_artisan_draft(
             {
                 "artisan_id": artisan_id,
                 "place_id": place_id,
+                "artisan_name": artisan_name,
                 "craft": craft_type,
                 "phone": phone_number,
                 "pin": pin_hash,
+                "bio": bio,
                 "has_ws": has_workshop,
                 "fee": workshop_fee,
                 "dur": workshop_dur,
                 "desc": workshop_desc,
-                "imgs": catalogue_images,
+                "imgs": json.dumps(catalogue_images) if isinstance(catalogue_images, list) else catalogue_images,
             }
         )
 

@@ -19,6 +19,10 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Union[List[str], str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     GEMINI_API_KEY: str = ""
     GOOGLE_MAPS_API_KEY: str = ""
+    JWT_SECRET_KEY: str = ""
+    PIN_HASH_SALT: str = ""
+    PASSWORD_HASH_SALT: str = ""
+    WHATSAPP_VERIFY_TOKEN: str = ""
 
     @property
     def async_database_url(self) -> str:

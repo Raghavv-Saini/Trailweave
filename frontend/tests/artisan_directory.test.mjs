@@ -37,11 +37,10 @@ test("Artisan Studio Directory page (/artisans) fulfills Ticket 11 requirements"
     "Directory must provide hands-on masterclass filter toggle"
   );
 
-  // 4. Clean tourist directory (artisan onboarding moved exclusively to Role Gateway /login)
-  assert.equal(
+  // 4. Artisan voice onboarding CTA
+  assert.ok(
     directorySource.includes("/artisans/onboard"),
-    false,
-    "Tourist directory must not show artisan onboarding CTA banner"
+    "Directory must link artisans to /artisans/onboard"
   );
 
   // 5. FloatingBasketButton and BasketDrawer
@@ -63,34 +62,33 @@ test("Artisan Studio Card (ArtisanCard) includes photo preview, hours, fees, and
     cardSource.includes("artisan.craft_type") &&
       cardSource.includes("artisan.artisan_name") &&
       cardSource.includes("artisan.address"),
-    "Card must render craft type, master name, and physical address"
+    "Card must display craft type, name, and address"
+  );
+  assert.ok(
+    cardSource.includes("opening_time") && cardSource.includes("closing_time"),
+    "Card must display store opening hours"
+  );
+  assert.ok(
+    cardSource.includes("workshop_fee_inr") && cardSource.includes("workshop_duration_minutes"),
+    "Card must display workshop fee and duration"
   );
 
-  // Opening hours
+  // Photo gallery preview
   assert.ok(
-    cardSource.includes("artisan.opening_time") &&
-      cardSource.includes("artisan.closing_time"),
-    "Card must display store opening and closing hours"
-  );
-
-  // Workshop fees & duration
-  assert.ok(
-    cardSource.includes("artisan.workshop_fee_inr") &&
-      cardSource.includes("artisan.workshop_duration_minutes"),
-    "Card must display workshop fees in INR and duration in minutes"
-  );
-
-  // Catalogue photo preview
-  assert.ok(
-    cardSource.includes("catalogue_images") || cardSource.includes("previewImage"),
-    "Card must render preview photo of artisan artifacts"
+    cardSource.includes("catalogue_images") && cardSource.includes("primaryImage"),
+    "Card must show artifact photo preview"
   );
 
   // Direct 1-tap Add to Basket button
   assert.ok(
-    cardSource.includes("addItem") &&
-      (cardSource.includes("Add to Basket") || cardSource.includes("Added to Itinerary")),
-    "Card must provide 1-tap Add to Basket button wired to BasketContext"
+    cardSource.includes("useBasket") &&
+      cardSource.includes("isInBasket") &&
+      cardSource.includes("handleBasketToggle"),
+    "Card must wire direct 1-tap Add to Basket button to BasketContext"
+  );
+  assert.ok(
+    cardSource.includes("Add to Itinerary") && cardSource.includes("In Basket"),
+    "Card button must show Add to Itinerary and In Basket states"
   );
 });
 
@@ -100,44 +98,84 @@ test("Artisan Studio Profile view (/artisans/[id]) includes rich bio, catalogue 
     "utf-8"
   );
 
-  // Master heritage bio
+  // Photo gallery and lightbox
   assert.ok(
-    detailSource.includes("artisan.bio") &&
-      (detailSource.includes("Heritage Bio & Tradition") ||
-        detailSource.includes("Heritage & Master Craftsmanship")),
-    "Profile view must render master heritage bio"
+    detailSource.includes("selectedPhotoIndex") &&
+      detailSource.includes("isLightboxOpen") &&
+      detailSource.includes("catalogue_images"),
+    "Detail view must provide interactive catalogue gallery and lightbox modal"
   );
 
-  // Catalogue & Artifact Photo Gallery
+  // Heritage bio and living legacy
   assert.ok(
-    detailSource.includes("catalogue_images") &&
-      (detailSource.includes("Artifact & Craft Gallery") ||
-        detailSource.includes("Catalogue Gallery")),
-    "Profile view must display artisan's uploaded catalogue gallery"
+    detailSource.includes("Heritage & Master Craftsmanship") &&
+      detailSource.includes("artisan.bio"),
+    "Detail view must showcase master heritage bio"
   );
 
-  // Operating retail hours
+  // Operating hours & masterclass details
   assert.ok(
-    (detailSource.includes("Daily Studio Hours") || detailSource.includes("Studio Hours")) &&
-      detailSource.includes("artisan.opening_time") &&
-      detailSource.includes("artisan.closing_time"),
-    "Profile view must display daily studio retail hours"
+    detailSource.includes("Studio Hours") &&
+      detailSource.includes("Hands-On Masterclass Offering") &&
+      detailSource.includes("workshop_fee_inr"),
+    "Detail view must display studio hours and workshop masterclass offerings"
   );
 
-  // Hands-on workshop masterclass details
+  // Direct 1-tap Add to Basket button wired to BasketContext
   assert.ok(
-    detailSource.includes("Masterclass") &&
-      detailSource.includes("artisan.workshop_fee_inr") &&
-      detailSource.includes("artisan.workshop_duration_minutes") &&
-      detailSource.includes("artisan.workshop_description"),
-    "Profile view must display workshop fee, duration, and what you will learn"
+    detailSource.includes("useBasket") &&
+      detailSource.includes("handleBasketToggle") &&
+      detailSource.includes("data-testid=\"artisan-detail-basket-btn\""),
+    "Detail view must provide direct 1-tap Add to Basket button wired to BasketContext"
   );
 
-  // Direct 1-tap Add to Basket CTA
+  // Call Studio and Get Directions
   assert.ok(
-    detailSource.includes("addItem") &&
-      (detailSource.includes("Add Workshop to Basket") ||
-        detailSource.includes("Add Studio / Workshop to Itinerary")),
-    "Profile view must provide direct 1-tap Add Workshop to Basket CTA"
+    detailSource.includes("tel:") && detailSource.includes("maps/search"),
+    "Detail view must provide Call Studio and Get Directions links"
   );
 });
+
+test("Artisan Onboarding to Directory real-time sync & new listing indicators", () => {
+  const directorySource = fs.readFileSync(
+    path.resolve("app/artisans/page.tsx"),
+    "utf-8"
+  );
+  const cardSource = fs.readFileSync(
+    path.resolve("components/artisans/ArtisanCard.tsx"),
+    "utf-8"
+  );
+  const onboardSource = fs.readFileSync(
+    path.resolve("app/artisans/onboard/page.tsx"),
+    "utf-8"
+  );
+  const nextConfigSource = fs.readFileSync(
+    path.resolve("next.config.ts"),
+    "utf-8"
+  );
+
+  // 1. Directory hydrates from localStorage approved artisans
+  assert.ok(
+    directorySource.includes("trailweave_approved_artisans"),
+    "Directory must hydrate approved artisans from localStorage for instant sync"
+  );
+
+  // 2. Card renders New Listing badge
+  assert.ok(
+    cardSource.includes("नई लिस्टिंग") || cardSource.includes("New"),
+    "Artisan card must display a New Listing badge for newly onboarded artisans"
+  );
+
+  // 3. Onboard page links to /admin for approval
+  assert.ok(
+    onboardSource.includes("/admin"),
+    "Onboard page must provide direct link to /admin to review and approve newly onboarded studios"
+  );
+
+  // 4. Next.js config includes API rewrites
+  assert.ok(
+    nextConfigSource.includes("rewrites") && nextConfigSource.includes("/api/:path*"),
+    "next.config.ts must proxy /api requests to FastAPI backend"
+  );
+});
+

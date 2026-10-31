@@ -35,6 +35,18 @@ export default function ArtisanDetailPage() {
 
   const { addItem, removeItem, isInBasket } = useBasket();
   const [artisan, setArtisan] = useState<MockArtisan>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("trailweave_approved_artisans");
+        if (saved) {
+          const parsed: MockArtisan[] = JSON.parse(saved);
+          const found = parsed.find((a) => a.id === artisanId);
+          if (found) return found;
+        }
+      } catch {
+        // Fall back
+      }
+    }
     return MOCK_ARTISANS.find((a) => a.id === artisanId) || MOCK_ARTISANS[0];
   });
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number>(0);
@@ -52,10 +64,42 @@ export default function ArtisanDetailPage() {
           const data = await res.json();
           if (isMounted && data?.id) {
             setArtisan(data);
+            return;
           }
         }
       } catch {
-        // Fall back to local mock
+        // Fall back to direct backend URL
+      }
+
+      try {
+        const directApiBase =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+        const res = await fetch(`${directApiBase}/artisans/${artisanId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data?.id) {
+            setArtisan(data);
+            return;
+          }
+        }
+      } catch {
+        // Fall back
+      }
+
+      // Check localStorage fallback
+      if (typeof window !== "undefined") {
+        try {
+          const saved = localStorage.getItem("trailweave_approved_artisans");
+          if (saved) {
+            const parsed: MockArtisan[] = JSON.parse(saved);
+            const found = parsed.find((a) => a.id === artisanId);
+            if (found && isMounted) {
+              setArtisan(found);
+            }
+          }
+        } catch {
+          // ignore
+        }
       }
     }
     loadArtisan();

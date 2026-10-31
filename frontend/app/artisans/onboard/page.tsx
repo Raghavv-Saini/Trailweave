@@ -16,7 +16,6 @@ import {
   Sparkles,
   Image as ImageIcon,
   LogOut,
-  FileAudio,
   AlertCircle,
   ExternalLink,
   ShieldCheck,
@@ -211,7 +210,6 @@ export default function ArtisanOnboardAndCataloguePage() {
   const [catalogueImages, setCatalogueImages] = useState<string[]>([
     ...SAMPLE_VOICE_PRESETS[0].images,
   ]);
-  const [newOnboardImageUrl, setNewOnboardImageUrl] = useState("");
   const [isSubmittingOnboard, setIsSubmittingOnboard] = useState(false);
   const [onboardError, setOnboardError] = useState<string | null>(null);
   const [submittedProfile, setSubmittedProfile] =
@@ -227,7 +225,6 @@ export default function ArtisanOnboardAndCataloguePage() {
     pin: string;
     profile: ArtisanPortalProfile;
   } | null>(null);
-  const [newCatalogueUrl, setNewCatalogueUrl] = useState("");
   const [isUpdatingCatalogue, setIsUpdatingCatalogue] = useState(false);
   const [catalogueNotice, setCatalogueNotice] = useState<string | null>(null);
 
@@ -238,7 +235,7 @@ export default function ArtisanOnboardAndCataloguePage() {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiBase =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   // Hydrate persistent artisan device session from localStorage on mount
   useEffect(() => {
@@ -413,20 +410,6 @@ export default function ArtisanOnboardAndCataloguePage() {
     }
   };
 
-  // Handle Audio File Upload (<input type="file" accept="audio/*">)
-  const handleAudioFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAudioFileName(file.name);
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (typeof reader.result === "string") {
-        setAudioBase64(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
   // Handle 1-Tap GPS Location Share
   const handleShareGpsLocation = () => {
     if (typeof window !== "undefined" && navigator.geolocation) {
@@ -510,7 +493,7 @@ export default function ArtisanOnboardAndCataloguePage() {
 
       let profile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/onboard`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/onboard`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -575,7 +558,7 @@ export default function ArtisanOnboardAndCataloguePage() {
       let statusErr: string | null = null;
 
       try {
-        const res = await fetch(`${apiBase}/artisans/login`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -678,7 +661,7 @@ export default function ArtisanOnboardAndCataloguePage() {
     try {
       let updatedProfile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/me/catalogue`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/me/catalogue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -709,7 +692,6 @@ export default function ArtisanOnboardAndCataloguePage() {
         ...activeSession,
         profile: updatedProfile,
       });
-      setNewCatalogueUrl("");
       setCatalogueNotice("✨ नई फ़ोटो आपके कैटलॉग में जोड़ दी गई है (Photo added to your catalogue)!");
     } finally {
       setIsUpdatingCatalogue(false);
@@ -725,7 +707,7 @@ export default function ArtisanOnboardAndCataloguePage() {
     try {
       let updatedProfile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/me/catalogue`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/me/catalogue`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -780,7 +762,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
-            <Mic className="w-3.5 h-3.5 text-[#E05A2B]" />
+            <Mic className="w-3.5 h-3.5 text-[#1E3A5F]" />
             <span>नया पंजीकरण (New Signup)</span>
           </button>
 
@@ -789,11 +771,11 @@ export default function ArtisanOnboardAndCataloguePage() {
             onClick={() => setActiveTab("portal")}
             className={`flex-1 py-2.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               activeTab === "portal"
-                ? "bg-neutral-900 text-white shadow-xs font-extrabold"
+                ? "bg-[#1E3A5F] text-white shadow-xs font-extrabold"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
-            <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+            <ImageIcon className="w-3.5 h-3.5 text-amber-300" />
             <span>मेरी दुकान / मेरा कैटलॉग</span>
           </button>
         </div>
@@ -804,15 +786,15 @@ export default function ArtisanOnboardAndCataloguePage() {
              ================================================================ */
           <div className="space-y-4">
             {/* Hero Instruction Banner */}
-            <div className="rounded-2xl bg-gradient-to-br from-[#E05A2B] to-[#993412] p-4 text-white shadow-sm space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">
-                <Sparkles className="w-3 h-3 text-amber-200" />
+            <div className="rounded-2xl bg-gradient-to-br from-[#1E3A5F] to-[#152842] p-4 text-white shadow-sm space-y-1.5 border border-[#1E3A5F]/20">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/15 text-[10px] font-bold">
+                <Sparkles className="w-3 h-3 text-amber-300" />
                 <span>उदयपुर कारीगर स्व-पंजीकरण • Zero-Barrier Hindi Voice</span>
               </div>
               <h2 className="text-base font-extrabold leading-snug">
                 अपनी आवाज़ में अपनी दुकान और वर्कशॉप की जानकारी दें
               </h2>
-              <p className="text-[11px] text-amber-100 leading-relaxed">
+              <p className="text-[11px] text-[#F5F1E8]/90 leading-relaxed">
                 कोई जटिल फ़ॉर्म या अंग्रेज़ी पासवर्ड नहीं — बस अपना फ़ोन नंबर, 4-अंकों का पिन डालें और हिंदी में बोलकर अपनी कला व फ़ोटो जोड़ें।
               </p>
             </div>
@@ -832,7 +814,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                       </p>
                     </div>
                   </div>
-                  <span className="px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-950 text-[10px] font-extrabold uppercase">
+                  <span className="px-2 py-0.5 rounded-full bg-[#9E7432]/10 text-[#9E7432] text-[10px] font-extrabold uppercase border border-[#9E7432]/20">
                     {submittedProfile.approval_status}
                   </span>
                 </div>
@@ -846,7 +828,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-neutral-500">कला (Craft):</span>
-                    <span className="font-bold text-[#E05A2B]">
+                    <span className="font-bold text-[#1E3A5F]">
                       {submittedProfile.craft_type}
                     </span>
                   </div>
@@ -869,8 +851,8 @@ export default function ArtisanOnboardAndCataloguePage() {
 
                 {/* AI Admin Brief Preview */}
                 {submittedProfile.admin_brief && (
-                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200/80 space-y-1">
-                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-amber-900">
+                  <div className="p-3 rounded-xl bg-[#FBF9F5] border border-[#E8E4DC] space-y-1">
+                    <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#1E3A5F]">
                       AI-Generated English Admin Brief (Sent to /admin)
                     </p>
                     <p className="text-xs text-neutral-800 leading-relaxed">
@@ -879,14 +861,21 @@ export default function ArtisanOnboardAndCataloguePage() {
                   </div>
                 )}
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => setActiveTab("portal")}
-                    className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs text-center cursor-pointer"
+                    className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-bold text-xs text-center cursor-pointer transition-colors shadow-2xs"
                   >
                     मेरी दुकान और कैटलॉग खोलें (Manage My Catalogue) &rarr;
                   </button>
+                  <Link
+                    href="/admin"
+                    className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs text-center flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    <span>क्यूरेटर पोर्टल खोलें (Open /admin to Approve) &rarr;</span>
+                  </Link>
                 </div>
               </div>
             )}
@@ -896,7 +885,7 @@ export default function ArtisanOnboardAndCataloguePage() {
               {/* Step 1: Phone Number + 4-Digit UPI-Style PIN */}
               <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-2xs space-y-3">
                 <h3 className="text-xs font-extrabold text-neutral-900 flex items-center gap-1.5">
-                  <span className="w-5 h-5 rounded-full bg-[#E05A2B] text-white text-[11px] flex items-center justify-center font-bold">
+                  <span className="w-5 h-5 rounded-full bg-[#1E3A5F] text-white text-[11px] flex items-center justify-center font-bold">
                     1
                   </span>
                   <span>फ़ोन नंबर और 4-अंकों का पिन (Phone &amp; 4-Digit PIN)</span>
@@ -919,7 +908,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="+91 98290 99887"
-                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#E05A2B]"
+                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
                       />
                     </div>
                   </div>
@@ -945,7 +934,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                           setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
                         }
                         placeholder="1234"
-                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 text-xs font-extrabold tracking-widest text-neutral-900 focus:outline-none focus:border-[#E05A2B]"
+                        className="w-full pl-8 pr-3 py-2 rounded-xl border border-neutral-300 text-xs font-extrabold tracking-widest text-neutral-900 focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
                       />
                     </div>
                   </div>
@@ -959,17 +948,17 @@ export default function ArtisanOnboardAndCataloguePage() {
               <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-extrabold text-neutral-900 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-[#E05A2B] text-white text-[11px] flex items-center justify-center font-bold">
+                    <span className="w-5 h-5 rounded-full bg-[#1E3A5F] text-white text-[11px] flex items-center justify-center font-bold">
                       2
                     </span>
                     <span>हिंदी वॉइस नोट रिकॉर्ड करें (1-Tap Hindi Voice Note)</span>
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F]">
                     Google STT (hi-IN)
                   </span>
                 </div>
 
-                <p className="text-[11px] text-neutral-600 bg-amber-50/70 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed">
+                <p className="text-[11px] text-[#5A544B] bg-[#FBF9F5] p-2.5 rounded-xl border border-[#E8E4DC] leading-relaxed">
                   🎙️ <strong>क्या बोलें:</strong> &ldquo;नमस्ते, मैं शंकर लाल कुम्हार हूँ। मेरी टेराकोटा पॉटरी की दुकान हाथीपोल में है। हम 45 मिनट की वर्कशॉप कराते हैं जिसकी फीस 250 रुपये है।&rdquo;
                 </p>
 
@@ -979,7 +968,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                     <button
                       type="button"
                       onClick={handleStartRecording}
-                      className="flex-1 py-3 px-4 rounded-2xl bg-[#E05A2B] hover:bg-[#c94d23] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
+                      className="flex-1 py-3 px-4 rounded-2xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm cursor-pointer transition-all"
                     >
                       <Mic className="w-4 h-4" />
                       <span>बोलने के लिए दबाएं (Tap to Record in Hindi)</span>
@@ -988,7 +977,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                     <button
                       type="button"
                       onClick={handleStopRecording}
-                      className="flex-1 py-3 px-4 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm animate-pulse cursor-pointer"
+                      className="flex-1 py-3 px-4 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-sm animate-pulse cursor-pointer"
                     >
                       <Square className="w-4 h-4 fill-current" />
                       <span>
@@ -996,18 +985,6 @@ export default function ArtisanOnboardAndCataloguePage() {
                       </span>
                     </button>
                   )}
-
-                  {/* Audio file upload alternative */}
-                  <label className="py-2.5 px-3 rounded-2xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-bold text-[11px] flex items-center justify-center gap-1.5 cursor-pointer border border-neutral-200">
-                    <FileAudio className="w-3.5 h-3.5 text-neutral-600" />
-                    <span>ऑडियो फ़ाइल चुनें</span>
-                    <input
-                      type="file"
-                      accept="audio/*"
-                      onChange={handleAudioFileUpload}
-                      className="hidden"
-                    />
-                  </label>
                 </div>
 
                 {audioFileName && (
@@ -1038,7 +1015,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                           );
                           setCatalogueImages([...preset.images]);
                         }}
-                        className="px-2.5 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-950 text-[11px] font-semibold cursor-pointer transition-colors"
+                        className="px-2.5 py-1.5 rounded-xl bg-[#FBF9F5] hover:bg-[#F5F1E8] border border-[#E8E4DC] hover:border-[#1E3A5F]/40 text-[#191C1E] text-[11px] font-semibold cursor-pointer transition-colors"
                       >
                         🎙️ {preset.labelHi}
                       </button>
@@ -1063,7 +1040,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                       setTextMessage(e.target.value);
                     }}
                     placeholder="नमस्ते, मैं शंकर लाल कुम्हार हूँ..."
-                    className="w-full p-2.5 rounded-xl border border-neutral-300 text-xs text-neutral-900 leading-relaxed focus:outline-none focus:border-[#E05A2B]"
+                    className="w-full p-2.5 rounded-xl border border-neutral-300 text-xs text-neutral-900 leading-relaxed focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
                   />
                   <p className="text-[10px] text-neutral-500 mt-1 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
@@ -1078,7 +1055,7 @@ export default function ArtisanOnboardAndCataloguePage() {
               <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-2xs space-y-2.5">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-extrabold text-neutral-900 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-[#E05A2B] text-white text-[11px] flex items-center justify-center font-bold">
+                    <span className="w-5 h-5 rounded-full bg-[#1E3A5F] text-white text-[11px] flex items-center justify-center font-bold">
                       3
                     </span>
                     <span>दुकान का स्थान (Optional 1-Tap GPS Location)</span>
@@ -1089,9 +1066,9 @@ export default function ArtisanOnboardAndCataloguePage() {
                   <button
                     type="button"
                     onClick={handleShareGpsLocation}
-                    className="py-2 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="py-2 px-3 rounded-xl bg-[#FBF9F5] hover:bg-[#F5F1E8] border border-[#E8E4DC] hover:border-[#1E3A5F]/40 text-[#191C1E] font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
-                    <MapPin className="w-3.5 h-3.5 text-[#E05A2B]" />
+                    <MapPin className="w-3.5 h-3.5 text-[#1E3A5F]" />
                     <span>अपना वर्तमान स्थान साझा करें (Share Current GPS)</span>
                   </button>
 
@@ -1107,7 +1084,7 @@ export default function ArtisanOnboardAndCataloguePage() {
               <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-2xs space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-extrabold text-neutral-900 flex items-center gap-1.5">
-                    <span className="w-5 h-5 rounded-full bg-[#E05A2B] text-white text-[11px] flex items-center justify-center font-bold">
+                    <span className="w-5 h-5 rounded-full bg-[#1E3A5F] text-white text-[11px] flex items-center justify-center font-bold">
                       4
                     </span>
                     <span>
@@ -1119,11 +1096,11 @@ export default function ArtisanOnboardAndCataloguePage() {
                   </span>
                 </div>
 
-                {/* Upload from Camera/Device or URL */}
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <label className="py-2 px-3 rounded-xl bg-[#E05A2B]/10 hover:bg-[#E05A2B]/20 text-[#E05A2B] border border-[#E05A2B]/30 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer">
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>📷 फ़ोटो अपलोड करें (Camera / Gallery)</span>
+                {/* Upload from Camera/Device */}
+                <div>
+                  <label className="w-full py-2.5 px-4 rounded-xl bg-[#1E3A5F]/10 hover:bg-[#1E3A5F]/15 text-[#1E3A5F] border border-[#1E3A5F]/30 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors shadow-2xs">
+                    <Upload className="w-4 h-4" />
+                    <span>📷 कैमरे या गैलरी से फ़ोटो चुनें (Camera / Gallery)</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -1132,32 +1109,6 @@ export default function ArtisanOnboardAndCataloguePage() {
                       className="hidden"
                     />
                   </label>
-
-                  <div className="flex-1 flex gap-1.5">
-                    <input
-                      type="url"
-                      value={newOnboardImageUrl}
-                      onChange={(e) => setNewOnboardImageUrl(e.target.value)}
-                      placeholder="या फ़ोटो URL पेस्ट करें (https://...)"
-                      className="flex-1 px-3 py-1.5 rounded-xl border border-neutral-300 text-xs focus:outline-none focus:border-[#E05A2B]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (newOnboardImageUrl.trim()) {
-                          setCatalogueImages((prev) =>
-                            prev.includes(newOnboardImageUrl.trim())
-                              ? prev
-                              : [...prev, newOnboardImageUrl.trim()]
-                          );
-                          setNewOnboardImageUrl("");
-                        }
-                      }}
-                      className="px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-bold cursor-pointer"
-                    >
-                      जोड़ें
-                    </button>
-                  </div>
                 </div>
 
                 {/* Quick Sample Craft Photos */}
@@ -1173,7 +1124,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                             : [...prev, sample.url]
                         )
                       }
-                      className="px-2 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[10px] font-semibold cursor-pointer"
+                      className="px-2 py-1 rounded-lg bg-[#FBF9F5] hover:bg-[#F5F1E8] border border-[#E8E4DC] text-[#5A544B] hover:text-[#191C1E] text-[10px] font-semibold cursor-pointer transition-colors"
                     >
                       + {sample.label}
                     </button>
@@ -1221,9 +1172,9 @@ export default function ArtisanOnboardAndCataloguePage() {
               <button
                 type="submit"
                 disabled={isSubmittingOnboard}
-                className="w-full py-3.5 px-4 rounded-2xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-60 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full py-3.5 px-4 rounded-2xl bg-[#1E3A5F] hover:bg-[#152842] disabled:opacity-60 text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer transition-colors"
               >
-                <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-300" />
                 <span>
                   {isSubmittingOnboard
                     ? "Google STT (hi-IN) व Gemini AI प्रोसेस हो रहा है..."
@@ -1241,7 +1192,7 @@ export default function ArtisanOnboardAndCataloguePage() {
               /* Returning Artisan Login Card */
               <div className="p-5 rounded-2xl bg-white border border-neutral-200/90 shadow-xs space-y-4">
                 <div className="space-y-1">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F]">
                     कारीगर लॉगिन • Returning Artisan Login
                   </span>
                   <h2 className="text-base font-extrabold text-neutral-900">
@@ -1267,7 +1218,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                       value={loginPhone}
                       onChange={(e) => setLoginPhone(e.target.value)}
                       placeholder="+91 98290 99887"
-                      className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#E05A2B]"
+                      className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 text-xs font-semibold text-neutral-900 focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
                     />
                   </div>
 
@@ -1289,7 +1240,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                         setLoginPin(e.target.value.replace(/\D/g, "").slice(0, 4))
                       }
                       placeholder="1234"
-                      className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 text-xs font-extrabold tracking-widest text-neutral-900 focus:outline-none focus:border-[#E05A2B]"
+                      className="w-full px-3 py-2.5 rounded-xl border border-neutral-300 text-xs font-extrabold tracking-widest text-neutral-900 focus:outline-none focus:border-[#1E3A5F] focus:ring-1 focus:ring-[#1E3A5F]"
                     />
                   </div>
 
@@ -1302,7 +1253,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                   <button
                     type="submit"
                     disabled={isLoggingIn}
-                    className="w-full py-3 rounded-xl bg-[#E05A2B] hover:bg-[#c94d23] text-white font-extrabold text-xs shadow-sm cursor-pointer"
+                    className="w-full py-3 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-extrabold text-xs shadow-sm cursor-pointer transition-colors"
                   >
                     {isLoggingIn
                       ? "लॉग इन हो रहा है..."
@@ -1323,7 +1274,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                         setLoginPin("1234");
                         handleArtisanLogin(undefined, "+919829099887", "1234");
                       }}
-                      className="p-2.5 rounded-xl bg-amber-50/80 hover:bg-amber-100 border border-amber-200 text-left text-xs flex items-center justify-between cursor-pointer"
+                      className="p-2.5 rounded-xl bg-[#FBF9F5] hover:bg-[#F5F1E8] border border-[#E8E4DC] hover:border-[#1E3A5F]/40 text-left text-xs flex items-center justify-between cursor-pointer transition-colors"
                     >
                       <div>
                         <p className="font-bold text-neutral-900">
@@ -1333,7 +1284,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                           +919829099887 • समीक्षाधीन ड्राफ्ट (Under Review)
                         </p>
                       </div>
-                      <span className="px-2 py-0.5 rounded-md bg-amber-200 text-amber-950 font-bold text-[10px]">
+                      <span className="px-2 py-0.5 rounded-md bg-[#1E3A5F]/10 text-[#1E3A5F] font-bold text-[10px]">
                         PIN: 1234
                       </span>
                     </button>
@@ -1370,7 +1321,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                   className={`p-4 rounded-2xl border space-y-2.5 ${
                     activeSession.profile.approval_status === "approved"
                       ? "bg-emerald-50/90 border-emerald-300"
-                      : "bg-amber-50/90 border-amber-300"
+                      : "bg-[#FBF9F5] border-[#9E7432]/30"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -1382,7 +1333,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                             <span>स्वीकृत और लाइव (Approved &amp; Live)</span>
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-extrabold flex items-center gap-1">
+                          <span className="px-2.5 py-0.5 rounded-full bg-[#9E7432] text-white text-[10px] font-extrabold flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             <span>समीक्षाधीन (Under Admin Review)</span>
                           </span>
@@ -1391,7 +1342,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                       <h2 className="text-base font-extrabold text-neutral-900 pt-1">
                         {activeSession.profile.artisan_name}
                       </h2>
-                      <p className="text-xs font-semibold text-[#E05A2B]">
+                      <p className="text-xs font-semibold text-[#1E3A5F]">
                         {activeSession.profile.craft_type}
                       </p>
                     </div>
@@ -1423,7 +1374,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                     )}
                   </div>
 
-                  {activeSession.profile.approval_status === "approved" && (
+                  {activeSession.profile.approval_status === "approved" ? (
                     <div className="pt-1">
                       <Link
                         href="/artisans"
@@ -1431,6 +1382,17 @@ export default function ArtisanOnboardAndCataloguePage() {
                       >
                         <span>सार्वजनिक कारीगर डायरेक्टरी (/artisans) में अपनी दुकान देखें</span>
                         <ExternalLink className="w-3 h-3" />
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="pt-2 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs text-amber-900 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200">
+                      <span>आपकी प्रोफ़ाइल समीक्षाधीन है। व्यवस्थापक स्वीकृति के बाद यह डायरेक्टरी में लाइव होगी।</span>
+                      <Link
+                        href="/admin"
+                        className="font-bold underline text-emerald-800 shrink-0 hover:text-emerald-950 flex items-center gap-1"
+                      >
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        <span>/admin में स्वीकृति दें &rarr;</span>
                       </Link>
                     </div>
                   )}
@@ -1447,7 +1409,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                         यहाँ जोड़ी गई फ़ोटो पर्यटकों को आपकी प्रोफ़ाइल पर तुरंत दिखाई देंगी।
                       </p>
                     </div>
-                    <span className="px-2.5 py-1 rounded-full bg-amber-50 text-[#E05A2B] border border-amber-200 text-xs font-extrabold">
+                    <span className="px-2.5 py-1 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20 text-xs font-extrabold">
                       {activeSession.profile.catalogue_images.length} फ़ोटो
                     </span>
                   </div>
@@ -1464,10 +1426,10 @@ export default function ArtisanOnboardAndCataloguePage() {
                       + नई कलाकृति या वर्कशॉप की फ़ोटो जोड़ें (Add New Photos):
                     </p>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <label className="py-2 px-3 rounded-xl bg-[#E05A2B] hover:bg-[#c94d23] text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs">
-                        <Upload className="w-3.5 h-3.5" />
-                        <span>📷 कैमरे / गैलरी से फ़ोटो चुनें</span>
+                    <div>
+                      <label className="w-full py-2.5 px-4 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-2xs transition-colors">
+                        <Upload className="w-4 h-4" />
+                        <span>📷 कैमरे / गैलरी से फ़ोटो चुनें (Camera / Gallery)</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -1476,27 +1438,6 @@ export default function ArtisanOnboardAndCataloguePage() {
                           className="hidden"
                         />
                       </label>
-
-                      <div className="flex-1 flex gap-1.5">
-                        <input
-                          type="url"
-                          value={newCatalogueUrl}
-                          onChange={(e) => setNewCatalogueUrl(e.target.value)}
-                          placeholder="फ़ोटो URL डालें (https://...)"
-                          className="flex-1 px-3 py-1.5 rounded-xl bg-white border border-neutral-300 text-xs focus:outline-none focus:border-[#E05A2B]"
-                        />
-                        <button
-                          type="button"
-                          disabled={isUpdatingCatalogue || !newCatalogueUrl.trim()}
-                          onClick={() =>
-                            handleAddCataloguePhotos([newCatalogueUrl])
-                          }
-                          className="px-3 py-1.5 rounded-xl bg-neutral-900 hover:bg-neutral-800 disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        >
-                          <Plus className="w-3.5 h-3.5" />
-                          <span>जोड़ें</span>
-                        </button>
-                      </div>
                     </div>
 
                     {/* Quick 1-Tap Craft Photo Presets */}
@@ -1507,7 +1448,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                           type="button"
                           disabled={isUpdatingCatalogue}
                           onClick={() => handleAddCataloguePhotos([sample.url])}
-                          className="px-2 py-1 rounded-lg bg-white hover:bg-amber-50 border border-neutral-200 text-neutral-700 text-[10px] font-semibold cursor-pointer"
+                          className="px-2 py-1 rounded-lg bg-white hover:bg-[#F5F1E8] border border-neutral-200 text-neutral-700 text-[10px] font-semibold cursor-pointer transition-colors"
                         >
                           + {sample.label}
                         </button>

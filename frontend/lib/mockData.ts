@@ -59,6 +59,7 @@ export interface MockArtisan {
   latitude?: number;
   longitude?: number;
   catalogue_images?: string[];
+  is_new?: boolean;
 }
 
 export const MOCK_PLACES: MockPlace[] = [
