@@ -82,6 +82,17 @@ def make_udaipur_places() -> dict[str, PlaceCandidate]:
             opening_time=time(9, 0),
             closing_time=time(19, 0),
         ),
+        "place_night_lounge": PlaceCandidate(
+            id="place_night_lounge",
+            name="Ambrai Ghat Night Lounge",
+            category="dining",
+            latitude=24.5780,
+            longitude=73.6805,
+            entry_fee_inr=0.0,
+            typical_duration_minutes=60,
+            opening_time=time(18, 0),
+            closing_time=time(1, 0),  # Closes at 01:00 AM post-midnight
+        ),
     }
 
 
@@ -281,3 +292,63 @@ async def test_google_distance_matrix_used_when_api_key_present(monkeypatch):
     assert plan.stops[0].planned_arrival == datetime(2026, 11, 1, 9, 14, tzinfo=IST)
 
 
+@pytest.mark.asyncio
+async def test_post_midnight_closing_time_does_not_false_trigger_conflict():
+    """Verify places open until 1 AM post-midnight are feasible for evening arrivals."""
+    places = make_udaipur_places()
+    config = PlannerConfig(
+        start_location=StartLocation("Hotel Swaroop Vilas", 24.5854, 73.6812),
+        start_datetime=datetime(2026, 11, 1, 19, 0, tzinfo=IST),
+        total_days=1,
+        budget_inr=1000.0,
+    )
+    plan = await solve_itinerary([places["place_night_lounge"]], config)
+    assert plan.is_feasible is True
+    assert len(plan.closing_hour_conflicts) == 0
+    assert plan.stops[0].planned_arrival.time() == time(19, 10) or plan.stops[0].planned_arrival.hour >= 19
+
+
+@pytest.mark.asyncio
+async def test_utc_start_datetime_normalizes_to_ist_without_distortion():
+    """Verify UTC datetime (03:30Z = 09:00 IST) correctly maps to Udaipur local operating hours."""
+    places = make_udaipur_places()
+    # 03:30 UTC is exactly 09:00 IST
+    utc_start = datetime(2026, 11, 1, 3, 30, tzinfo=timezone.utc)
+    config = PlannerConfig(
+        start_location=StartLocation("Hotel Swaroop Vilas", 24.5854, 73.6812),
+        start_datetime=utc_start,
+        total_days=1,
+        budget_inr=1000.0,
+    )
+    plan = await solve_itinerary([places["place_city_palace"]], config)
+    assert plan.is_feasible is True
+    # City Palace opens at 9:00 AM IST. Arrival should be in IST morning, not shifted to 14:30!
+    assert plan.stops[0].planned_arrival.astimezone(IST).time() == time(9, 0) or (
+        plan.stops[0].planned_arrival.astimezone(IST).hour == 9
+    )
+    assert plan.route_geometry["start_datetime"].endswith("+05:30")
+
+
+@pytest.mark.asyncio
+async def test_curated_trail_sequence_strictly_preserved_when_optimize_route_false():
+    """Verify stops with explicit sequence_in_day preserve their order when optimize_route=False."""
+    places = make_udaipur_places()
+    # Provide reverse order deliberately
+    stop1 = places["place_city_palace"]
+    stop1.sequence_in_day = 1
+    stop2 = places["place_mohanlal_studio"]
+    stop2.sequence_in_day = 2
+    stop3 = places["place_jagdish_temple"]
+    stop3.sequence_in_day = 3
+
+    config = PlannerConfig(
+        start_location=StartLocation("Hotel Swaroop Vilas", 24.5854, 73.6812),
+        start_datetime=datetime(2026, 11, 1, 9, 0, tzinfo=IST),
+        total_days=1,
+        budget_inr=1000.0,
+        optimize_route=False,
+    )
+    plan = await solve_itinerary([stop1, stop2, stop3], config)
+    assert plan.stops[0].place_id == "place_city_palace"
+    assert plan.stops[1].place_id == "place_mohanlal_studio"
+    assert plan.stops[2].place_id == "place_jagdish_temple"
