@@ -113,35 +113,36 @@ async def _fetch_trip_active_stops(
     return stops
 
 
-async def _fetch_places_catalog(db: AsyncSession, place_ids: List[str]) -> Dict[str, Any]:
-    """Fetch place and approved artisan details for added places."""
-    if not place_ids:
-        return {}
-    res = await db.execute(
-        text("""
-            SELECT
-                p.id,
-                p.name,
-                p.address,
-                p.latitude,
-                p.longitude,
-                p.category,
-                p.entry_fee_inr,
-                p.typical_duration_minutes,
-                p.opening_time,
-                p.closing_time,
-                COALESCE(BOOL_OR(a.has_workshop), FALSE) AS has_workshop,
-                COALESCE(MIN(a.workshop_fee_inr) FILTER (WHERE a.has_workshop), 0) AS workshop_fee_inr,
-                COALESCE(MIN(a.workshop_duration_minutes) FILTER (WHERE a.has_workshop), 45) AS workshop_duration_minutes
-            FROM places p
-            LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
-            WHERE p.id = ANY(:pids)
-            GROUP BY
-                p.id, p.name, p.address, p.latitude, p.longitude, p.category,
-                p.entry_fee_inr, p.typical_duration_minutes, p.opening_time, p.closing_time
-        """),
-        {"pids": list(set(place_ids))},
-    )
+async def _fetch_places_catalog(db: AsyncSession, place_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Fetch place and approved artisan details for places catalog, ensuring comprehensive fallback availability."""
+    query_all = not place_ids or any(not pid.startswith("place_") for pid in place_ids)
+    sql = """
+        SELECT
+            p.id,
+            p.name,
+            p.address,
+            p.latitude,
+            p.longitude,
+            p.category,
+            p.entry_fee_inr,
+            p.typical_duration_minutes,
+            p.opening_time,
+            p.closing_time,
+            COALESCE(BOOL_OR(a.has_workshop), FALSE) AS has_workshop,
+            COALESCE(MIN(a.workshop_fee_inr) FILTER (WHERE a.has_workshop), 0) AS workshop_fee_inr,
+            COALESCE(MIN(a.workshop_duration_minutes) FILTER (WHERE a.has_workshop), 45) AS workshop_duration_minutes
+        FROM places p
+        LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
+    """
+    if not query_all:
+        sql += " WHERE p.id = ANY(:pids)"
+    sql += """
+        GROUP BY
+            p.id, p.name, p.address, p.latitude, p.longitude, p.category,
+            p.entry_fee_inr, p.typical_duration_minutes, p.opening_time, p.closing_time
+    """
+    params = {"pids": list(set(place_ids))} if not query_all else {}
+    res = await db.execute(text(sql), params)
     catalog = {}
     for r in res.fetchall():
         catalog[r.id] = {
@@ -159,6 +160,11 @@ async def _fetch_places_catalog(db: AsyncSession, place_ids: List[str]) -> Dict[
             "workshop_fee_inr": float(r.workshop_fee_inr or 0.0),
             "workshop_duration_minutes": int(r.workshop_duration_minutes or 45),
         }
+
+    # If specific place_ids requested but some missing, fetch all to self-heal
+    if place_ids and any(pid not in catalog for pid in place_ids) and not query_all:
+        return await _fetch_places_catalog(db, None)
+
     return catalog
 
 

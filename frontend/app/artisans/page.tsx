@@ -1,12 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import {
   Sparkles,
   Filter,
   Search,
-  Mic,
   RefreshCw,
   SlidersHorizontal,
 } from "lucide-react";
@@ -134,30 +132,7 @@ export default function ArtisansDirectoryPage() {
       <Header title="Udaipur Artisans" subtitle="Living Heritage & Masterclasses" />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
-        {/* Onboarding CTA for Artisans */}
-        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-[#1E3A5F] to-[#152842] border border-[#1E3A5F]/20 text-white shadow-sm flex items-center justify-between gap-3">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5">
-              <Mic className="w-3.5 h-3.5 animate-pulse text-amber-300" />
-              <span className="text-[11px] font-extrabold uppercase tracking-wider text-amber-200">
-                Artisan Portal
-              </span>
-            </div>
-            <p className="text-xs font-bold leading-tight">
-              क्या आप उदयपुर के कारीगर हैं? अपनी आवाज़ में जुड़ें
-            </p>
-            <p className="text-[10px] text-[#F5F1E8]/90 font-medium leading-tight">
-              Record Hindi voice & upload your artifact gallery
-            </p>
-          </div>
-          <Link
-            href="/artisans/onboard"
-            className="shrink-0 px-3 py-1.5 rounded-xl bg-white text-[#1E3A5F] font-extrabold text-[11px] hover:bg-neutral-100 transition-colors shadow-xs"
-          >
-            Onboard &rarr;
-          </Link>
-        </div>
-
+        {/* Artisan voice onboarding option is relocated to Header / Role Switcher for tourists (/artisans/onboard) */}
         {/* Search input */}
         <div className="relative">
           <Search className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -171,7 +146,7 @@ export default function ArtisansDirectoryPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs font-bold"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs font-bold cursor-pointer"
             >
               ×
             </button>
@@ -188,7 +163,7 @@ export default function ArtisansDirectoryPage() {
             {/* Workshop filter toggle switch */}
             <button
               onClick={() => setWorkshopOnly(!workshopOnly)}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer ${
                 workshopOnly
                   ? "bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/30 ring-2 ring-[#1E3A5F]/20"
                   : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200"
@@ -213,7 +188,7 @@ export default function ArtisansDirectoryPage() {
                 <button
                   key={cat.id}
                   onClick={() => setSelectedCategory(cat.id)}
-                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isSelected
                       ? "bg-[#1E3A5F] text-white shadow-xs"
                       : "bg-white text-neutral-600 border border-neutral-200/80 hover:bg-neutral-50"
@@ -238,7 +213,7 @@ export default function ArtisansDirectoryPage() {
                 setWorkshopOnly(false);
                 setSearchQuery("");
               }}
-              className="text-[#1E3A5F] font-semibold hover:underline flex items-center gap-1 text-[11px]"
+              className="text-[#1E3A5F] font-semibold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
             >
               <RefreshCw className="w-3 h-3" /> Reset Filters
             </button>
@@ -267,7 +242,7 @@ export default function ArtisansDirectoryPage() {
                 setWorkshopOnly(false);
                 setSearchQuery("");
               }}
-              className="px-4 py-2 rounded-xl bg-[#1E3A5F] text-white font-bold text-xs shadow-xs hover:bg-[#152842] transition-colors"
+              className="px-4 py-2 rounded-xl bg-[#1E3A5F] text-white font-bold text-xs shadow-xs hover:bg-[#152842] transition-colors cursor-pointer"
             >
               Show All Studios
             </button>

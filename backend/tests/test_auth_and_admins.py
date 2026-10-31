@@ -1,7 +1,17 @@
 """
 Tests for Tourist & Admin Authentication and Superuser Team Management (ADR 0011).
 """
-import pytest
+try:
+    import pytest
+except ImportError:
+    class _DummyPytest:
+        class mark:
+            @staticmethod
+            def asyncio(fn):
+                return fn
+    pytest = _DummyPytest()  # type: ignore
+
+import asyncio
 from httpx import AsyncClient, ASGITransport
 from app.main import app
 
@@ -113,3 +123,9 @@ async def test_preseeded_superuser_can_add_more_admins():
         assert sub_team.status_code == 200
         updated_emails = [u["email"] for u in sub_team.json()]
         assert "meera.admin@trailweave.org" in updated_emails
+
+
+if __name__ == "__main__":
+    asyncio.run(test_tourist_signup_login_and_me())
+    asyncio.run(test_preseeded_superuser_can_add_more_admins())
+    print("All auth and admin team tests passed!")
