@@ -1,7 +1,7 @@
 // Service Worker for TrailWeave Web Push Notifications
 // Used in Track 3 (Ticket 09) for contextual in-trip transition prompts
 
-self.addEventListener("install", (event) => {
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 

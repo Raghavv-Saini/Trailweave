@@ -8,6 +8,8 @@ import { TimelineList } from "@/components/trip/TimelineList";
 import { ManualCheckinModal } from "@/components/trip/ManualCheckinModal";
 import { AIChatDrawer } from "@/components/trip/AIChatDrawer";
 import { UpcomingStopEditor } from "@/components/trip/UpcomingStopEditor";
+import { CompanionConciergeCard } from "@/components/trip/CompanionConciergeCard";
+import { registerServiceWorker } from "@/lib/pushNotifications";
 import {
   ArtisanRecommendationCard,
   ArtisanRecommendation,
@@ -99,6 +101,10 @@ export default function ActiveTripPage() {
   } | null>(null);
 
   const promptedStopIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   // Progress counters (visited / skipped / remaining)
   const visitedCount = useMemo(
@@ -535,6 +541,9 @@ export default function ActiveTripPage() {
                 </div>
               </div>
             </div>
+
+            {/* In-App Companion Concierge Card */}
+            <CompanionConciergeCard onOpenChat={() => setIsAIChatOpen(true)} />
 
             {/* Quick Actions Row: Ask Gemini Companion + Edit Mode */}
             <div className="flex items-center justify-between gap-2">
