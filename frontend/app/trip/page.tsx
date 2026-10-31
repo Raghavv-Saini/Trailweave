@@ -8,7 +8,17 @@ import { TimelineList } from "@/components/trip/TimelineList";
 import { ManualCheckinModal } from "@/components/trip/ManualCheckinModal";
 import { AIChatDrawer } from "@/components/trip/AIChatDrawer";
 import { UpcomingStopEditor } from "@/components/trip/UpcomingStopEditor";
-import { CheckinMethod, TripStop, useTrip } from "@/context/TripContext";
+import {
+  ArtisanRecommendationCard,
+  ArtisanRecommendation,
+} from "@/components/trip/ArtisanRecommendationCard";
+import { ReplanPreviewModal } from "@/components/trip/ReplanPreviewModal";
+import {
+  CheckinMethod,
+  TripStop,
+  ReplanProposal,
+  useTrip,
+} from "@/context/TripContext";
 import {
   Sparkles,
   Edit3,
@@ -47,6 +57,7 @@ function calculateDistanceMeters(
 
 export default function ActiveTripPage() {
   const {
+    tripId,
     tripTitle,
     revision,
     stops,
@@ -54,6 +65,7 @@ export default function ActiveTripPage() {
     markVisited,
     markCheckout,
     resetDemoTrip,
+    requestReplanPreview,
   } = useTrip();
 
   // Mode switcher: Operational View vs Edit Mode
@@ -64,6 +76,14 @@ export default function ActiveTripPage() {
   const [promptMode, setPromptMode] = useState<CheckinMethod>("geofence_proximity");
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+
+  // Recommendations & Replan Preview Modal State
+  const [recommendations, setRecommendations] = useState<ArtisanRecommendation[]>([]);
+  const [isRecsOpen, setIsRecsOpen] = useState(true);
+  const [isRecPreviewOpen, setIsRecPreviewOpen] = useState(false);
+  const [recProposal, setRecProposal] = useState<ReplanProposal | null>(null);
+  const [recWorkingStops, setRecWorkingStops] = useState<TripStop[]>([]);
+  const [isLoadingRecAction, setIsLoadingRecAction] = useState(false);
 
   // Geolocation & Demo Simulator State
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
@@ -269,6 +289,147 @@ export default function ActiveTripPage() {
     setGpsStatus("watching");
     setStatusBanner(null);
     resetDemoTrip();
+  };
+
+  // Fetch active artisan recommendations
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRecs = async () => {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const res = await fetch(
+          `${apiUrl}/api/trips/${tripId}/recommendations/artisans?preference=both`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.recommendations) {
+            setRecommendations(data.recommendations);
+            return;
+          }
+        }
+      } catch {
+        // Fallback
+      }
+
+      if (isMounted) {
+        const scheduledPlaces = new Set(stops.map((s) => s.place_id));
+        const mockRecs: ArtisanRecommendation[] = [
+          {
+            artisan_id: "artisan_pottery",
+            place_id: "place_pottery_studio",
+            artisan_name: "Master Kavita Kumhar",
+            craft_type: "Terracotta Pottery & Clay Sculpting",
+            offering_type: "workshop" as const,
+            fee_inr: 250,
+            duration_minutes: 45,
+            detour_minutes: 5,
+            optimal_insert_order: 2,
+            rationale:
+              "Master Kavita Kumhar: 5 min detour, ₹250 workshop fee, open until 7:30 PM, fits under your ₹1,070 budget",
+            latitude: 24.5815,
+            longitude: 73.682,
+            address: "22 Chandpole Ghat Road, Old City, Udaipur",
+            image_url:
+              "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+            has_workshop: true,
+          },
+          {
+            artisan_id: "artisan_puppetry",
+            place_id: "place_puppetry_workshop",
+            artisan_name: "Babu Bhatt Puppeteer",
+            craft_type: "Kathputli Traditional String Puppetry",
+            offering_type: "workshop" as const,
+            fee_inr: 200,
+            duration_minutes: 45,
+            detour_minutes: 5,
+            optimal_insert_order: 2,
+            rationale:
+              "Babu Bhatt Puppeteer: 5 min detour, ₹200 workshop fee, open until 7 PM, fits under your ₹1,070 budget",
+            latitude: 24.5788,
+            longitude: 73.6815,
+            address: "Gangaur Ghat Road, Old City, Udaipur",
+            image_url:
+              "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+            has_workshop: true,
+          },
+          {
+            artisan_id: "artisan_leather",
+            place_id: "place_leather_craft",
+            artisan_name: "Ramesh Chandra Parmar",
+            craft_type: "Handcrafted Camel Leather & Mojari Juttis",
+            offering_type: "store" as const,
+            fee_inr: 0,
+            duration_minutes: 20,
+            detour_minutes: 6,
+            optimal_insert_order: 3,
+            rationale:
+              "Ramesh Chandra Parmar: 6 min detour, ₹0 entry (store visit), open until 8:30 PM, fits under your ₹1,070 budget",
+            latitude: 24.584,
+            longitude: 73.6865,
+            address: "Hathi Pole Bazaar, Udaipur",
+            image_url:
+              "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+            has_workshop: false,
+          },
+        ].filter((r) => !scheduledPlaces.has(r.place_id));
+
+        setRecommendations(mockRecs);
+      }
+    };
+
+    fetchRecs();
+    return () => {
+      isMounted = false;
+    };
+  }, [tripId, stops]);
+
+  // Handle 1-Tap "Accept & Add to Route"
+  const handleAcceptOperationalRec = async (rec: ArtisanRecommendation) => {
+    setIsLoadingRecAction(true);
+    try {
+      const op = {
+        type: "add_stop" as const,
+        place_id: rec.place_id,
+        new_order: rec.optimal_insert_order,
+      };
+
+      const newStop: TripStop = {
+        id: `stop_${rec.place_id}_${Date.now()}`,
+        place_id: rec.place_id,
+        name: rec.artisan_name,
+        address: rec.address || "Old City, Udaipur",
+        latitude: rec.latitude,
+        longitude: rec.longitude,
+        category: "artisan_studio",
+        entry_fee_inr: rec.fee_inr,
+        image_url:
+          rec.image_url ||
+          "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
+        day_number: 1,
+        sequence_in_day: rec.optimal_insert_order,
+        suggested_duration_minutes: rec.duration_minutes,
+        visit_status: "pending",
+        is_pinned: false,
+      };
+
+      const insertIdx = Math.min(
+        Math.max(0, rec.optimal_insert_order - 1),
+        stops.length
+      );
+      const updatedStops = [...stops];
+      updatedStops.splice(insertIdx, 0, newStop);
+      const reindexed = updatedStops.map((s, idx) => ({
+        ...s,
+        sequence_in_day: idx + 1,
+      }));
+
+      const proposal = await requestReplanPreview([op]);
+      setRecWorkingStops(reindexed);
+      setRecProposal(proposal);
+      setIsRecPreviewOpen(true);
+    } finally {
+      setIsLoadingRecAction(false);
+    }
   };
 
   return (
@@ -507,6 +668,48 @@ export default function ActiveTripPage() {
               )}
             </div>
 
+            {/* Route Discoveries: Nearby Verified Udaipur Artisans (Within 15 Min Detour) */}
+            {recommendations.length > 0 && (
+              <div className="rounded-2xl border border-amber-200/90 bg-amber-50/40 overflow-hidden shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setIsRecsOpen((prev) => !prev)}
+                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-amber-950 hover:bg-amber-100/50 transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#E05A2B]" />
+                    <span>
+                      Nearby Artisan Discoveries ({recommendations.length} within 15m detour)
+                    </span>
+                  </span>
+                  {isRecsOpen ? (
+                    <ChevronUp className="w-4 h-4 text-amber-700" />
+                  ) : (
+                    <ChevronDown className="w-4 h-4 text-amber-700" />
+                  )}
+                </button>
+
+                {isRecsOpen && (
+                  <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-amber-200/60">
+                    <p className="text-[11px] text-amber-900 leading-relaxed">
+                      Constraint-aware studio workshops scored along your active route:
+                    </p>
+                    <div className="space-y-2">
+                      {recommendations.map((rec) => (
+                        <ArtisanRecommendationCard
+                          key={rec.place_id}
+                          recommendation={rec}
+                          onAccept={handleAcceptOperationalRec}
+                          isStaged={stops.some((s) => s.place_id === rec.place_id)}
+                          isLoading={isLoadingRecAction}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Today's Itinerary Timeline */}
             <div className="space-y-2.5">
               <div className="flex items-center justify-between">
@@ -562,6 +765,21 @@ export default function ActiveTripPage() {
         distanceMeters={distanceToActiveMeters}
         onClose={() => setIsCheckinModalOpen(false)}
         onConfirm={(id, method) => handleGeofenceCheckin(id, method)}
+      />
+
+      {/* 1-Tap Recommendation Replan Preview Modal */}
+      <ReplanPreviewModal
+        isOpen={isRecPreviewOpen}
+        onClose={() => setIsRecPreviewOpen(false)}
+        proposal={recProposal}
+        workingStops={recWorkingStops}
+        onCommitSuccess={() => {
+          setStatusBanner({
+            type: "checkin",
+            message:
+              "Artisan studio successfully added to your route! Itinerary revision updated.",
+          });
+        }}
       />
 
       <AIChatDrawer

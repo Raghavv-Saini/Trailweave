@@ -126,6 +126,33 @@ const PLACE_DEFAULTS: Record<
     image_url:
       "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
   },
+  place_pottery_studio: {
+    address: "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
+    latitude: 24.5815,
+    longitude: 73.6820,
+    category: "artisan_studio",
+    entry_fee_inr: 0,
+    image_url:
+      "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+  },
+  place_puppetry_workshop: {
+    address: "Gangaur Ghat Road, Old City, Udaipur, Rajasthan 313001",
+    latitude: 24.5788,
+    longitude: 73.6815,
+    category: "artisan_studio",
+    entry_fee_inr: 0,
+    image_url:
+      "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+  },
+  place_leather_craft: {
+    address: "Hathi Pole Bazaar, Udaipur, Rajasthan 313001",
+    latitude: 24.5840,
+    longitude: 73.6865,
+    category: "artisan_studio",
+    entry_fee_inr: 0,
+    image_url:
+      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+  },
   place_jagdish_temple: {
     address: "1 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
     latitude: 24.5794,
