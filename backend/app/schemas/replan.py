@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Literal, Optional, Any, Dict
 from pydantic import BaseModel, ConfigDict
+from app.schemas.trips import TripStopResponse
 
 
 class ReplanOperation(BaseModel):
@@ -8,6 +9,8 @@ class ReplanOperation(BaseModel):
     place_id: Optional[str] = None
     stop_id: Optional[str] = None
     new_order: Optional[int] = None
+    day_number: Optional[int] = 1
+    is_pinned: Optional[bool] = None
 
 
 class ReplanPreviewRequest(BaseModel):
@@ -29,7 +32,7 @@ class ReplanProposalResponse(BaseModel):
     base_revision: int
     is_feasible: bool
     validation_diff: ValidationDiff
-    candidate_stops: List[Dict[str, Any]] = []
+    candidate_stops: List[TripStopResponse] = []
     expires_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -44,3 +47,16 @@ class ReplanAcceptResponse(BaseModel):
     success: bool
     new_revision: int
     message: str
+
+
+class TripEventResponse(BaseModel):
+    id: str
+    trip_id: str
+    resulting_revision: int
+    actor: str
+    source: str
+    event_type: str
+    payload: Optional[Dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)

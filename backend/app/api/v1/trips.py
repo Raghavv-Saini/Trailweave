@@ -441,32 +441,6 @@ async def get_trip(
     )
 
 
-@router.get("/trips/{trip_id}/events")
-async def get_trip_events(
-    trip_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Fetch append-only trip event log for audit trail & AI context."""
-    res = await db.execute(
-        text("SELECT * FROM trip_events WHERE trip_id = :id ORDER BY created_at DESC LIMIT 20"),
-        {"id": trip_id}
-    )
-    rows = res.fetchall()
-    return [
-        {
-            "id": r.id,
-            "trip_id": r.trip_id,
-            "resulting_revision": r.resulting_revision,
-            "actor": r.actor,
-            "source": r.source,
-            "event_type": r.event_type,
-            "payload": r.payload,
-            "created_at": r.created_at
-        }
-        for r in rows
-    ]
-
-
 @router.post("/trips/{trip_id}/stops/{stop_id}/visit")
 async def record_stop_visit(
     trip_id: str,
