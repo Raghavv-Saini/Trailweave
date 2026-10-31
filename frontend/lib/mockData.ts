@@ -19,21 +19,27 @@ export interface MockTrailStop {
   estimated_transit_minutes: number;
   time_slot: string;
   traveler_tip: string;
+  entry_fee_inr?: number;
+  category?: string;
 }
 
 export interface MockTrail {
   id: string;
-  title: string;
+  author_id?: string;
   author_name: string;
+  title: string;
   description: string;
+  destination?: string;
   duration_type: "single_day" | "multi_day";
+  total_days?: number;
   total_duration_hours: number;
   estimated_cost_inr: number;
   tags: string[];
   is_experienced: boolean;
+  visibility?: "public" | "unlisted" | "private";
   is_featured: boolean;
   stops_count: number;
-  stops?: MockTrailStop[];
+  stops: MockTrailStop[];
 }
 
 export interface MockArtisan {
@@ -245,4 +251,36 @@ export const MOCK_ARTISANS: MockArtisan[] = [
       "Learn 400-year-old squirrel-hair brush techniques on handmade paper.",
   },
 ];
+
+export function addPublishedTrail(trail: MockTrail): void {
+  if (!MOCK_TRAILS.some((t) => t.id === trail.id)) {
+    MOCK_TRAILS.unshift(trail);
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const stored = JSON.parse(localStorage.getItem("trailweave_user_trails") || "[]");
+      const filtered = stored.filter((t: MockTrail) => t.id !== trail.id);
+      filtered.unshift(trail);
+      localStorage.setItem("trailweave_user_trails", JSON.stringify(filtered));
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+  }
+}
+
+// Hydrate stored user trails from localStorage on client
+if (typeof window !== "undefined") {
+  try {
+    const stored = JSON.parse(localStorage.getItem("trailweave_user_trails") || "[]");
+    if (Array.isArray(stored)) {
+      for (const t of stored) {
+        if (!MOCK_TRAILS.some((existing) => existing.id === t.id)) {
+          MOCK_TRAILS.unshift(t);
+        }
+      }
+    }
+  } catch {
+    // Ignore
+  }
+}
 

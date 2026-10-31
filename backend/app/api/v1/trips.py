@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.security import get_current_user_id
 from app.schemas.trips import (
     BasketStopInput,
     TravelRequest,
@@ -19,6 +20,7 @@ from app.schemas.trips import (
     TripStopResponse,
     ItineraryVersionResponse,
 )
+from app.services.gemini import GeminiTrailDraftService
 from app.services.planner import (
     PlaceCandidate,
     PlannerConfig,
@@ -49,12 +51,26 @@ class CheckoutRequest(BaseModel):
     departure_timestamp: Optional[datetime] = None
 
 
+class DraftTrailRequest(BaseModel):
+    include_stop_ids: Optional[List[str]] = None
+    vibe_hint: Optional[str] = None
+
+
+class DraftTrailResponse(BaseModel):
+    title: str
+    description: str
+    tags: List[str]
+    estimated_budget_inr: float
+    total_duration_hours: float
+
+
 class PublishTrailRequest(BaseModel):
     title: str
     description: Optional[str] = None
     include_stop_ids: List[str]
     exclude_private_notes: bool = True
     tags: List[str] = ["heritage"]
+    visibility: str = "public"
 
 
 async def _fetch_places_with_artisan_info(
@@ -630,10 +646,73 @@ async def record_stop_checkout(
     }
 
 
+@router.post("/trips/{trip_id}/draft-trail-content", response_model=DraftTrailResponse)
+async def draft_trail_content(
+    trip_id: str,
+    body: DraftTrailRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Prompts Gemini Flash to compose an engaging trail title, markdown overview,
+    estimated budget, and relevant tags from confirmed visited stops (Trip-to-Trail AI draft).
+    """
+    trip_res = await db.execute(text("SELECT * FROM trips WHERE id = :id"), {"id": trip_id})
+    trip = trip_res.fetchone()
+    if not trip:
+        raise HTTPException(status_code=404, detail="Trip not found")
+
+    if trip.user_id and trip.user_id not in ("tourist_demo_user", current_user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this trip")
+
+    if body.include_stop_ids:
+        query = text("""
+            SELECT ts.id, ts.place_id, ts.suggested_duration_minutes, p.name, p.category, p.entry_fee_inr
+            FROM trip_stops ts
+            JOIN places p ON ts.place_id = p.id
+            WHERE ts.trip_id = :trip_id
+              AND ts.id = ANY(:include_ids)
+              AND ts.visit_status = 'visited'
+              AND p.category NOT IN ('accommodation', 'hotel', 'homestay', 'lodging', 'start_location', 'origin')
+            ORDER BY ts.day_number ASC, ts.sequence_in_day ASC
+        """)
+        params = {"trip_id": trip_id, "include_ids": body.include_stop_ids}
+    else:
+        query = text("""
+            SELECT ts.id, ts.place_id, ts.suggested_duration_minutes, p.name, p.category, p.entry_fee_inr
+            FROM trip_stops ts
+            JOIN places p ON ts.place_id = p.id
+            WHERE ts.trip_id = :trip_id
+              AND ts.visit_status = 'visited'
+              AND p.category NOT IN ('accommodation', 'hotel', 'homestay', 'lodging', 'start_location', 'origin')
+            ORDER BY ts.day_number ASC, ts.sequence_in_day ASC
+        """)
+        params = {"trip_id": trip_id}
+
+    stops_res = await db.execute(query, params)
+    rows = stops_res.fetchall()
+    visited_places = [
+        {
+            "id": r.id,
+            "place_id": r.place_id,
+            "name": r.name,
+            "category": r.category,
+            "entry_fee_inr": float(r.entry_fee_inr or 0),
+            "suggested_duration_minutes": r.suggested_duration_minutes or 45,
+        }
+        for r in rows
+    ]
+
+    draft_service = GeminiTrailDraftService(api_key=settings.GEMINI_API_KEY)
+    result = await draft_service.generate_trail_draft(visited_places, vibe_hint=body.vibe_hint)
+    return DraftTrailResponse(**result)
+
+
 @router.post("/trips/{trip_id}/publish-trail", status_code=status.HTTP_201_CREATED)
 async def publish_trip_to_trail(
     trip_id: str,
     body: PublishTrailRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Convert finished trip into publicly visible Community Trail."""
@@ -645,28 +724,199 @@ async def publish_trip_to_trail(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    trail_id = f"trail_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
-    await db.execute(
+    if trip.user_id and trip.user_id not in ("tourist_demo_user", current_user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to publish this trip")
+
+    if not body.include_stop_ids:
+        raise HTTPException(status_code=400, detail="Cannot publish trail without any included stops")
+
+    # Fetch candidate stops strictly matching include_stop_ids, confirmed visited, and non-accommodation places
+    stops_res = await db.execute(
         text("""
-            INSERT INTO community_trails (
-                id, author_id, author_name, source_trip_id, title, description,
-                destination, duration_type, total_days, total_duration_hours, estimated_cost_inr,
-                tags, is_experienced, visibility, is_featured
-            ) VALUES (
-                :id, :author_id, 'Fellow Traveler', :trip_id, :title, :description,
-                'Udaipur', 'single_day', 1, 4.0, :cost,
-                :tags, true, 'public', false
-            )
+            SELECT 
+                ts.id,
+                ts.place_id,
+                ts.day_number,
+                ts.sequence_in_day,
+                ts.suggested_duration_minutes,
+                ts.actual_duration_minutes,
+                ts.planned_arrival,
+                ts.visit_status,
+                ts.private_notes,
+                p.name AS place_name,
+                p.category AS place_category,
+                p.entry_fee_inr,
+                p.typical_duration_minutes
+            FROM trip_stops ts
+            JOIN places p ON ts.place_id = p.id
+            WHERE ts.trip_id = :trip_id
+              AND ts.id = ANY(:include_ids)
+              AND ts.visit_status = 'visited'
+              AND p.category NOT IN ('accommodation', 'hotel', 'homestay', 'lodging', 'start_location', 'origin')
+            ORDER BY ts.day_number ASC, ts.sequence_in_day ASC
         """),
-        {
-            "id": trail_id,
-            "author_id": trip.user_id,
-            "trip_id": trip.id,
-            "title": body.title,
-            "description": body.description,
-            "cost": float(trip.budget_inr),
-            "tags": body.tags
-        }
+        {"trip_id": trip_id, "include_ids": body.include_stop_ids}
     )
-    await db.commit()
-    return {"success": True, "trail_id": trail_id, "title": body.title}
+    stops = stops_res.fetchall()
+    if not stops:
+        raise HTTPException(
+            status_code=400,
+            detail="No confirmed visited public stops found in the provided stop list"
+        )
+
+    # Compute aggregates from visited stops
+    total_minutes = sum(s.suggested_duration_minutes or 45 for s in stops)
+    total_duration_hours = round(max(total_minutes / 60.0, 1.0), 1)
+    estimated_cost_inr = sum(float(s.entry_fee_inr or 0) for s in stops)
+    total_days = max(s.day_number for s in stops) if stops else 1
+    duration_type = "single_day" if total_days == 1 else "multi_day"
+
+    trail_id = f"trail_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
+    author_name = "Fellow Traveler"
+
+    try:
+        # Insert Community Trail
+        await db.execute(
+            text("""
+                INSERT INTO community_trails (
+                    id, author_id, author_name, source_trip_id, title, description,
+                    destination, duration_type, total_days, total_duration_hours, estimated_cost_inr,
+                    tags, is_experienced, visibility, is_featured, created_at
+                ) VALUES (
+                    :id, :author_id, :author_name, :trip_id, :title, :description,
+                    'Udaipur', :duration_type, :total_days, :total_duration_hours, :cost,
+                    :tags, true, :visibility, false, NOW()
+                )
+            """),
+            {
+                "id": trail_id,
+                "author_id": trip.user_id,
+                "author_name": author_name,
+                "trip_id": trip.id,
+                "title": body.title,
+                "description": body.description or "A curated local journey through Udaipur.",
+                "duration_type": duration_type,
+                "total_days": total_days,
+                "total_duration_hours": total_duration_hours,
+                "cost": estimated_cost_inr,
+                "tags": body.tags or ["heritage"],
+                "visibility": body.visibility or "public"
+            }
+        )
+
+        # Insert child Community Trail Stops with relative timing
+        community_stops = []
+        day_sequences: Dict[int, int] = {}
+        for s in stops:
+            day_num = s.day_number or 1
+            day_sequences[day_num] = day_sequences.get(day_num, 0) + 1
+            seq_in_day = day_sequences[day_num]
+
+            # Determine relative time slot
+            if s.planned_arrival:
+                try:
+                    arrival_hour = s.planned_arrival.hour
+                    if 5 <= arrival_hour < 12:
+                        time_slot = "morning"
+                    elif 12 <= arrival_hour < 17:
+                        time_slot = "afternoon"
+                    elif 17 <= arrival_hour < 20:
+                        time_slot = "sunset_evening"
+                    else:
+                        time_slot = "night"
+                except Exception:
+                    time_slot = "morning" if seq_in_day == 1 else "afternoon"
+            else:
+                time_slot = "morning" if seq_in_day == 1 else ("afternoon" if seq_in_day == 2 else "sunset_evening")
+
+            # Traveler tip - strictly scrub private notes if exclude_private_notes is True
+            if body.exclude_private_notes:
+                traveler_tip = f"Verified stop: {s.place_name}. Recommended duration {s.suggested_duration_minutes}m."
+            else:
+                traveler_tip = s.private_notes or f"Verified stop: {s.place_name}."
+
+            stop_id = f"cts_{trail_id}_{day_num}_{seq_in_day}"
+            await db.execute(
+                text("""
+                    INSERT INTO community_trail_stops (
+                        id, trail_id, place_id, day_number, sequence_in_day,
+                        suggested_duration_minutes, estimated_transit_minutes,
+                        time_slot, traveler_tip
+                    ) VALUES (
+                        :id, :trail_id, :place_id, :day_number, :sequence_in_day,
+                        :suggested_duration_minutes, 15,
+                        :time_slot, :traveler_tip
+                    )
+                """),
+                {
+                    "id": stop_id,
+                    "trail_id": trail_id,
+                    "place_id": s.place_id,
+                    "day_number": day_num,
+                    "sequence_in_day": seq_in_day,
+                    "suggested_duration_minutes": s.suggested_duration_minutes or 45,
+                    "time_slot": time_slot,
+                    "traveler_tip": traveler_tip
+                }
+            )
+
+            community_stops.append({
+                "id": stop_id,
+                "place_id": s.place_id,
+                "place_name": s.place_name,
+                "day_number": day_num,
+                "sequence_in_day": seq_in_day,
+                "suggested_duration_minutes": s.suggested_duration_minutes or 45,
+                "estimated_transit_minutes": 15,
+                "time_slot": time_slot,
+                "traveler_tip": traveler_tip
+            })
+
+        # Mark the trip as completed
+        await db.execute(
+            text("UPDATE trips SET status = 'completed', completed_at = NOW() WHERE id = :id"),
+            {"id": trip_id}
+        )
+
+        # Log audit event in trip_events
+        await db.execute(
+            text("""
+                INSERT INTO trip_events (
+                    id, trip_id, resulting_revision, actor, source, event_type, payload
+                ) VALUES (
+                    :eid, :trip_id, :rev, 'tourist', 'trip_to_trail', 'trip_published', :payload
+                )
+            """),
+            {
+                "eid": f"event_pub_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+                "trip_id": trip_id,
+                "rev": trip.revision,
+                "payload": json.dumps({"trail_id": trail_id, "stops_count": len(community_stops)})
+            }
+        )
+
+        await db.commit()
+
+    except Exception:
+        await db.rollback()
+        raise
+
+    return {
+        "id": trail_id,
+        "author_id": trip.user_id,
+        "author_name": author_name,
+        "source_trip_id": trip.id,
+        "title": body.title,
+        "description": body.description or "A curated local journey through Udaipur.",
+        "destination": "Udaipur",
+        "duration_type": duration_type,
+        "total_days": total_days,
+        "total_duration_hours": total_duration_hours,
+        "estimated_cost_inr": estimated_cost_inr,
+        "tags": body.tags or ["heritage"],
+        "is_experienced": True,
+        "visibility": body.visibility or "public",
+        "is_featured": False,
+        "stops_count": len(community_stops),
+        "stops": community_stops
+    }

@@ -279,8 +279,28 @@ Sends conversational guidance or alteration requests to the Gemini Flash compani
 ```
 - **Response `200 OK`**: Returns AI response narrative and an optional embedded interactive `ReplanProposalCard` ready for 1-tap review and acceptance.
 
+#### `POST /api/trips/{trip_id}/draft-trail-content`
+Prompts Gemini Flash to compose an engaging trail title, markdown overview, estimated budget, and relevant tags from confirmed visited stops (Trip-to-Trail AI draft).
+- **Request Body**:
+```json
+{
+  "include_stop_ids": ["stop_1", "stop_2", "stop_4"],
+  "vibe_hint": "heritage walk"
+}
+```
+- **Response `200 OK`**:
+```json
+{
+  "title": "Afternoon Heritage & Lakeside Crafts Walk",
+  "description": "Explored City Palace and a hidden miniature art masterclass in Jagdish Chowk. Recommended for history lovers and art enthusiasts looking for an authentic Udaipur afternoon.",
+  "tags": ["heritage", "artisan", "lake"],
+  "estimated_budget_inr": 380,
+  "total_duration_hours": 3.5
+}
+```
+
 #### `POST /api/trips/{trip_id}/publish-trail`
-Converts a finished trip into a publicly visible Community Trail (Trip-to-Trail).
+Converts a finished trip into a publicly visible Community Trail (Trip-to-Trail). Creates `community_trails` and child `community_trail_stops` records with relative durations, scrubbing private notes and private start locations. Marks trip as `completed`.
 - **Request Body**:
 ```json
 {
@@ -288,10 +308,11 @@ Converts a finished trip into a publicly visible Community Trail (Trip-to-Trail)
   "description": "Explored City Palace and a hidden miniature art masterclass in Jagdish Chowk.",
   "include_stop_ids": ["stop_1", "stop_2", "stop_4"],
   "exclude_private_notes": true,
-  "tags": ["heritage", "artisan", "lake"]
+  "tags": ["heritage", "artisan", "lake"],
+  "visibility": "public"
 }
 ```
-- **Response `201 Created`**: Returns newly created `community_trails` record.
+- **Response `201 Created`**: Returns newly created `community_trails` record including child `stops`.
 
 ---
 

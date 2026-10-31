@@ -8,6 +8,7 @@ import { ActiveStopCard } from "@/components/trip/ActiveStopCard";
 import { TimelineList } from "@/components/trip/TimelineList";
 import { ManualCheckinModal } from "@/components/trip/ManualCheckinModal";
 import { AIChatDrawer } from "@/components/trip/AIChatDrawer";
+import { TripToTrailModal } from "@/components/trip/TripToTrailModal";
 import { CheckinMethod, TripStop, useTrip } from "@/context/TripContext";
 import {
   Sparkles,
@@ -21,6 +22,7 @@ import {
   ChevronUp,
   LogOut,
   Activity,
+  ArrowRight,
 } from "lucide-react";
 
 /** Haversine distance in meters between two lat/lng coordinates */
@@ -46,6 +48,7 @@ function calculateDistanceMeters(
 
 export default function ActiveTripPage() {
   const {
+    tripId,
     tripTitle,
     revision,
     stops,
@@ -60,6 +63,7 @@ export default function ActiveTripPage() {
   const [promptMode, setPromptMode] = useState<CheckinMethod>("geofence_proximity");
   const [isCheckinModalOpen, setIsCheckinModalOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
   // Geolocation & Demo Simulator State
   const [userCoords, setUserCoords] = useState<{ lat: number; lng: number } | null>(
@@ -377,6 +381,29 @@ export default function ActiveTripPage() {
           </div>
         </div>
 
+        {/* Trip-to-Trail Contribution CTA */}
+        <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-[#E05A2B] to-[#993412] text-white shadow-xs flex items-center justify-between gap-3">
+          <div className="space-y-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">
+              <Sparkles className="w-3 h-3" />
+              <span>{remainingCount === 0 ? "Journey Finished!" : "Trip-to-Trail Flywheel"}</span>
+            </div>
+            <p className="text-xs font-bold truncate">
+              {remainingCount === 0
+                ? "Publish your completed trail to Udaipur community"
+                : "Contribute your visited places as a community trail"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsPublishModalOpen(true)}
+            className="shrink-0 px-3.5 py-2 rounded-xl bg-white text-[#E05A2B] hover:bg-amber-50 font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+          >
+            <span>Finish Trip</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
         {/* Quick Actions Row: Ask Gemini Companion + Edit Mode */}
         <div className="flex items-center justify-between gap-2">
           <button
@@ -587,6 +614,25 @@ export default function ActiveTripPage() {
         distanceMeters={distanceToActiveMeters}
         onClose={() => setIsCheckinModalOpen(false)}
         onConfirm={(id, method) => handleGeofenceCheckin(id, method)}
+      />
+
+      {/* Trip-to-Trail Publishing Modal */}
+      <TripToTrailModal
+        isOpen={isPublishModalOpen}
+        tripId={tripId}
+        stops={stops}
+        onClose={() => setIsPublishModalOpen(false)}
+        onTripCompleted={() => {
+          setStatusBanner({
+            type: "checkin",
+            message: "🎉 Your Udaipur journey has been contributed as a public Community Trail!",
+          });
+        }}
+        onConfirmVisited={async (stopIds) => {
+          for (const id of stopIds) {
+            await markVisited(id, "manual_fallback");
+          }
+        }}
       />
 
       <AIChatDrawer
