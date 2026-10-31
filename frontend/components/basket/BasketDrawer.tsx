@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, ArrowRight, Clock, IndianRupee, Sparkles, Layers } from "lucide-react";
+import { X, Trash2, ArrowRight, Clock, IndianRupee, Sparkles, Layers, Plus } from "lucide-react";
 import { useBasket } from "@/context/BasketContext";
+import { MOCK_PLACES, MOCK_ARTISANS } from "@/lib/mockData";
 
 interface BasketDrawerProps {
   isOpen: boolean;
@@ -14,12 +15,33 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
   const router = useRouter();
   const {
     items,
+    addItem,
     removeItem,
     clearBasket,
     totalCount,
     totalEstimatedCostInr,
     totalEstimatedDurationMinutes,
   } = useBasket();
+
+  // Find candidate artisan recommendation that is not yet in the basket
+  const recommendedArtisan = useMemo(() => {
+    if (items.length === 0) return null;
+    const basketPlaceIds = new Set(items.map((i) => i.place.id));
+    const artisanPlaces = MOCK_PLACES.filter(
+      (p) => p.category === "artisan_studio" && !basketPlaceIds.has(p.id)
+    );
+    if (artisanPlaces.length === 0) return null;
+    const place = artisanPlaces[0];
+    const artisan = MOCK_ARTISANS.find((a) => a.place_id === place.id);
+    return {
+      place,
+      artisan,
+      detourMinutes: 5,
+      rationale: artisan?.has_workshop
+        ? `${artisan.artisan_name}: 5 min detour, ₹${artisan.workshop_fee_inr} workshop fee, fits under route budget`
+        : `${artisan?.artisan_name || place.name}: 5 min detour, free studio visit`,
+    };
+  }, [items]);
 
   if (!isOpen) return null;
 
@@ -131,6 +153,46 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
                 </button>
               </div>
             ))
+          )}
+
+          {/* Smart Detour Artisan Recommendation */}
+          {recommendedArtisan && (
+            <div className="p-3.5 rounded-2xl border border-amber-200 bg-amber-50/70 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E05A2B] bg-amber-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="w-2.5 h-2.5" />
+                  Nearby Artisan Detour (+5m)
+                </span>
+                <span className="text-[10px] font-bold text-emerald-700">
+                  {recommendedArtisan.artisan?.has_workshop
+                    ? `₹${recommendedArtisan.artisan.workshop_fee_inr} workshop`
+                    : "Free entry"}
+                </span>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-neutral-900">
+                  {recommendedArtisan.artisan?.artisan_name || recommendedArtisan.place.name}
+                </h4>
+                <p className="text-[11px] text-neutral-600 mt-0.5">
+                  {recommendedArtisan.rationale}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  addItem(recommendedArtisan.place, {
+                    trailId: "artisan_detour_rec",
+                    trailTitle: "TrailWeave Artisan Detour Recommendation",
+                  })
+                }
+                className="w-full py-2 px-3 rounded-xl bg-white border border-amber-300 hover:bg-amber-100 text-[#E05A2B] font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Add Workshop to Basket</span>
+              </button>
+            </div>
           )}
         </div>
 
