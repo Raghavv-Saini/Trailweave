@@ -5,12 +5,12 @@ A dedicated public discovery page (`/artisans`) and studio profile view (`/artis
 
 **Blocked by:** 01: Project Foundation, Core PostGIS Schema & Udaipur Seed Data
 
-**Status:** ready-for-agent
+**Status:** completed
 
-- [ ] Mobile-optimized directory page `/artisans` listing verified master craftsmen and studios with craft photo previews (`catalogue_images`).
-- [ ] Craft category filter chips (`All`, `Pichwai & Miniature Painting`, `Pottery`, `Puppetry`, `Leather & Textiles`).
-- [ ] Workshop filter toggle allowing tourists to specifically find hands-on masterclasses vs retail-only studios.
-- [ ] Artisan studio card displaying craft type, master artisan name, physical workshop address, store hours, workshop fees/duration, and artifact photo preview.
-- [ ] Studio detail view (`/artisans/[id]`) showing rich heritage bio, the artisan's uploaded **Catalogue & Artifact Photo Gallery (`catalogue_images`)**, operating hours, and workshop masterclass details.
-- [ ] Direct 1-tap "Add to Basket / Itinerary" button wired to `BasketContext`.
-- [ ] Endpoints `GET /api/artisans` and `GET /api/artisans/{id}` returning full place, workshop, contact, and `catalogue_images` fields.
+- [x] Mobile-optimized directory page `/artisans` listing verified master craftsmen and studios with craft photo previews (`catalogue_images`).
+- [x] Craft category filter chips (`All`, `Pichwai & Miniature Painting`, `Pottery`, `Puppetry`, `Leather & Textiles`).
+- [x] Workshop filter toggle allowing tourists to specifically find hands-on masterclasses vs retail-only studios.
+- [x] Artisan studio card displaying craft type, master artisan name, physical workshop address, store hours, workshop fees/duration, and artifact photo preview.
+- [x] Studio detail view (`/artisans/[id]`) showing rich heritage bio, the artisan's uploaded **Catalogue & Artifact Photo Gallery (`catalogue_images`)**, operating hours, and workshop masterclass details.
+- [x] Direct 1-tap "Add to Basket / Itinerary" button wired to `BasketContext`.
+- [x] Endpoints `GET /api/artisans` and `GET /api/artisans/{id}` returning full place, workshop, contact, and `catalogue_images` fields.

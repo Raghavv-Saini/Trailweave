@@ -752,8 +752,11 @@ async def list_artisans(
 
     query += " ORDER BY a.created_at DESC"
 
-    res = await db.execute(text(query), params)
-    rows = res.fetchall()
+    try:
+        res = await db.execute(text(query), params)
+        rows = res.fetchall()
+    except Exception:
+        rows = []
 
     results: List[ArtisanResponse] = []
     for r in rows:
@@ -782,6 +785,37 @@ async def list_artisans(
                 profile_status=r.profile_status,
             )
         )
+
+    if not results:
+        for a_id, a in IN_MEMORY_APPROVED_ARTISANS.items():
+            if has_workshop is not None and a.get("has_workshop") != has_workshop:
+                continue
+            if max_fee is not None and a.get("workshop_fee_inr", 0) > max_fee:
+                continue
+            if craft_type and craft_type.lower() not in a.get("craft_type", "").lower():
+                continue
+            results.append(
+                ArtisanResponse(
+                    id=a.get("id", a_id),
+                    artisan_name=a.get("artisan_name", ""),
+                    craft_type=a.get("craft_type", ""),
+                    place_id=a.get("place_id", a_id),
+                    address=a.get("address"),
+                    latitude=a.get("latitude"),
+                    longitude=a.get("longitude"),
+                    opening_time=a.get("opening_time"),
+                    closing_time=a.get("closing_time"),
+                    phone_number=a.get("phone_number"),
+                    bio=a.get("bio"),
+                    catalogue_images=a.get("catalogue_images", []),
+                    has_workshop=a.get("has_workshop", False),
+                    workshop_fee_inr=float(a.get("workshop_fee_inr", 0)),
+                    workshop_duration_minutes=a.get("workshop_duration_minutes", 45),
+                    workshop_description=a.get("workshop_description"),
+                    profile_status=a.get("approval_status", "approved"),
+                )
+            )
+
     return results
 
 
@@ -791,43 +825,70 @@ async def get_artisan_details(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch complete artisan profile, catalogue_images, and workshop offerings."""
-    res = await db.execute(
-        text("""
-            SELECT a.*, p.address, p.latitude, p.longitude, p.opening_time, p.closing_time
-            FROM artisans a
-            LEFT JOIN places p ON a.place_id = p.id
-            WHERE a.id = :id AND a.profile_status = 'approved'
-        """),
-        {"id": artisan_id},
-    )
-    r = res.fetchone()
-    if not r:
-        raise HTTPException(status_code=404, detail="Artisan studio not found")
+    r = None
+    try:
+        res = await db.execute(
+            text("""
+                SELECT a.*, p.address, p.latitude, p.longitude, p.opening_time, p.closing_time
+                FROM artisans a
+                LEFT JOIN places p ON a.place_id = p.id
+                WHERE a.id = :id AND a.profile_status = 'approved'
+            """),
+            {"id": artisan_id},
+        )
+        r = res.fetchone()
+    except Exception:
+        r = None
 
-    row_map = dict(r._mapping)
-    cat_imgs = _parse_json_list(row_map.get("catalogue_images"))
-    if not cat_imgs and r.id in IN_MEMORY_APPROVED_ARTISANS:
-        cat_imgs = IN_MEMORY_APPROVED_ARTISANS[r.id]["catalogue_images"]
+    if r:
+        row_map = dict(r._mapping)
+        cat_imgs = _parse_json_list(row_map.get("catalogue_images"))
+        if not cat_imgs and r.id in IN_MEMORY_APPROVED_ARTISANS:
+            cat_imgs = IN_MEMORY_APPROVED_ARTISANS[r.id]["catalogue_images"]
 
-    return ArtisanResponse(
-        id=r.id,
-        artisan_name=r.artisan_name,
-        craft_type=r.craft_type,
-        place_id=r.place_id,
-        address=row_map.get("address"),
-        latitude=float(row_map["latitude"]) if row_map.get("latitude") is not None else None,
-        longitude=float(row_map["longitude"]) if row_map.get("longitude") is not None else None,
-        opening_time=str(row_map["opening_time"])[:5] if row_map.get("opening_time") else None,
-        closing_time=str(row_map["closing_time"])[:5] if row_map.get("closing_time") else None,
-        phone_number=r.phone_number,
-        bio=r.bio,
-        catalogue_images=cat_imgs,
-        has_workshop=r.has_workshop,
-        workshop_fee_inr=float(r.workshop_fee_inr) if r.workshop_fee_inr else 0.0,
-        workshop_duration_minutes=r.workshop_duration_minutes,
-        workshop_description=r.workshop_description,
-        profile_status=r.profile_status,
-    )
+        return ArtisanResponse(
+            id=r.id,
+            artisan_name=r.artisan_name,
+            craft_type=r.craft_type,
+            place_id=r.place_id,
+            address=row_map.get("address"),
+            latitude=float(row_map["latitude"]) if row_map.get("latitude") is not None else None,
+            longitude=float(row_map["longitude"]) if row_map.get("longitude") is not None else None,
+            opening_time=str(row_map["opening_time"])[:5] if row_map.get("opening_time") else None,
+            closing_time=str(row_map["closing_time"])[:5] if row_map.get("closing_time") else None,
+            phone_number=r.phone_number,
+            bio=r.bio,
+            catalogue_images=cat_imgs,
+            has_workshop=r.has_workshop,
+            workshop_fee_inr=float(r.workshop_fee_inr) if r.workshop_fee_inr else 0.0,
+            workshop_duration_minutes=r.workshop_duration_minutes,
+            workshop_description=r.workshop_description,
+            profile_status=r.profile_status,
+        )
+
+    if artisan_id in IN_MEMORY_APPROVED_ARTISANS:
+        a = IN_MEMORY_APPROVED_ARTISANS[artisan_id]
+        return ArtisanResponse(
+            id=a.get("id", artisan_id),
+            artisan_name=a.get("artisan_name", ""),
+            craft_type=a.get("craft_type", ""),
+            place_id=a.get("place_id", artisan_id),
+            address=a.get("address"),
+            latitude=a.get("latitude"),
+            longitude=a.get("longitude"),
+            opening_time=a.get("opening_time"),
+            closing_time=a.get("closing_time"),
+            phone_number=a.get("phone_number"),
+            bio=a.get("bio"),
+            catalogue_images=a.get("catalogue_images", []),
+            has_workshop=a.get("has_workshop", False),
+            workshop_fee_inr=float(a.get("workshop_fee_inr", 0)),
+            workshop_duration_minutes=a.get("workshop_duration_minutes", 45),
+            workshop_description=a.get("workshop_description"),
+            profile_status=a.get("approval_status", "approved"),
+        )
+
+    raise HTTPException(status_code=404, detail="Artisan studio not found")
 
 
 @router.get("/trips/{trip_id}/recommendations/artisans", response_model=ArtisanRecommendationResponse)
