@@ -1,11 +1,11 @@
 """
 Seed data script for TrailWeave MVP.
-Populates verified Udaipur places, artisans, and initial community trails into Supabase PostgreSQL.
+Populates verified Udaipur places, artisans, initial community trails, and the demo active trip into Supabase PostgreSQL.
 """
 import asyncio
 import os
 import sys
-from datetime import time
+from datetime import time, datetime, timezone
 from typing import List, Dict, Any
 
 # Add backend directory to sys.path if run directly
@@ -232,6 +232,73 @@ COMMUNITY_TRAIL_STOPS_SEED: List[Dict[str, Any]] = [
     }
 ]
 
+DEMO_TRIP_STOPS_SEED: List[Dict[str, Any]] = [
+    {
+        "id": "stop_cp",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_city_palace",
+        "day_number": 1,
+        "sequence_in_day": 1,
+        "planned_arrival": datetime(2026, 10, 31, 9, 30, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 11, 30, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 120,
+        "actual_duration_minutes": 120,
+        "is_pinned": False,
+        "visit_status": "visited",
+        "source_attribution": "Udaipur Royal Palaces & Crafts",
+        "private_notes": "Enter via Badi Pol gate"
+    },
+    {
+        "id": "stop_ms",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_mohanlal_studio",
+        "day_number": 1,
+        "sequence_in_day": 2,
+        "planned_arrival": datetime(2026, 10, 31, 11, 45, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 12, 30, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 45,
+        "actual_duration_minutes": None,
+        "is_pinned": True,
+        "visit_status": "pending",
+        "source_attribution": "TrailWeave Artisan Recommendation",
+        "private_notes": "45-min miniature painting masterclass"
+    },
+    {
+        "id": "stop_jt",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_jagdish_temple",
+        "day_number": 1,
+        "sequence_in_day": 3,
+        "planned_arrival": datetime(2026, 10, 31, 12, 45, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 13, 15, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 30,
+        "actual_duration_minutes": None,
+        "is_pinned": False,
+        "visit_status": "pending",
+        "source_attribution": "Udaipur Royal Palaces & Crafts",
+        "private_notes": "Shoe drop-off at bottom of marble steps"
+    },
+    {
+        "id": "stop_bh",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_bagore_haveli",
+        "day_number": 1,
+        "sequence_in_day": 4,
+        "planned_arrival": datetime(2026, 10, 31, 13, 30, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 15, 0, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 90,
+        "actual_duration_minutes": None,
+        "is_pinned": False,
+        "visit_status": "pending",
+        "source_attribution": "Old City Evening Heritage Walk",
+        "private_notes": "Walk via Gangaur Ghat lakeside lane"
+    }
+]
+
 
 async def seed_database() -> None:
     """Populates seed data using idempotent UPSERT statements."""
@@ -339,6 +406,56 @@ async def seed_database() -> None:
                 cs
             )
         print(f"✓ Seeded {len(COMMUNITY_TRAIL_STOPS_SEED)} community trail stops.")
+
+        # 5. Seed Demo Active Trip ("trip_demo_udaipur") & Version ("ver_demo_1")
+        await conn.execute(
+            text("""
+                INSERT INTO trips (
+                    id, user_id, title, destination, duration_type, total_days,
+                    budget_inr, budget_mode, artisan_preference, revision,
+                    current_itinerary_version_id, status
+                ) VALUES (
+                    'trip_demo_udaipur', 'user_demo_raghav', 'My Udaipur Cultural Journey',
+                    'Udaipur', 'single_day', 1, 1500, 'total', 'both', 1,
+                    'ver_demo_1', 'in_progress'
+                )
+                ON CONFLICT (id) DO UPDATE SET
+                    current_itinerary_version_id = COALESCE(trips.current_itinerary_version_id, 'ver_demo_1'),
+                    status = 'in_progress';
+            """)
+        )
+
+        await conn.execute(
+            text("""
+                INSERT INTO itinerary_versions (
+                    id, trip_id, version_number, total_estimated_cost_inr, total_estimated_duration_minutes
+                ) VALUES (
+                    'ver_demo_1', 'trip_demo_udaipur', 1, 730, 285
+                )
+                ON CONFLICT (id) DO NOTHING;
+            """)
+        )
+
+        for ts in DEMO_TRIP_STOPS_SEED:
+            await conn.execute(
+                text("""
+                    INSERT INTO trip_stops (
+                        id, trip_id, itinerary_version_id, place_id, day_number, sequence_in_day,
+                        planned_arrival, planned_departure, suggested_duration_minutes,
+                        actual_duration_minutes, is_pinned, visit_status, source_attribution, private_notes
+                    ) VALUES (
+                        :id, :trip_id, :itinerary_version_id, :place_id, :day_number, :sequence_in_day,
+                        :planned_arrival, :planned_departure, :suggested_duration_minutes,
+                        :actual_duration_minutes, :is_pinned, :visit_status, :source_attribution, :private_notes
+                    )
+                    ON CONFLICT (id) DO UPDATE SET
+                        planned_arrival = EXCLUDED.planned_arrival,
+                        planned_departure = EXCLUDED.planned_departure,
+                        suggested_duration_minutes = EXCLUDED.suggested_duration_minutes;
+                """),
+                ts
+            )
+        print(f"✓ Seeded demo active trip (trip_demo_udaipur) with {len(DEMO_TRIP_STOPS_SEED)} stops.")
 
     print("✨ Database seeding completed successfully!")
 

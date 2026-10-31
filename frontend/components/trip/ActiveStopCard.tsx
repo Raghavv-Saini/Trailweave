@@ -1,79 +1,210 @@
 "use client";
 
 import React from "react";
-import { Navigation, CheckCircle2, Clock, Pin } from "lucide-react";
+import {
+  Navigation,
+  CheckCircle2,
+  Clock,
+  Pin,
+  MapPin,
+  LogOut,
+  Radio,
+  ShieldCheck,
+} from "lucide-react";
 import { TripStop } from "@/context/TripContext";
 
 interface ActiveStopCardProps {
   stop: TripStop;
+  distanceMeters?: number | null;
   onManualCheckin: (stopId: string) => void;
+  onGeofenceCheckin?: (stopId: string) => void;
   onCheckout?: (stopId: string) => void;
+}
+
+function formatTimeWindow(isoString?: string): string {
+  if (!isoString) return "--:--";
+  try {
+    const d = new Date(isoString);
+    return d.toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC",
+    });
+  } catch {
+    return "--:--";
+  }
 }
 
 export function ActiveStopCard({
   stop,
+  distanceMeters,
   onManualCheckin,
+  onGeofenceCheckin,
   onCheckout,
 }: ActiveStopCardProps) {
   const isVisited = stop.visit_status === "visited";
+  const isSkipped = stop.visit_status === "skipped";
+  const isCheckedOut = Boolean(stop.is_checked_out);
+  const isWithin100m =
+    typeof distanceMeters === "number" && distanceMeters <= 100;
+
+  const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
+    `${stop.latitude},${stop.longitude}`
+  )}&destination_place_id=${encodeURIComponent(stop.name + " Udaipur")}&travelmode=walking`;
 
   return (
-    <div className="p-5 rounded-2xl border-2 border-[#E05A2B]/20 bg-gradient-to-br from-white to-amber-50/40 shadow-sm space-y-4">
-      <div className="flex items-start justify-between">
-        <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#E05A2B] bg-amber-100/70 px-2 py-0.5 rounded-md">
-            {isVisited ? "Visited Stop" : "Current Active Stop"}
+    <div className="rounded-2xl border-2 border-[#E05A2B]/25 bg-gradient-to-br from-white to-amber-50/40 shadow-sm overflow-hidden">
+      {/* Place Image Banner */}
+      <div className="relative h-40 w-full bg-neutral-200 overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={stop.image_url}
+          alt={stop.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+        {/* Top Badges */}
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-[#E05A2B] px-2.5 py-1 rounded-md shadow-xs">
+            {isVisited
+              ? isCheckedOut
+                ? "Completed Stop"
+                : "Checked In • Touring"
+              : isSkipped
+              ? "Skipped Stop"
+              : `Active Stop #${stop.sequence_in_day}`}
           </span>
-          <h2 className="text-base font-bold text-neutral-900 mt-1.5 flex items-center gap-1.5">
-            {stop.name}
-            {stop.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />}
-          </h2>
-          <p className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
-            <Clock className="w-3 h-3 text-neutral-400" />
-            Suggested: {stop.suggested_duration_minutes} mins
-          </p>
+
+          <div className="flex items-center gap-1.5">
+            {stop.is_pinned && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-neutral-950 shadow-xs">
+                <Pin className="w-3 h-3 fill-neutral-950" />
+                Pinned
+              </span>
+            )}
+            <span
+              className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full capitalize shadow-xs ${
+                isVisited
+                  ? "bg-emerald-500 text-white"
+                  : isSkipped
+                  ? "bg-neutral-600 text-white"
+                  : "bg-amber-100 text-amber-950"
+              }`}
+            >
+              {stop.visit_status}
+            </span>
+          </div>
         </div>
 
-        <span
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-            isVisited
-              ? "bg-emerald-100 text-emerald-800"
-              : "bg-amber-100 text-amber-800"
-          }`}
-        >
-          {stop.visit_status}
-        </span>
+        {/* Bottom Image Overlay Info */}
+        <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
+          <div>
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-200 block">
+              {stop.category.replace("_", " ")} •{" "}
+              {stop.entry_fee_inr > 0 ? `₹${stop.entry_fee_inr} Entry` : "Free Entry"}
+            </span>
+            <h2 className="text-base font-bold leading-snug">{stop.name}</h2>
+          </div>
+
+          {typeof distanceMeters === "number" && (
+            <span
+              className={`text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-xs flex items-center gap-1 ${
+                isWithin100m
+                  ? "bg-emerald-500/90 text-white"
+                  : "bg-black/60 text-neutral-100"
+              }`}
+            >
+              <Radio className="w-3 h-3" />
+              {distanceMeters}m away
+            </span>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-2 pt-2">
-        {!isVisited ? (
-          <button
-            onClick={() => onManualCheckin(stop.id)}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-[#E05A2B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#c94d23] transition-colors"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>1-Tap Check-In</span>
-          </button>
-        ) : (
-          <button
-            onClick={() => onCheckout && onCheckout(stop.id)}
-            className="flex-1 py-2.5 px-3 rounded-xl bg-neutral-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-neutral-800 transition-colors"
-          >
-            <span>Depart & Check Out</span>
-          </button>
+      {/* Card Body */}
+      <div className="p-4 space-y-3.5">
+        {/* Address & Planned Schedule */}
+        <div className="space-y-1.5 text-xs">
+          <p className="text-neutral-600 flex items-start gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-[#E05A2B] shrink-0 mt-0.5" />
+            <span>{stop.address}</span>
+          </p>
+
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-neutral-600 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-100">
+            <span className="flex items-center gap-1 font-medium">
+              <Clock className="w-3.5 h-3.5 text-[#E05A2B]" />
+              Planned: {formatTimeWindow(stop.planned_arrival)} –{" "}
+              <strong className="text-neutral-900">
+                {formatTimeWindow(stop.planned_departure)}
+              </strong>
+            </span>
+            <span className="font-semibold text-neutral-500">
+              {stop.suggested_duration_minutes} mins
+            </span>
+          </div>
+        </div>
+
+        {/* 100m Geofence Proximity Prompt inside Card when within 100m */}
+        {!isVisited && isWithin100m && onGeofenceCheckin && (
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between gap-2">
+            <div className="text-xs text-emerald-900">
+              <p className="font-bold flex items-center gap-1">
+                <Radio className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                Within 100m Geofence ({distanceMeters}m)
+              </p>
+              <p className="text-[11px] text-emerald-700">
+                Welcome to {stop.name}! Tap to check in via GPS.
+              </p>
+            </div>
+            <button
+              onClick={() => onGeofenceCheckin(stop.id)}
+              className="shrink-0 px-3 py-2 rounded-xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 shadow-xs"
+            >
+              GPS Check-In
+            </button>
+          </div>
         )}
 
-        <a
-          href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
-            stop.name + " Udaipur"
-          )}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="p-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
-          aria-label="Google Maps directions"
-        >
-          <Navigation className="w-4 h-4 text-[#E05A2B]" />
-        </a>
+        {/* Action Buttons: 1-Tap Manual Check-in Fallback / Checkout + Google Maps Deep Link */}
+        <div className="flex items-center gap-2 pt-0.5">
+          {!isVisited ? (
+            <button
+              onClick={() => onManualCheckin(stop.id)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-[#E05A2B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#c94d23] transition-colors cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>1-Tap Manual Check-in Fallback</span>
+            </button>
+          ) : !isCheckedOut ? (
+            <button
+              onClick={() => onCheckout && onCheckout(stop.id)}
+              className="flex-1 py-2.5 px-3 rounded-xl bg-neutral-900 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-neutral-800 transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Depart & Check Out</span>
+            </button>
+          ) : (
+            <div className="flex-1 py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-semibold text-xs flex items-center justify-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span>
+                Checked Out ({stop.checkout_method || "manual_tap"})
+              </span>
+            </div>
+          )}
+
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 text-xs font-semibold flex items-center gap-1.5 shadow-2xs shrink-0"
+            aria-label={`Open Google Maps directions to ${stop.name}`}
+          >
+            <Navigation className="w-4 h-4 text-[#E05A2B]" />
+            <span>Directions</span>
+          </a>
+        </div>
       </div>
     </div>
   );
