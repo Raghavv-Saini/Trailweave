@@ -69,7 +69,7 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
 
           {/* Craft Badge on Photo */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || (artisan as any).is_new) && (
+            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || artisan.is_new) && (
               <span className="text-[10px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-600 text-white px-2 py-0.5 rounded-full shadow-xs flex items-center gap-1 animate-pulse">
                 <Sparkles className="w-2.5 h-2.5" /> नई लिस्टिंग (New)
               </span>
@@ -108,7 +108,7 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
       ) : (
         <div className="px-4 pt-4 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
-            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || (artisan as any).is_new) && (
+            {(!['artisan_mohanlal', 'artisan_pottery', 'artisan_puppetry', 'artisan_leather'].includes(artisan.id) || artisan.is_new) && (
               <span className="text-[9px] font-black uppercase tracking-wider bg-amber-500 text-white px-2 py-0.5 rounded-md shadow-xs">
                 नई लिस्टिंग (New)
               </span>
