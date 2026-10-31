@@ -16,7 +16,7 @@ describe("Role-Based Login (/login), Tourist Homepage (/), Connected Flows & Adm
     assert.ok(loginSource.includes("admin@trailweave.org"), "Admin login must support pre-seeded superuser");
   });
 
-  test("Root Homepage (/) serves as Tourist Homepage with Interactive Trip Builder and separate /trails endpoint", () => {
+  test("Root Homepage (/) serves as Tourist Homepage with Cultured Local Friend AI Concierge & District Hub", () => {
     const homeSource = fs.readFileSync(
       path.resolve("app/page.tsx"),
       "utf-8"
@@ -31,12 +31,20 @@ describe("Role-Based Login (/login), Tourist Homepage (/), Connected Flows & Adm
     );
 
     assert.ok(
-      homeSource.includes("createTripFromBuilder"),
-      "Tourist Homepage must connect to createTripFromBuilder"
-    );
-    assert.ok(
       homeSource.includes('href="/trails"'),
       "Tourist Homepage must link to dedicated /trails endpoint"
+    );
+    assert.ok(
+      homeSource.includes('href="/artisans"'),
+      "Tourist Homepage must link to dedicated /artisans directory"
+    );
+    assert.ok(
+      homeSource.includes('href="/trip"'),
+      "Tourist Homepage must link to dedicated /trip endpoint"
+    );
+    assert.ok(
+      homeSource.includes("Cultured Local Friend") || homeSource.includes("AI Concierge"),
+      "Tourist Homepage must feature Cultured Local Friend AI Concierge & District Hub"
     );
     assert.ok(
       basketSource.includes("createTripFromBuilder"),
