@@ -1,18 +1,7 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { BasketProvider } from "@/context/BasketContext";
 import { TripProvider } from "@/context/TripContext";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -42,7 +31,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-[#FDFBF7] text-neutral-900 min-h-screen selection:bg-amber-100 selection:text-amber-900`}
+        className="font-sans antialiased bg-[#FDFBF7] text-neutral-900 min-h-screen selection:bg-amber-100 selection:text-amber-900"
       >
         <BasketProvider>
           <TripProvider>
