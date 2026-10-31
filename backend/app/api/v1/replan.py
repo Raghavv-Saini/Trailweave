@@ -221,7 +221,7 @@ async def preview_replan(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    proposal_id = f"prop_{uuid.uuid4().hex[:10]}"
+    proposal_id = f"prop_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
 
     candidate_stops_raw = eval_result["candidate_stops"]
@@ -485,7 +485,7 @@ async def accept_replan(
     return ReplanAcceptResponse(
         success=True,
         new_revision=new_revision,
-        message="Itinerary updated successfully"
+        message=f"Itinerary updated successfully to Revision {new_revision}"
     )
 
 

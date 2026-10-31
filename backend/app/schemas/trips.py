@@ -91,6 +91,7 @@ class TripResponse(BaseModel):
     revision: int = 1
     current_itinerary_version_id: Optional[str] = None
     status: str = "planned"
+    warnings: List[str] = Field(default_factory=list)
     active_version: Optional[ItineraryVersionResponse] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -107,6 +107,7 @@ class UnifiedMutationEngine:
 
         diff_stops_added: List[str] = []
         diff_stops_skipped: List[str] = []
+        diff_stops_removed: List[str] = []
 
         # 3. Apply operations to mutable stops in sequence
         for op in operations:
@@ -119,6 +120,8 @@ class UnifiedMutationEngine:
 
             elif op.type == "remove_stop":
                 mutable_stops = [s for s in mutable_stops if s.get("id") != op.stop_id]
+                if op.stop_id and op.stop_id not in diff_stops_removed:
+                    diff_stops_removed.append(op.stop_id)
 
             elif op.type == "add_stop":
                 place_meta = places_catalog[op.place_id]
@@ -313,6 +316,7 @@ class UnifiedMutationEngine:
             duration_delta_minutes=duration_delta_minutes,
             stops_added=diff_stops_added,
             stops_skipped=diff_stops_skipped,
+            stops_removed=diff_stops_removed,
             closing_hour_conflicts=closing_hour_conflicts,
         )
 

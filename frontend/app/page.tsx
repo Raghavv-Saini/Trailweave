@@ -1,225 +1,206 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import {
   Compass,
   Sparkles,
-  ShieldCheck,
-  Navigation,
-  CheckCircle2,
-  AlertCircle,
-  Loader2,
   ArrowRight,
+  Calendar,
+  Award,
 } from "lucide-react";
+import { Header } from "@/components/common/Header";
 import { BottomNav } from "@/components/common/BottomNav";
-
-interface HealthData {
-  status: string;
-  database: string;
-  postgis: string;
-  places_count?: number;
-  trails_count?: number;
-}
+import { TrailCard } from "@/components/discovery/TrailCard";
+import { BasketDrawer } from "@/components/basket/BasketDrawer";
+import { FloatingBasketButton } from "@/components/basket/FloatingBasketButton";
+import { UseAsBaseModal } from "@/components/common/UseAsBaseModal";
+import { PlanFromScratchModal } from "@/components/common/PlanFromScratchModal";
+import { MOCK_TRAILS, MockTrail } from "@/lib/mockData";
+import { useBasket } from "@/context/BasketContext";
 
 export default function Home() {
-  const [health, setHealth] = useState<HealthData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { totalCount, addAllStops } = useBasket();
+  const [isBasketOpen, setIsBasketOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("all");
 
-  useEffect(() => {
-    async function checkHealth() {
-      try {
-        const res = await fetch("http://localhost:8000/health");
-        if (res.ok) {
-          const data = await res.json();
-          setHealth(data);
-        } else {
-          setHealth({ status: "disconnected", database: "offline", postgis: "unknown" });
-        }
-      } catch {
-        setHealth({ status: "disconnected", database: "offline", postgis: "unknown" });
-      } finally {
-        setLoading(false);
-      }
+  // Modals state
+  const [isPlanScratchOpen, setIsPlanScratchOpen] = useState(false);
+  const [baseTrailCandidate, setBaseTrailCandidate] = useState<MockTrail | null>(null);
+
+  const categories = ["all", "heritage", "crafts", "food", "walking"];
+
+  // Filter featured community trails
+  const featuredTrails = MOCK_TRAILS.filter((t) => {
+    if (selectedCategory === "all") return true;
+    return t.tags.includes(selectedCategory);
+  });
+
+  const handleUseAsBaseClick = (trail: MockTrail) => {
+    if (totalCount > 0) {
+      // User decision Q1 Option B: Prompt to replace or merge
+      setBaseTrailCandidate(trail);
+    } else {
+      // Basket is empty: directly add all stops as base
+      addAllStops(trail, "replace");
+      setIsBasketOpen(true);
     }
-    checkHealth();
-  }, []);
+  };
+
+  const handleConfirmUseAsBase = (mode: "replace" | "merge") => {
+    if (baseTrailCandidate) {
+      addAllStops(baseTrailCandidate, mode);
+      setBaseTrailCandidate(null);
+      setIsBasketOpen(true);
+    }
+  };
 
   return (
-    <div className="flex-1 flex flex-col justify-between">
-      {/* Header */}
-      <header className="px-5 pt-6 pb-4 border-b border-neutral-100 bg-white sticky top-0 z-10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#E05A2B] to-[#F59E0B] flex items-center justify-center text-white shadow-sm">
-              <Compass className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-neutral-900 leading-none">
-                TrailWeave
-              </h1>
-              <p className="text-[11px] text-neutral-500 font-medium mt-0.5">
-                Udaipur Pilot • DevFest
-              </p>
-            </div>
-          </div>
-
-          {/* Backend Health Badge */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-neutral-50 border border-neutral-200">
-            {loading ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin text-neutral-400" />
-                <span className="text-neutral-500">Checking...</span>
-              </>
-            ) : health?.status === "ok" ? (
-              <>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-emerald-700 font-medium">PostGIS Live</span>
-              </>
-            ) : (
-              <>
-                <AlertCircle className="w-3 h-3 text-amber-500" />
-                <span className="text-amber-700 font-medium">FastAPI :8000</span>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+    <div className="flex-1 flex flex-col justify-between min-h-screen bg-neutral-50/50 pb-20">
+      {/* Top Header */}
+      <Header onBasketClick={() => setIsBasketOpen(true)} />
 
       {/* Main Content Area */}
-      <main className="flex-1 px-5 py-5 space-y-5 overflow-y-auto">
-        {/* Hero Tagline */}
-        <div className="rounded-2xl bg-gradient-to-br from-amber-50 via-orange-50 to-[#FDFBF7] p-5 border border-amber-100/70 shadow-sm">
-          <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-amber-100/80 text-amber-900 text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-[#E05A2B]" />
-            <span>Community Knowledge Loop</span>
+      <main className="flex-1 px-5 py-4 space-y-6 overflow-y-auto">
+        {/* Hero Banner */}
+        <div className="rounded-3xl bg-gradient-to-br from-amber-500 via-[#E05A2B] to-[#993412] p-5 text-white shadow-md relative overflow-hidden">
+          <div className="relative z-10 space-y-2">
+            <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full bg-white/20 backdrop-blur-xs text-white text-[11px] font-semibold">
+              <Sparkles className="w-3 h-3 text-amber-200" />
+              <span>Udaipur Community Knowledge Loop</span>
+            </div>
+            <h2 className="text-xl font-extrabold leading-tight tracking-tight">
+              Explore like a local. Travel your way.
+            </h2>
+            <p className="text-xs text-amber-100/90 leading-relaxed max-w-sm">
+              Discover authentic journeys completed by real travelers, mix stops into your personal basket, and unlock direct artisan workshops.
+            </p>
           </div>
-          <h2 className="text-xl font-bold text-neutral-900 leading-tight">
-            Explore like a local. Travel your way.
-          </h2>
-          <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
-            Real itineraries from genuine travelers, constraint-locked scheduling, and direct artisan workshop discovery.
-          </p>
+        </div>
 
-          <div className="mt-4 flex items-center gap-2">
-            <Link
-              href="/trip"
-              className="flex-1 py-2.5 px-3 rounded-xl bg-[#E05A2B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs hover:bg-[#c94d23] transition-colors"
-            >
-              <Navigation className="w-3.5 h-3.5" />
-              <span>Open My Active Trip</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+        {/* Clear Entry Points: Option A (Explore Trails) vs Option B (Plan from Scratch) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Option A: Explore Community Trails (Primary) */}
+          <Link
+            href="/trails"
+            className="p-4 rounded-2xl bg-white border-2 border-[#E05A2B] hover:bg-amber-50/30 transition-all shadow-xs flex items-start justify-between group"
+          >
+            <div className="space-y-1">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-[#E05A2B] flex items-center justify-center">
+                <Compass className="w-4 h-4 stroke-[2.2]" />
+              </div>
+              <h3 className="font-bold text-sm text-neutral-900 group-hover:text-[#E05A2B] transition-colors">
+                Explore Community Trails
+              </h3>
+              <p className="text-[11px] text-neutral-500 leading-snug">
+                Browse verified traveler routes, pick stops, and adopt base itineraries.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[#E05A2B] shrink-0 mt-2 group-hover:translate-x-1 transition-transform" />
+          </Link>
+
+          {/* Option B: Plan from Scratch (Secondary) */}
+          <button
+            type="button"
+            onClick={() => setIsPlanScratchOpen(true)}
+            className="p-4 rounded-2xl bg-white border border-neutral-200/90 hover:border-neutral-300 hover:bg-neutral-50/70 transition-all shadow-xs flex items-start justify-between text-left group"
+          >
+            <div className="space-y-1">
+              <div className="w-8 h-8 rounded-xl bg-neutral-100 text-neutral-700 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <h3 className="font-bold text-sm text-neutral-900 group-hover:text-neutral-700 transition-colors">
+                Plan from Scratch
+              </h3>
+              <p className="text-[11px] text-neutral-500 leading-snug">
+                Choose duration, set budget, and let the deterministic engine optimize.
+              </p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-neutral-400 shrink-0 mt-2 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+
+        {/* Quick Category Chips */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+              Browse by Vibe
+            </h3>
             <Link
               href="/trails"
-              className="py-2.5 px-3 rounded-xl bg-white border border-amber-200 text-neutral-800 font-bold text-xs hover:bg-amber-50 transition-colors"
+              className="text-xs font-semibold text-[#E05A2B] hover:underline"
             >
-              Explore Trails
+              View all &rarr;
             </Link>
+          </div>
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors capitalize ${
+                  selectedCategory === cat
+                    ? "bg-neutral-900 text-white shadow-xs"
+                    : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300"
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Foundation Status Card */}
+        {/* Featured Community Trails Feed */}
         <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-            System Foundation (Ticket 01)
-          </h3>
-
-          <div className="rounded-xl border border-neutral-100 bg-neutral-50/70 p-4 space-y-3 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-500 font-medium">Supabase PostgreSQL 17</span>
-              <span className="inline-flex items-center text-emerald-700 font-semibold">
-                <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Connected
-              </span>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-neutral-900">
+                Featured Traveler Trails
+              </h3>
+              <p className="text-[11px] text-neutral-500">
+                Completed in Udaipur with authentic timing &amp; tips
+              </p>
             </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-500 font-medium">PostGIS Spatial Extension</span>
-              <span className="inline-flex items-center text-emerald-700 font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5 mr-1 text-emerald-600" /> v3.3 GIST Active
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-500 font-medium">Core Database Tables</span>
-              <span className="font-semibold text-neutral-800">10 / 10 Provisioned</span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-500 font-medium">Udaipur Seed Landmarks</span>
-              <span className="font-semibold text-neutral-800">
-                {health?.places_count ?? 6} Verified Sites
-              </span>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <span className="text-neutral-500 font-medium">Pre-populated Community Trails</span>
-              <span className="font-semibold text-neutral-800">
-                {health?.trails_count ?? 2} Ready to Clone
-              </span>
-            </div>
+            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Award className="w-3 h-3" />
+              Verified
+            </span>
           </div>
-        </div>
 
-        {/* Quick Discovery Cards Preview */}
-        <div className="space-y-3">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-            Initial Seeded Trails
-          </h3>
-
-          <div className="space-y-2.5">
-            <Link
-              href="/trails/trail_royal_palaces_crafts"
-              className="block p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-neutral-900">
-                  Udaipur Royal Palaces & Crafts
-                </h4>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#E05A2B] border border-amber-100">
-                  ₹1,250
-                </span>
-              </div>
-              <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
-                City Palace, Mohanlal Miniature Studio, Jagdish Temple, Bagore Ki Haveli.
-              </p>
-              <div className="flex items-center gap-2 mt-2.5 text-[11px] text-neutral-400 font-medium">
-                <span>6.5 hrs</span>
-                <span>•</span>
-                <span>4 stops</span>
-                <span>•</span>
-                <span className="text-emerald-600 font-semibold">Experienced Badge</span>
-              </div>
-            </Link>
-
-            <Link
-              href="/trails/trail_old_city_heritage_walk"
-              className="block p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs"
-            >
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm text-neutral-900">
-                  Old City Evening Heritage Walk
-                </h4>
-                <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-[#E05A2B] border border-amber-100">
-                  ₹450
-                </span>
-              </div>
-              <p className="text-xs text-neutral-500 mt-1 line-clamp-2">
-                Sunset at Gangaur Ghat, temple aarti, and street food at Sukhadia Circle.
-              </p>
-              <div className="flex items-center gap-2 mt-2.5 text-[11px] text-neutral-400 font-medium">
-                <span>3.5 hrs</span>
-                <span>•</span>
-                <span>3 stops</span>
-                <span>•</span>
-                <span className="text-emerald-600 font-semibold">Featured</span>
-              </div>
-            </Link>
+          <div className="space-y-3">
+            {featuredTrails.map((trail) => (
+              <TrailCard
+                key={trail.id}
+                trail={trail}
+                onUseAsBase={handleUseAsBaseClick}
+              />
+            ))}
           </div>
         </div>
       </main>
 
-      {/* Persistent Bottom Navigation */}
+      {/* Floating Basket Counter & Open Button */}
+      <FloatingBasketButton onClick={() => setIsBasketOpen(true)} />
+
+      {/* Slide-Up Basket Drawer */}
+      <BasketDrawer isOpen={isBasketOpen} onClose={() => setIsBasketOpen(false)} />
+
+      {/* Modals */}
+      <UseAsBaseModal
+        isOpen={Boolean(baseTrailCandidate)}
+        trail={baseTrailCandidate}
+        currentBasketCount={totalCount}
+        onClose={() => setBaseTrailCandidate(null)}
+        onConfirm={handleConfirmUseAsBase}
+      />
+
+      <PlanFromScratchModal
+        isOpen={isPlanScratchOpen}
+        onClose={() => setIsPlanScratchOpen(false)}
+      />
+
+      {/* Bottom Navigation Bar */}
       <BottomNav />
     </div>
   );
