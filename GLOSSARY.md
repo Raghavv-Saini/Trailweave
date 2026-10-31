@@ -7,7 +7,7 @@ This glossary defines the ubiquitous language for TrailWeave. All code, database
 ### Core Domain Entities
 
 #### 1. Canonical Place (`Place`)
-A verified, physical geographic location in Udaipur with exact latitude/longitude coordinates, category (attraction, heritage, dining, nature, workshop), entry fee in INR, estimated visit duration in minutes, and operating hours.
+A verified, physical geographic location in Udaipur with exact latitude/longitude coordinates, category (`attraction`, `heritage`, `dining`, `nature`, `artisan_studio` / `workshop`), entry fee in INR, estimated visit duration in minutes, and operating hours.
 
 #### 2. Community Curated Trail (`CommunityTrail`)
 A real, completed itinerary (single-day or multi-day) submitted by a traveler with explicit consent at the end of their trip. Stored using a **relative duration model** (`suggested_duration_minutes`, `day_number`, `time_slot`), featuring verified places, traveler tips, total budget, and trip notes. Once reviewed, it is displayed in the Curated Section for other travelers to discover, clone, or adapt.

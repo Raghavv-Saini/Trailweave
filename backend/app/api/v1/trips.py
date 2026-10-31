@@ -2,14 +2,29 @@
 Track 2 & Track 3: Personal Trip & Active Companion Operations
 Spec: docs/API_SPEC.md §1.3 & §1.4
 """
+import json
+import uuid
 from typing import List, Optional, Dict, Any
-from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Body, status
+from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from app.core.config import settings
 from app.core.database import get_db
-from app.schemas.trips import TripResponse, TripStopResponse, ItineraryVersionResponse
+from app.schemas.trips import (
+    BasketStopInput,
+    TravelRequest,
+    TripResponse,
+    TripStopResponse,
+    ItineraryVersionResponse,
+)
+from app.services.planner import (
+    PlaceCandidate,
+    PlannerConfig,
+    StartLocation,
+    solve_itinerary,
+)
 
 router = APIRouter(tags=["Personal Trips & In-Trip Companion"])
 
@@ -30,6 +45,297 @@ class PublishTrailRequest(BaseModel):
     include_stop_ids: List[str]
     exclude_private_notes: bool = True
     tags: List[str] = ["heritage"]
+
+
+async def _fetch_places_with_artisan_info(
+    db: AsyncSession, place_ids: List[str]
+) -> Dict[str, Any]:
+    """Fetch canonical places with aggregated approved artisan workshop metadata (safe for 1:N artisans)."""
+    if not place_ids:
+        return {}
+    places_res = await db.execute(
+        text("""
+            SELECT
+                p.id,
+                p.name,
+                p.category,
+                p.latitude,
+                p.longitude,
+                p.entry_fee_inr,
+                p.typical_duration_minutes,
+                p.opening_time,
+                p.closing_time,
+                COALESCE(BOOL_OR(a.has_workshop), FALSE) AS has_workshop,
+                COALESCE(MIN(a.workshop_fee_inr) FILTER (WHERE a.has_workshop), 0) AS workshop_fee_inr,
+                COALESCE(MIN(a.workshop_duration_minutes) FILTER (WHERE a.has_workshop), 45) AS workshop_duration_minutes
+            FROM places p
+            LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
+            WHERE p.id = ANY(:pids)
+            GROUP BY
+                p.id, p.name, p.category, p.latitude, p.longitude,
+                p.entry_fee_inr, p.typical_duration_minutes, p.opening_time, p.closing_time
+        """),
+        {"pids": list(set(place_ids))},
+    )
+    return {r.id: r for r in places_res.fetchall()}
+
+
+def _build_place_candidate(row: Any, stop: BasketStopInput) -> PlaceCandidate:
+    """Map database place row + stop input metadata into a PlaceCandidate."""
+    return PlaceCandidate(
+        id=row.id,
+        name=row.name,
+        category=row.category,
+        latitude=float(row.latitude),
+        longitude=float(row.longitude),
+        entry_fee_inr=float(row.entry_fee_inr or 0),
+        typical_duration_minutes=int(row.typical_duration_minutes or 45),
+        opening_time=row.opening_time,
+        closing_time=row.closing_time,
+        has_workshop=bool(row.has_workshop),
+        workshop_fee_inr=float(row.workshop_fee_inr or 0),
+        workshop_duration_minutes=int(row.workshop_duration_minutes or 45),
+        day_number=stop.day_number,
+        sequence_in_day=stop.sequence_in_day,
+        suggested_duration_minutes=stop.suggested_duration_minutes,
+        time_slot=stop.time_slot,
+        source_attribution=stop.source_attribution,
+        private_notes=stop.private_notes,
+    )
+
+
+async def _load_candidates_from_request(
+    body: TravelRequest, db: AsyncSession
+) -> tuple[List[PlaceCandidate], str, int]:
+    """Load PlaceCandidate list from either source_trail_id, stops basket, or place_ids."""
+    inferred_title = body.title
+    inferred_total_days = body.total_days
+
+    if body.source_trail_id:
+        trail_res = await db.execute(
+            text("SELECT * FROM community_trails WHERE id = :tid"),
+            {"tid": body.source_trail_id},
+        )
+        trail = trail_res.fetchone()
+        if not trail:
+            raise HTTPException(status_code=404, detail="Source community trail not found")
+        if not inferred_title:
+            inferred_title = trail.title
+        if trail.total_days and trail.total_days > inferred_total_days:
+            inferred_total_days = trail.total_days
+
+        ts_res = await db.execute(
+            text("""
+                SELECT
+                    place_id, day_number, sequence_in_day,
+                    suggested_duration_minutes, time_slot, traveler_tip
+                FROM community_trail_stops
+                WHERE trail_id = :tid
+                ORDER BY day_number, sequence_in_day
+            """),
+            {"tid": body.source_trail_id},
+        )
+        stop_inputs = [
+            BasketStopInput(
+                place_id=r.place_id,
+                day_number=r.day_number,
+                sequence_in_day=r.sequence_in_day,
+                suggested_duration_minutes=r.suggested_duration_minutes,
+                time_slot=r.time_slot,
+                source_attribution=trail.author_name,
+                private_notes=r.traveler_tip,
+            )
+            for r in ts_res.fetchall()
+        ]
+    else:
+        stop_inputs = list(body.stops)
+        if not stop_inputs and body.place_ids:
+            seen: set[str] = set()
+            for pid in body.place_ids:
+                if pid not in seen:
+                    seen.add(pid)
+                    stop_inputs.append(BasketStopInput(place_id=pid))
+
+    if not stop_inputs:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide place_ids, stops, or source_trail_id to plan a trip.",
+        )
+
+    place_ids = [s.place_id for s in stop_inputs]
+    place_map = await _fetch_places_with_artisan_info(db, place_ids)
+    missing = [pid for pid in place_ids if pid not in place_map]
+    if missing:
+        raise HTTPException(
+            status_code=404, detail=f"Canonical places not found: {missing}"
+        )
+
+    candidates = [_build_place_candidate(place_map[s.place_id], s) for s in stop_inputs]
+    return candidates, inferred_title or "My Udaipur Cultural Journey", inferred_total_days
+
+
+@router.post("/trips", response_model=TripResponse, status_code=status.HTTP_201_CREATED)
+async def create_planned_trip(
+    body: TravelRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Plan and persist an authoritative personal trip (revision = 1) using the deterministic solver."""
+    candidates, trip_title, total_days = await _load_candidates_from_request(body, db)
+
+    config = PlannerConfig(
+        start_location=StartLocation(
+            name=body.start_location.name,
+            latitude=body.start_location.latitude,
+            longitude=body.start_location.longitude,
+        ),
+        start_datetime=body.start_datetime,
+        total_days=total_days,
+        budget_inr=body.budget_inr,
+        budget_mode=body.budget_mode,
+        travel_mode=body.travel_mode,
+        artisan_preference=body.artisan_preference,
+        optimize_route=body.optimize_route,
+        google_maps_api_key=settings.GOOGLE_MAPS_API_KEY,
+    )
+
+    plan = await solve_itinerary(candidates, config)
+
+    if not plan.is_feasible and not body.allow_warnings:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "message": "Schedule violates budget or venue operating hour constraints.",
+                "is_feasible": False,
+                "budget_exceeded": plan.budget_exceeded,
+                "total_estimated_cost_inr": plan.total_estimated_cost_inr,
+                "budget_limit_inr": plan.budget_limit_inr,
+                "closing_hour_conflicts": plan.closing_hour_conflicts,
+            },
+        )
+
+    trip_id = f"trip_{uuid.uuid4().hex[:10]}"
+    version_id = f"ver_{uuid.uuid4().hex[:10]}"
+    duration_type = "multi_day" if total_days > 1 else "single_day"
+
+    await db.execute(
+        text("""
+            INSERT INTO trips (
+                id, user_id, title, destination, duration_type, total_days,
+                budget_inr, budget_mode, artisan_preference, revision,
+                current_itinerary_version_id, status
+            ) VALUES (
+                :id, :user_id, :title, :destination, :duration_type, :total_days,
+                :budget_inr, :budget_mode, :artisan_preference, 1,
+                :version_id, 'planned'
+            )
+        """),
+        {
+            "id": trip_id,
+            "user_id": body.user_id,
+            "title": trip_title,
+            "destination": body.destination,
+            "duration_type": duration_type,
+            "total_days": total_days,
+            "budget_inr": body.budget_inr,
+            "budget_mode": body.budget_mode,
+            "artisan_preference": body.artisan_preference,
+            "version_id": version_id,
+        },
+    )
+
+    await db.execute(
+        text("""
+            INSERT INTO itinerary_versions (
+                id, trip_id, version_number, total_estimated_cost_inr,
+                total_estimated_duration_minutes, route_geometry
+            ) VALUES (
+                :id, :trip_id, 1, :cost, :duration, CAST(:route_geometry AS jsonb)
+            )
+        """),
+        {
+            "id": version_id,
+            "trip_id": trip_id,
+            "cost": plan.total_estimated_cost_inr,
+            "duration": plan.total_estimated_duration_minutes,
+            "route_geometry": json.dumps(plan.route_geometry),
+        },
+    )
+
+    stop_responses: List[TripStopResponse] = []
+    for s in plan.stops:
+        stop_id = f"stop_{uuid.uuid4().hex[:10]}"
+        await db.execute(
+            text("""
+                INSERT INTO trip_stops (
+                    id, trip_id, itinerary_version_id, place_id, day_number,
+                    sequence_in_day, planned_arrival, planned_departure,
+                    suggested_duration_minutes, is_pinned, visit_status,
+                    source_attribution, private_notes
+                ) VALUES (
+                    :id, :trip_id, :version_id, :place_id, :day_number,
+                    :sequence_in_day, :planned_arrival, :planned_departure,
+                    :suggested_duration_minutes, FALSE, 'pending',
+                    :source_attribution, :private_notes
+                )
+            """),
+            {
+                "id": stop_id,
+                "trip_id": trip_id,
+                "version_id": version_id,
+                "place_id": s.place_id,
+                "day_number": s.day_number,
+                "sequence_in_day": s.sequence_in_day,
+                "planned_arrival": s.planned_arrival,
+                "planned_departure": s.planned_departure,
+                "suggested_duration_minutes": s.suggested_duration_minutes,
+                "source_attribution": s.source_attribution,
+                "private_notes": s.private_notes,
+            },
+        )
+        stop_responses.append(
+            TripStopResponse(
+                id=stop_id,
+                trip_id=trip_id,
+                place_id=s.place_id,
+                name=s.name,
+                day_number=s.day_number,
+                sequence_in_day=s.sequence_in_day,
+                planned_arrival=s.planned_arrival,
+                planned_departure=s.planned_departure,
+                suggested_duration_minutes=s.suggested_duration_minutes,
+                actual_duration_minutes=None,
+                is_pinned=False,
+                visit_status="pending",
+                source_attribution=s.source_attribution,
+                private_notes=s.private_notes,
+            )
+        )
+
+    await db.commit()
+
+    return TripResponse(
+        id=trip_id,
+        user_id=body.user_id,
+        title=trip_title,
+        destination=body.destination,
+        duration_type=duration_type,
+        total_days=total_days,
+        budget_inr=body.budget_inr,
+        budget_mode=body.budget_mode,
+        artisan_preference=body.artisan_preference,
+        revision=1,
+        current_itinerary_version_id=version_id,
+        status="planned",
+        active_version=ItineraryVersionResponse(
+            id=version_id,
+            trip_id=trip_id,
+            version_number=1,
+            total_estimated_cost_inr=plan.total_estimated_cost_inr,
+            total_estimated_duration_minutes=plan.total_estimated_duration_minutes,
+            route_geometry=plan.route_geometry,
+            stops=stop_responses,
+        ),
+    )
 
 
 @router.get("/trips/{trip_id}", response_model=TripResponse)
@@ -91,6 +397,7 @@ async def get_trip(
                 version_number=v.version_number,
                 total_estimated_cost_inr=float(v.total_estimated_cost_inr),
                 total_estimated_duration_minutes=v.total_estimated_duration_minutes,
+                route_geometry=v.route_geometry,
                 stops=stops
             )
 
@@ -168,14 +475,21 @@ async def record_stop_visit(
                 :eid, :trip_id, 
                 (SELECT revision FROM trips WHERE id = :trip_id),
                 'user', :source, 'stop_visited',
-                :payload::jsonb
+                CAST(:payload AS jsonb)
             )
         """),
         {
-            "eid": f"event_{datetime.utcnow().timestamp()}",
+            "eid": f"event_{datetime.now(timezone.utc).timestamp()}",
             "trip_id": trip_id,
             "source": body.checkin_method,
-            "payload": f'{{"stop_id": "{stop_id}", "timestamp": "{body.arrival_timestamp or datetime.utcnow().isoformat()}"}}'
+            "payload": json.dumps(
+                {
+                    "stop_id": stop_id,
+                    "timestamp": (
+                        body.arrival_timestamp or datetime.now(timezone.utc)
+                    ).isoformat(),
+                }
+            ),
         }
     )
     await db.commit()
@@ -194,7 +508,7 @@ async def record_stop_checkout(
         "success": True,
         "stop_id": stop_id,
         "checkout_method": body.checkout_method,
-        "timestamp": body.departure_timestamp or datetime.utcnow().isoformat()
+        "timestamp": (body.departure_timestamp or datetime.now(timezone.utc)).isoformat()
     }
 
 
@@ -214,7 +528,7 @@ async def publish_trip_to_trail(
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
 
-    trail_id = f"trail_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}"
+    trail_id = f"trail_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
     await db.execute(
         text("""
             INSERT INTO community_trails (
