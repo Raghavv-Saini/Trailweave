@@ -74,6 +74,47 @@ Fetches full artisan studio profile, photo gallery, and workshop offerings.
 
 ### 1.3 Personal Trip & Active Companion Operations
 
+#### `POST /api/trips`
+Plans and creates an optimized personal itinerary from selected places or a community trail using the Deterministic Itinerary Planner. Validates opening/closing hours, computes transit durations (via Google Distance Matrix API when `GOOGLE_MAPS_API_KEY` is set, with deterministic Haversine fallback), enforces hard budget caps, expands relative durations into concrete `planned_arrival` and `planned_departure` timestamps across single or multiple days, and persists `trips` (`revision = 1`), `itinerary_versions` (`version_number = 1`), and `trip_stops`.
+- **Request Body (`TravelRequest`)**:
+```json
+{
+  "user_id": "user_tourist_01",
+  "title": "My Udaipur Cultural Journey",
+  "destination": "Udaipur",
+  "start_datetime": "2026-11-01T09:00:00+05:30",
+  "total_days": 1,
+  "budget_inr": 2000,
+  "budget_mode": "total",
+  "travel_mode": "auto_rickshaw",
+  "artisan_preference": "workshop",
+  "start_location": {
+    "name": "Hotel Swaroop Vilas",
+    "latitude": 24.5854,
+    "longitude": 73.6812
+  },
+  "place_ids": ["place_city_palace", "place_mohanlal_studio", "place_jagdish_temple"],
+  "stops": [],
+  "source_trail_id": null,
+  "optimize_route": true,
+  "allow_warnings": false
+}
+```
+- **Response `201 Created`**: Returns the authoritative `TripResponse` (`revision = 1`, `active_version.version_number = 1`).
+- **Response `422 Unprocessable Entity` (Infeasible Schedule)**: Returned when budget or venue closing hours are violated and `allow_warnings = false`:
+```json
+{
+  "detail": {
+    "message": "Schedule violates budget or venue operating hour constraints.",
+    "is_feasible": false,
+    "budget_exceeded": true,
+    "total_estimated_cost_inr": 630.0,
+    "budget_limit_inr": 400.0,
+    "closing_hour_conflicts": []
+  }
+}
+```
+
 #### `GET /api/trips/{trip_id}`
 Load the authoritative current state of a personal trip.
 - **Response `200 OK`**:
@@ -92,23 +133,41 @@ Load the authoritative current state of a personal trip.
     "stops": [
       {
         "id": "stop_1",
+        "trip_id": "trip_abc123",
         "place_id": "place_city_palace",
         "name": "City Palace Udaipur",
+        "address": "Old City, Udaipur, Rajasthan 313001",
+        "latitude": 24.5764,
+        "longitude": 73.6835,
+        "category": "heritage",
+        "entry_fee_inr": 330,
+        "image_url": "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=900&q=80",
         "day_number": 1,
         "sequence_in_day": 1,
         "planned_arrival": "2026-10-31T09:30:00Z",
         "planned_departure": "2026-10-31T11:30:00Z",
+        "suggested_duration_minutes": 120,
+        "actual_duration_minutes": 120,
         "visit_status": "visited",
         "is_pinned": false
       },
       {
         "id": "stop_2",
+        "trip_id": "trip_abc123",
         "place_id": "place_mohanlal_studio",
-        "name": "Mohanlal Miniature Art Studio",
+        "name": "Master Mohanlal Miniature Art Studio",
+        "address": "14 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
+        "latitude": 24.5796,
+        "longitude": 73.6844,
+        "category": "artisan_studio",
+        "entry_fee_inr": 0,
+        "image_url": "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
         "day_number": 1,
         "sequence_in_day": 2,
         "planned_arrival": "2026-10-31T11:45:00Z",
         "planned_departure": "2026-10-31T12:30:00Z",
+        "suggested_duration_minutes": 45,
+        "actual_duration_minutes": null,
         "visit_status": "pending",
         "is_pinned": true
       }
@@ -141,7 +200,7 @@ Records a departure checkout (triggered by tourist tap or 20-min grace buffer au
   "departure_timestamp": "2026-10-31T11:30:00Z"
 }
 ```
-- **Response `200 OK`**: Schedules AI transition notification, updates remaining timeline.
+- **Response `200 OK`**: Updates `actual_duration_minutes`, appends `stop_checkout` event to `trip_events`, schedules AI transition notification, updates remaining timeline.
 
 ---
 

@@ -2,8 +2,24 @@
 Track 2: Deterministic Itinerary Planner & Relative Duration Solver
 Ticket: docs/tickets/track-2-trip-engine-backend/04-deterministic-itinerary-planner.md
 """
-from datetime import datetime, time, timedelta
+from datetime import datetime, time
 from typing import List, Dict, Any, Optional
+from app.services.planner import (
+    PlaceCandidate,
+    PlannerConfig,
+    StartLocation,
+    SolvedItinerary,
+    solve_itinerary,
+)
+
+__all__ = [
+    "DeterministicPlanner",
+    "PlaceCandidate",
+    "PlannerConfig",
+    "StartLocation",
+    "SolvedItinerary",
+    "solve_itinerary",
+]
 
 
 class DeterministicPlanner:
@@ -16,16 +32,20 @@ class DeterministicPlanner:
         self.start_time = start_time
         self.budget_inr = budget_inr
 
-    def solve_itinerary(
+    async def solve_itinerary(
         self,
-        places: List[Dict[str, Any]],
-        start_date: datetime
-    ) -> Dict[str, Any]:
+        places: List[PlaceCandidate],
+        start_date: datetime,
+        start_location: Optional[StartLocation] = None,
+        total_days: int = 1,
+        optimize_route: bool = True,
+    ) -> SolvedItinerary:
         """Plans stop sequence with concrete arrival and departure timestamps."""
-        # Core solver logic implemented in Ticket 04
-        return {
-            "version_number": 1,
-            "stops": places,
-            "total_estimated_cost_inr": sum(p.get("entry_fee_inr", 0) for p in places),
-            "is_feasible": True
-        }
+        config = PlannerConfig(
+            start_location=start_location or StartLocation(),
+            start_datetime=start_date,
+            total_days=total_days,
+            budget_inr=self.budget_inr,
+            optimize_route=optimize_route,
+        )
+        return await solve_itinerary(places, config)
