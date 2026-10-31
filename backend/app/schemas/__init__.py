@@ -22,7 +22,16 @@ from app.schemas.trails import (
     CommunityTrailDetailResponse,
     CommunityTrailStopResponse,
 )
-from app.schemas.admin import ArtisanDraftResponse, ArtisanDraftApproveRequest
+from app.schemas.admin import (
+    ArtisanDraftResponse,
+    ArtisanDraftApproveRequest,
+    AdminArtisanResponse,
+    AdminArtisanUpdateRequest,
+    AdminTrailResponse,
+    AdminTrailFeatureRequest,
+    AdminPlaceCreateRequest,
+    AdminPlaceResponse,
+)
 
 __all__ = [
     "PlaceBase",
@@ -48,4 +57,10 @@ __all__ = [
     "CommunityTrailStopResponse",
     "ArtisanDraftResponse",
     "ArtisanDraftApproveRequest",
+    "AdminArtisanResponse",
+    "AdminArtisanUpdateRequest",
+    "AdminTrailResponse",
+    "AdminTrailFeatureRequest",
+    "AdminPlaceCreateRequest",
+    "AdminPlaceResponse",
 ]
