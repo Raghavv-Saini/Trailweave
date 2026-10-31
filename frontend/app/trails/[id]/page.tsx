@@ -97,7 +97,7 @@ export default function TrailDetailPage() {
         onBasketClick={() => setIsBasketOpen(true)}
       />
 
-      <main className="flex-1 px-5 py-4 space-y-5 overflow-y-auto">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6 pb-24">
         {/* Back navigation */}
         <Link
           href="/trails"

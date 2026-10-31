@@ -71,14 +71,14 @@ export default function TrailsExplorerPage() {
   };
 
   return (
-    <div className="flex-1 flex flex-col justify-between min-h-screen bg-neutral-50/50 pb-20">
+    <div className="flex-1 flex flex-col justify-between min-h-screen bg-[#FDFBF7]">
       <Header
         title="Community Trails"
-        subtitle="Real itineraries by fellow travelers"
+        subtitle="Verified Field Itineraries • Udaipur"
         onBasketClick={() => setIsBasketOpen(true)}
       />
 
-      <main className="flex-1 px-5 py-4 space-y-4 overflow-y-auto">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
         {/* Comprehensive Filter Bar */}
         <TrailFilterBar
           duration={duration}
@@ -91,8 +91,8 @@ export default function TrailsExplorerPage() {
         />
 
         {/* Results Counter */}
-        <div className="flex items-center justify-between text-xs font-semibold text-neutral-500 pt-1">
-          <span>{filteredTrails.length} trails available</span>
+        <div className="flex items-center justify-between text-xs font-semibold text-[#7A746B] pt-1">
+          <span>Showing <strong className="text-[#191C1E]">{filteredTrails.length}</strong> community routes</span>
           {(duration !== "all" || budget !== "all" || selectedTag !== "all") && (
             <button
               onClick={() => {
@@ -100,19 +100,19 @@ export default function TrailsExplorerPage() {
                 setBudget("all");
                 setSelectedTag("all");
               }}
-              className="text-[#E05A2B] hover:underline"
+              className="text-[#1E3A5F] hover:underline cursor-pointer"
             >
               Reset filters
             </button>
           )}
         </div>
 
-        {/* Trail Cards List */}
-        <div className="space-y-3">
+        {/* Trail Cards Grid (Responsive Multi-Column) */}
+        <div>
           {filteredTrails.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-neutral-200/80 p-6 space-y-2">
-              <p className="text-sm font-bold text-neutral-800">No matching trails found</p>
-              <p className="text-xs text-neutral-500">
+            <div className="text-center py-12 bg-white rounded-2xl border border-[#E8E4DC] p-6 space-y-2">
+              <p className="text-sm font-bold text-[#191C1E]">No matching trails found</p>
+              <p className="text-xs text-[#7A746B]">
                 Try widening your budget cap or clearing duration filters.
               </p>
               <button
@@ -121,19 +121,21 @@ export default function TrailsExplorerPage() {
                   setBudget("all");
                   setSelectedTag("all");
                 }}
-                className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                className="mt-2 text-xs font-bold px-3 py-1.5 rounded-lg bg-[#F0ECE1] text-[#191C1E] hover:bg-[#E2DDD3] cursor-pointer"
               >
                 Reset All Filters
               </button>
             </div>
           ) : (
-            filteredTrails.map((trail) => (
-              <TrailCard
-                key={trail.id}
-                trail={trail}
-                onUseAsBase={handleUseAsBaseClick}
-              />
-            ))
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredTrails.map((trail) => (
+                <TrailCard
+                  key={trail.id}
+                  trail={trail}
+                  onUseAsBase={handleUseAsBaseClick}
+                />
+              ))}
+            </div>
           )}
         </div>
       </main>

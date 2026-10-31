@@ -449,9 +449,9 @@ export default function ActiveTripPage() {
         subtitle={`${tripTitle} • Rev ${revision}`}
       />
 
-      <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-7 space-y-6">
         {/* Clear Toggle Between Operational View & Edit Mode */}
-        <div className="flex rounded-2xl bg-neutral-200/70 p-1 text-xs font-bold shadow-2xs">
+        <div className="flex rounded-2xl bg-neutral-200/70 p-1 text-xs font-bold shadow-2xs max-w-xs sm:max-w-sm">
           <button
             onClick={() => setViewMode("operational")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all cursor-pointer ${
@@ -468,7 +468,7 @@ export default function ActiveTripPage() {
             onClick={() => setViewMode("edit")}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl transition-all cursor-pointer ${
               viewMode === "edit"
-                ? "bg-neutral-900 text-white shadow-xs font-extrabold"
+                ? "bg-[#1E3A5F] text-white shadow-xs font-extrabold"
                 : "text-neutral-500 hover:text-neutral-900"
             }`}
           >
@@ -481,312 +481,301 @@ export default function ActiveTripPage() {
           /* Direct-Manipulation Upcoming Stop Manual Editor */
           <UpcomingStopEditor onClose={() => setViewMode("operational")} />
         ) : (
-          /* Operational View */
-          <>
-            {/* Live Progress Indicators (Visited / Skipped / Remaining) */}
-            <div className="p-3.5 rounded-2xl bg-white border border-neutral-200/80 shadow-2xs space-y-2.5">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-neutral-800 flex items-center gap-1.5">
-                  <Radio
-                    className={`w-3.5 h-3.5 ${
-                      gpsStatus === "simulated"
-                        ? "text-emerald-600 animate-pulse"
-                        : gpsStatus === "watching"
-                        ? "text-[#E05A2B]"
-                        : "text-amber-500"
-                    }`}
-                  />
-                  <span>
-                    {gpsStatus === "simulated"
-                      ? "GPS: Simulated <100m Lock"
-                      : gpsStatus === "watching"
-                      ? "GPS Geofence Watcher (100m)"
-                      : "Old City Alley Mode (Manual Ready)"}
-                  </span>
-                </span>
-                <span className="text-[11px] font-bold text-[#E05A2B]">
-                  {progressPercent}% Complete
-                </span>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full h-2 rounded-full bg-neutral-100 overflow-hidden">
+          /* Operational View: 2-Column Split on Desktop */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+            {/* Left Column (lg:col-span-7): Active Stop, Timeline & Audit */}
+            <div className="lg:col-span-7 space-y-6">
+              {/* Live Status / Grace Buffer Recovery Alert Banner */}
+              {statusBanner && (
                 <div
-                  className="h-full bg-gradient-to-r from-[#E05A2B] to-emerald-500 transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
-              </div>
-
-              {/* Visited / Skipped / Remaining Counters */}
-              <div className="grid grid-cols-3 gap-2 pt-0.5 text-center">
-                <div className="py-1.5 px-2 rounded-xl bg-emerald-50 border border-emerald-100">
-                  <p className="text-sm font-extrabold text-emerald-700">
-                    {visitedCount}
-                  </p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">
-                    Visited
-                  </p>
-                </div>
-                <div className="py-1.5 px-2 rounded-xl bg-neutral-100 border border-neutral-200">
-                  <p className="text-sm font-extrabold text-neutral-700">
-                    {skippedCount}
-                  </p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-neutral-500">
-                    Skipped
-                  </p>
-                </div>
-                <div className="py-1.5 px-2 rounded-xl bg-amber-50 border border-amber-100">
-                  <p className="text-sm font-extrabold text-[#E05A2B]">
-                    {remainingCount}
-                  </p>
-                  <p className="text-[10px] font-semibold uppercase tracking-wider text-amber-800">
-                    Remaining
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* In-App Companion Concierge Card */}
-            <CompanionConciergeCard onOpenChat={() => setIsAIChatOpen(true)} />
-
-            {/* Quick Actions Row: Ask Gemini Companion + Edit Mode + Complete & Publish */}
-            <div className="flex items-center justify-between gap-2">
-              <button
-                onClick={() => setIsAIChatOpen(true)}
-                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 text-[#E05A2B] border border-amber-200 text-xs font-bold shadow-2xs hover:bg-amber-100/70 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Ask Gemini Companion</span>
-              </button>
-
-              <button
-                onClick={() => setViewMode("edit")}
-                className="flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-neutral-900 text-white hover:bg-neutral-800 text-xs font-bold shadow-2xs cursor-pointer"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Edit Stops</span>
-              </button>
-            </div>
-
-            {/* Trip-to-Trail Contribution Banner */}
-            <div className="p-3 rounded-2xl bg-gradient-to-r from-emerald-50 to-amber-50/70 border border-emerald-200/80 flex items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold text-neutral-900">
-                  Finished or wrapping up your trip?
-                </p>
-                <p className="text-[11px] text-neutral-600">
-                  Pass it on! Publish your verified visited stops as a Community Trail.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsPublishModalOpen(true)}
-                className="shrink-0 px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer"
-              >
-                <span>Share Trail</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Live Status / Grace Buffer Recovery Alert Banner */}
-            {statusBanner && (
-              <div
-                className={`p-3.5 rounded-2xl border text-xs flex items-start gap-2.5 shadow-2xs animate-in slide-in-from-top-1 ${
-                  statusBanner.type === "grace_buffer"
-                    ? "bg-amber-50 border-amber-200 text-amber-900"
-                    : statusBanner.type === "checkout"
-                    ? "bg-neutral-900 border-neutral-800 text-white"
-                    : "bg-emerald-50 border-emerald-200 text-emerald-900"
-                }`}
-              >
-                {statusBanner.type === "grace_buffer" ? (
-                  <Timer className="w-4 h-4 text-[#E05A2B] shrink-0 mt-0.5" />
-                ) : statusBanner.type === "checkout" ? (
-                  <LogOut className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                ) : (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <p className="font-bold leading-relaxed">{statusBanner.message}</p>
-                </div>
-                <button
-                  onClick={() => setStatusBanner(null)}
-                  className="text-[11px] font-bold opacity-60 hover:opacity-100 cursor-pointer"
+                  className={`p-3.5 rounded-2xl border text-xs flex items-start gap-2.5 shadow-2xs animate-in slide-in-from-top-1 ${
+                    statusBanner.type === "grace_buffer"
+                      ? "bg-amber-50 border-amber-200 text-amber-900"
+                      : statusBanner.type === "checkout"
+                      ? "bg-neutral-900 border-neutral-800 text-white"
+                      : "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  }`}
                 >
-                  ✕
-                </button>
-              </div>
-            )}
-
-            {/* Current Active Stop Card */}
-            {activeStop && (
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                    Current Active Stop
-                  </h3>
-                  {selectedStopId && (
-                    <button
-                      onClick={() => setSelectedStopId(null)}
-                      className="text-[11px] font-semibold text-[#E05A2B] hover:underline cursor-pointer"
-                    >
-                      Jump to Next Pending Stop
-                    </button>
+                  {statusBanner.type === "grace_buffer" ? (
+                    <Timer className="w-4 h-4 text-[#E05A2B] shrink-0 mt-0.5" />
+                  ) : statusBanner.type === "checkout" ? (
+                    <LogOut className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  ) : (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   )}
+                  <div className="flex-1">
+                    <p className="font-bold leading-relaxed">{statusBanner.message}</p>
+                  </div>
+                  <button
+                    onClick={() => setStatusBanner(null)}
+                    className="text-[11px] font-bold opacity-60 hover:opacity-100 cursor-pointer"
+                  >
+                    ✕
+                  </button>
                 </div>
-                <ActiveStopCard
-                  stop={activeStop}
-                  distanceMeters={distanceToActiveMeters}
+              )}
+
+              {/* Current Active Stop Card */}
+              {activeStop && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-[#7A746B]">
+                      Current Active Stop
+                    </h3>
+                    {selectedStopId && (
+                      <button
+                        onClick={() => setSelectedStopId(null)}
+                        className="text-[11px] font-semibold text-[#1E3A5F] hover:underline cursor-pointer"
+                      >
+                        Jump to Next Pending Stop
+                      </button>
+                    )}
+                  </div>
+                  <ActiveStopCard
+                    stop={activeStop}
+                    distanceMeters={distanceToActiveMeters}
+                    onManualCheckin={handleInstantManualCheckin}
+                    onGeofenceCheckin={(id) =>
+                      handleGeofenceCheckin(id, "geofence_proximity")
+                    }
+                    onCheckout={handleManualCheckout}
+                  />
+                </div>
+              )}
+
+              {/* Today's Itinerary Timeline */}
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#7A746B]">
+                    Today&apos;s Itinerary Timeline
+                  </h3>
+                  <span className="text-[11px] text-[#7A746B] font-medium">
+                    Tap any card to inspect
+                  </span>
+                </div>
+                <TimelineList
+                  stops={stops}
+                  activeStopId={activeStop?.id}
+                  onSelectStop={(stop) => setSelectedStopId(stop.id)}
                   onManualCheckin={handleInstantManualCheckin}
-                  onGeofenceCheckin={(id) =>
-                    handleGeofenceCheckin(id, "geofence_proximity")
-                  }
                   onCheckout={handleManualCheckout}
                 />
               </div>
-            )}
 
-            {/* Collapsible Hackathon Demo Simulator Controls */}
-            <div className="rounded-2xl border border-amber-200/80 bg-amber-50/50 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setIsSimOpen((prev) => !prev)}
-                className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-amber-950 hover:bg-amber-100/50 cursor-pointer"
-              >
-                <span className="flex items-center gap-1.5">
-                  <Sliders className="w-3.5 h-3.5 text-[#E05A2B]" />
-                  <span>Geofence & Grace Buffer Demo Simulator</span>
-                </span>
-                {isSimOpen ? (
-                  <ChevronUp className="w-4 h-4 text-amber-700" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-amber-700" />
-                )}
-              </button>
-
-              {isSimOpen && (
-                <div className="px-3.5 pb-3.5 pt-1 space-y-2 border-t border-amber-200/50">
-                  <p className="text-[11px] text-amber-800">
-                    Test 100m GPS proximity detection and the 20-minute missed-checkout grace buffer live:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSimulateGeofenceArrival}
-                      className="py-2 px-2.5 rounded-xl bg-white border border-amber-300 text-amber-950 font-bold text-[11px] flex items-center justify-center gap-1.5 hover:bg-amber-100/60 shadow-2xs cursor-pointer"
-                    >
-                      <Radio className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Simulate &lt;100m GPS</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleSimulateGraceBufferTimeout}
-                      className="py-2 px-2.5 rounded-xl bg-white border border-amber-300 text-amber-950 font-bold text-[11px] flex items-center justify-center gap-1.5 hover:bg-amber-100/60 shadow-2xs cursor-pointer"
-                    >
-                      <Timer className="w-3.5 h-3.5 text-[#E05A2B]" />
-                      <span>+20m Grace Buffer</span>
-                    </button>
+              {/* API Method Audit Log */}
+              {auditEvents.length > 0 && (
+                <div className="p-4 rounded-2xl bg-[#191C1E] text-neutral-100 space-y-2">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#9E7432] flex items-center gap-1.5">
+                    <Activity className="w-3.5 h-3.5" />
+                    <span>Live Companion Engine Audit Stream</span>
+                  </h4>
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto font-mono text-[11px]">
+                    {auditEvents.map((ev) => (
+                      <div
+                        key={ev.id}
+                        className="bg-neutral-800/90 px-3 py-1.5 rounded-lg flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate text-neutral-200">
+                          {ev.endpoint}
+                        </span>
+                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-[#9E7432]/30 text-amber-300 text-[10px]">
+                          {ev.method || ev.action}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleResetDemo}
-                    className="w-full py-1.5 px-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-semibold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
-                  >
-                    <RotateCcw className="w-3 h-3" />
-                    <span>Reset Demo Trip State</span>
-                  </button>
                 </div>
               )}
             </div>
 
-            {/* Nearby Artisan Discoveries */}
-            {recommendations.length > 0 && (
-              <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/40 overflow-hidden shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setIsRecsOpen((prev) => !prev)}
-                  className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-amber-950 hover:bg-amber-100/50 transition-colors cursor-pointer"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-[#E05A2B]" />
+            {/* Right Column (lg:col-span-5): Companion Concierge, Metrics, Recs & Simulator */}
+            <div className="lg:col-span-5 space-y-5 lg:sticky lg:top-20">
+              {/* Live Progress Indicators (Visited / Skipped / Remaining) */}
+              <div className="p-4 rounded-2xl bg-white border border-[#E8E4DC] shadow-2xs space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-[#191C1E] flex items-center gap-1.5">
+                    <Radio
+                      className={`w-3.5 h-3.5 ${
+                        gpsStatus === "simulated"
+                          ? "text-emerald-600 animate-pulse"
+                          : gpsStatus === "watching"
+                          ? "text-[#1E3A5F]"
+                          : "text-[#9E7432]"
+                      }`}
+                    />
                     <span>
-                      Nearby Artisan Discoveries ({recommendations.length} within 15m detour)
+                      {gpsStatus === "simulated"
+                        ? "GPS: Simulated <100m Lock"
+                        : gpsStatus === "watching"
+                        ? "GPS Geofence Watcher (100m)"
+                        : "Old City Alley Mode (Manual Ready)"}
                     </span>
                   </span>
-                  {isRecsOpen ? (
-                    <ChevronUp className="w-4 h-4 text-amber-700" />
+                  <span className="text-[11px] font-bold text-[#1E3A5F]">
+                    {progressPercent}% Complete
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="w-full h-2 rounded-full bg-[#F0ECE1] overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-[#1E3A5F] to-emerald-600 transition-all duration-300"
+                    style={{ width: `${progressPercent}%` }}
+                  />
+                </div>
+
+                {/* Visited / Skipped / Remaining Counters */}
+                <div className="grid grid-cols-3 gap-2 pt-0.5 text-center">
+                  <div className="py-2 px-2 rounded-xl bg-emerald-50 border border-emerald-100">
+                    <p className="text-sm font-extrabold text-emerald-800">
+                      {visitedCount}
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">
+                      Visited
+                    </p>
+                  </div>
+                  <div className="py-2 px-2 rounded-xl bg-[#F0ECE1] border border-[#E8E4DC]">
+                    <p className="text-sm font-extrabold text-[#5A544B]">
+                      {skippedCount}
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#7A746B]">
+                      Skipped
+                    </p>
+                  </div>
+                  <div className="py-2 px-2 rounded-xl bg-[#FAF8F5] border border-[#E8E4DC]">
+                    <p className="text-sm font-extrabold text-[#1E3A5F]">
+                      {remainingCount}
+                    </p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-[#7A746B]">
+                      Remaining
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* In-App Companion Concierge Card */}
+              <CompanionConciergeCard onOpenChat={() => setIsAIChatOpen(true)} />
+
+              {/* Trip-to-Trail Contribution Banner */}
+              <div className="p-4 rounded-2xl bg-white border border-[#E8E4DC] shadow-2xs space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-bold text-[#191C1E]">
+                      Wrapping up your journey?
+                    </p>
+                    <p className="text-[11px] text-[#5A544B] leading-relaxed">
+                      Publish your verified visited stops as a Community Trail for future travelers.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsPublishModalOpen(true)}
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-2xs cursor-pointer transition-colors"
+                >
+                  <span>Share Trail to Community</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Nearby Artisan Discoveries */}
+              {recommendations.length > 0 && (
+                <div className="rounded-2xl border border-[#E8E4DC] bg-white overflow-hidden shadow-2xs">
+                  <button
+                    type="button"
+                    onClick={() => setIsRecsOpen((prev) => !prev)}
+                    className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-[#191C1E] hover:bg-[#FAF8F5] transition-colors cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#9E7432]" />
+                      <span>
+                        Nearby Artisan Discoveries ({recommendations.length} within 15m)
+                      </span>
+                    </span>
+                    {isRecsOpen ? (
+                      <ChevronUp className="w-4 h-4 text-[#7A746B]" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 text-[#7A746B]" />
+                    )}
+                  </button>
+
+                  {isRecsOpen && (
+                    <div className="px-4 pb-4 pt-1 space-y-2.5 border-t border-[#F0ECE1]">
+                      <p className="text-[11px] text-[#5A544B] leading-relaxed">
+                        Constraint-aware studio workshops scored along your active route:
+                      </p>
+                      <div className="space-y-2">
+                        {recommendations.map((rec) => (
+                          <ArtisanRecommendationCard
+                            key={rec.place_id}
+                            recommendation={rec}
+                            onAccept={handleAcceptOperationalRec}
+                            isStaged={stops.some((s) => s.place_id === rec.place_id)}
+                            isLoading={isLoadingRecAction}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Collapsible Hackathon Demo Simulator Controls */}
+              <div className="rounded-2xl border border-[#E8E4DC] bg-[#FAF8F5] overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setIsSimOpen((prev) => !prev)}
+                  className="w-full px-4 py-3 flex items-center justify-between text-xs font-bold text-[#191C1E] hover:bg-[#F0ECE1] cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sliders className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                    <span>Geofence &amp; Grace Buffer Demo Simulator</span>
+                  </span>
+                  {isSimOpen ? (
+                    <ChevronUp className="w-4 h-4 text-[#7A746B]" />
                   ) : (
-                    <ChevronDown className="w-4 h-4 text-amber-700" />
+                    <ChevronDown className="w-4 h-4 text-[#7A746B]" />
                   )}
                 </button>
 
-                {isRecsOpen && (
-                  <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-amber-200/60">
-                    <p className="text-[11px] text-amber-900 leading-relaxed">
-                      Constraint-aware studio workshops scored along your active route:
+                {isSimOpen && (
+                  <div className="px-4 pb-4 pt-1 space-y-2.5 border-t border-[#E8E4DC]">
+                    <p className="text-[11px] text-[#5A544B]">
+                      Test 100m GPS proximity detection and the 20-minute missed-checkout grace buffer live:
                     </p>
-                    <div className="space-y-2">
-                      {recommendations.map((rec) => (
-                        <ArtisanRecommendationCard
-                          key={rec.place_id}
-                          recommendation={rec}
-                          onAccept={handleAcceptOperationalRec}
-                          isStaged={stops.some((s) => s.place_id === rec.place_id)}
-                          isLoading={isLoadingRecAction}
-                        />
-                      ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={handleSimulateGeofenceArrival}
+                        className="py-2 px-2.5 rounded-xl bg-white border border-[#E8E4DC] text-[#191C1E] font-bold text-[11px] flex items-center justify-center gap-1.5 hover:bg-[#FAF8F5] shadow-2xs cursor-pointer"
+                      >
+                        <Radio className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Simulate &lt;100m GPS</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleSimulateGraceBufferTimeout}
+                        className="py-2 px-2.5 rounded-xl bg-white border border-[#E8E4DC] text-[#191C1E] font-bold text-[11px] flex items-center justify-center gap-1.5 hover:bg-[#FAF8F5] shadow-2xs cursor-pointer"
+                      >
+                        <Timer className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                        <span>+20m Grace Buffer</span>
+                      </button>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={handleResetDemo}
+                      className="w-full py-1.5 px-2.5 rounded-xl bg-white hover:bg-[#F0ECE1] text-[#7A746B] border border-[#E8E4DC] font-semibold text-[11px] flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Reset Demo Trip State</span>
+                    </button>
                   </div>
                 )}
               </div>
-            )}
-
-            {/* Today's Itinerary Timeline */}
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
-                  Today&apos;s Itinerary Timeline
-                </h3>
-                <span className="text-[11px] text-neutral-400 font-medium">
-                  Tap any card to inspect
-                </span>
-              </div>
-              <TimelineList
-                stops={stops}
-                activeStopId={activeStop?.id}
-                onSelectStop={(stop) => setSelectedStopId(stop.id)}
-                onManualCheckin={handleInstantManualCheckin}
-                onCheckout={handleManualCheckout}
-              />
             </div>
-
-            {/* API Method Audit Log */}
-            {auditEvents.length > 0 && (
-              <div className="p-3.5 rounded-2xl bg-neutral-900 text-neutral-100 space-y-2">
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5" />
-                  <span>Live Companion API Audit Log</span>
-                </h4>
-                <div className="space-y-1.5 max-h-32 overflow-y-auto">
-                  {auditEvents.map((ev) => (
-                    <div
-                      key={ev.id}
-                      className="text-[11px] font-mono bg-neutral-800/90 px-2.5 py-1.5 rounded-lg flex items-center justify-between gap-2"
-                    >
-                      <span className="truncate text-neutral-200">
-                        {ev.endpoint}
-                      </span>
-                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px]">
-                        {ev.method || ev.action}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </>
+          </div>
         )}
       </main>
 

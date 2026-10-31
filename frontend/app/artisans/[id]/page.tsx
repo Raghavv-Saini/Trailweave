@@ -116,7 +116,7 @@ export default function ArtisanDetailPage() {
     <div className="flex-1 flex flex-col justify-between min-h-screen bg-[#FDFBF7]">
       <Header />
 
-      <main className="flex-1 px-4 py-3 space-y-4 overflow-y-auto pb-28">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6 pb-28">
         {/* Navigation Bar */}
         <div className="flex items-center justify-between">
           <Link
