@@ -593,6 +593,31 @@ async def record_stop_checkout(
             "payload": payload_json
         }
     )
+    # Generate contextual transition notification for Web Push & In-App Concierge
+    from app.services.gemini import GeminiCompanionService
+    companion_service = GeminiCompanionService()
+    transition_tip = await companion_service.generate_transition_notification(
+        trip_id=trip_id,
+        completed_stop_id=stop_id,
+        db=db
+    )
+
+    await db.execute(
+        text("""
+            INSERT INTO trip_events (id, trip_id, resulting_revision, actor, source, event_type, payload)
+            VALUES (
+                :eid, :trip_id,
+                (SELECT revision FROM trips WHERE id = :trip_id),
+                'system', 'web_push_service', 'transition_notification_dispatched',
+                CAST(:payload AS jsonb)
+            )
+        """),
+        {
+            "eid": f"event_notif_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+            "trip_id": trip_id,
+            "payload": json.dumps(transition_tip)
+        }
+    )
     await db.commit()
 
     return {
@@ -600,7 +625,8 @@ async def record_stop_checkout(
         "stop_id": stop_id,
         "checkout_method": checkout_method,
         "departure_timestamp": departure_ts,
-        "actual_duration_minutes": actual_duration
+        "actual_duration_minutes": actual_duration,
+        "transition_notification": transition_tip
     }
 
 

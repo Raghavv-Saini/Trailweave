@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { dispatchTransitionNotification } from "@/lib/pushNotifications";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -77,6 +78,12 @@ export interface ReplanAcceptResult {
   error?: string;
 }
 
+export interface CompanionResponse {
+  response_narrative: string;
+  replan_proposal?: ReplanProposal | null;
+  acknowledged_events?: string[];
+}
+
 interface TripContextType {
   tripId: string;
   tripTitle: string;
@@ -99,6 +106,7 @@ interface TripContextType {
     finalStops: TripStop[]
   ) => Promise<ReplanAcceptResult>;
   simulateRemoteRevisionIncrement: () => void;
+  sendCompanionMessage: (message: string) => Promise<CompanionResponse>;
 }
 
 const PLACE_DEFAULTS: Record<
@@ -427,6 +435,17 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Optimistic local state preserved when offline
     }
+
+    // Dispatch Web Push Transition Notification to lockscreen
+    const remainingPending = stops.filter((s) => s.id !== stopId && s.visit_status === "pending");
+    if (remainingPending.length > 0) {
+      const nextVenue = remainingPending[0];
+      dispatchTransitionNotification({
+        title: `Next Stop: ${nextVenue.name}`,
+        body: `Departed ${targetStop?.name || "stop"}. Heading to ${nextVenue.name}. Take the lakeside alley down Gangaur Ghat—an easy stroll!`,
+        next_stop_id: nextVenue.id,
+      });
+    }
   };
 
   const markSkipped = async (stopId: string) => {
@@ -612,6 +631,60 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     setRevision((prev) => prev + 1);
   };
 
+  const sendCompanionMessage = async (message: string): Promise<CompanionResponse> => {
+    const endpoint = `/api/trips/${tripId}/assistant/messages`;
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return {
+          response_narrative: data.response_narrative,
+          replan_proposal: data.replan_proposal,
+          acknowledged_events: data.acknowledged_events || [],
+        };
+      }
+    } catch {
+      // Offline / network fallback
+    }
+
+    // Local cultured companion evaluation fallback
+    const msgLower = message.toLowerCase();
+    const pending = stops.filter((s) => s.visit_status === "pending");
+    const hasPriorSkip = stops.some((s) => s.visit_status === "skipped");
+    const ackText = hasPriorSkip
+      ? "I see you skipped a stop earlier on your route, so I've taken that into account! "
+      : "";
+
+    const isReplanIntent = ["skip", "drop", "tired", "tea", "rooftop", "workshop", "pottery", "add"].some((k) =>
+      msgLower.includes(k)
+    );
+
+    if (isReplanIntent && pending.length > 0) {
+      const stopToSkip = pending[0];
+      const ops: ReplanOperation[] = [
+        { type: "skip_stop", stop_id: stopToSkip.id },
+        { type: "add_stop", place_id: "place_sukhadia_circle", new_order: stopToSkip.sequence_in_day },
+      ];
+      const proposal = await requestReplanPreview(ops);
+
+      return {
+        response_narrative: `Khamma Ghani! ${ackText}I completely understand wanting a gentler pace. I've prepared a proposal to skip ${stopToSkip.name} and guide you toward Sukhadia Circle for lakeside evening tea. Review the proposal below and tap 'Accept' to update to Revision ${revision + 1}.`,
+        replan_proposal: proposal,
+        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
+      };
+    }
+
+    return {
+      response_narrative: `Khamma Ghani! ${ackText}I am keeping an eye on your journey through Udaipur (currently on Revision ${revision}). Ask me anytime to skip stops, discover Mewar craft masterclasses, or find nearby rooftop cafes!`,
+      replan_proposal: null,
+      acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
+    };
+  };
+
   return (
     <TripContext.Provider
       value={{
@@ -628,6 +701,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         requestReplanPreview,
         commitReplan,
         simulateRemoteRevisionIncrement,
+        sendCompanionMessage,
       }}
     >
       {children}
