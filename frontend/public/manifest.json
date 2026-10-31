@@ -1,0 +1,22 @@
+{
+  "name": "TrailWeave",
+  "short_name": "TrailWeave",
+  "description": "Explore like a local. Travel your way. Pass it on. Community-powered travel companion for Udaipur.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FDFBF7",
+  "theme_color": "#E05A2B",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
