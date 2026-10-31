@@ -92,23 +92,41 @@ Load the authoritative current state of a personal trip.
     "stops": [
       {
         "id": "stop_1",
+        "trip_id": "trip_abc123",
         "place_id": "place_city_palace",
         "name": "City Palace Udaipur",
+        "address": "Old City, Udaipur, Rajasthan 313001",
+        "latitude": 24.5764,
+        "longitude": 73.6835,
+        "category": "heritage",
+        "entry_fee_inr": 330,
+        "image_url": "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=900&q=80",
         "day_number": 1,
         "sequence_in_day": 1,
         "planned_arrival": "2026-10-31T09:30:00Z",
         "planned_departure": "2026-10-31T11:30:00Z",
+        "suggested_duration_minutes": 120,
+        "actual_duration_minutes": 120,
         "visit_status": "visited",
         "is_pinned": false
       },
       {
         "id": "stop_2",
+        "trip_id": "trip_abc123",
         "place_id": "place_mohanlal_studio",
-        "name": "Mohanlal Miniature Art Studio",
+        "name": "Master Mohanlal Miniature Art Studio",
+        "address": "14 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
+        "latitude": 24.5796,
+        "longitude": 73.6844,
+        "category": "artisan_studio",
+        "entry_fee_inr": 0,
+        "image_url": "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
         "day_number": 1,
         "sequence_in_day": 2,
         "planned_arrival": "2026-10-31T11:45:00Z",
         "planned_departure": "2026-10-31T12:30:00Z",
+        "suggested_duration_minutes": 45,
+        "actual_duration_minutes": null,
         "visit_status": "pending",
         "is_pinned": true
       }
@@ -141,7 +159,7 @@ Records a departure checkout (triggered by tourist tap or 20-min grace buffer au
   "departure_timestamp": "2026-10-31T11:30:00Z"
 }
 ```
-- **Response `200 OK`**: Schedules AI transition notification, updates remaining timeline.
+- **Response `200 OK`**: Updates `actual_duration_minutes`, appends `stop_checkout` event to `trip_events`, schedules AI transition notification, updates remaining timeline.
 
 ---
 

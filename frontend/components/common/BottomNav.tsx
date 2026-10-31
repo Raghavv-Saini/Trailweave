@@ -10,7 +10,7 @@ export function BottomNav() {
 
   const navItems = [
     { label: "Explore", href: "/trails", icon: Compass },
-    { label: "My Trip", href: "/trip", icon: Navigation },
+    { label: "My Trip", href: "/trip", icon: Navigation, isLive: true },
     { label: "Artisans", href: "/artisans", icon: Palette },
     { label: "Admin", href: "/admin", icon: Shield },
   ];
@@ -19,16 +19,28 @@ export function BottomNav() {
     <nav className="border-t border-neutral-100 bg-white px-6 py-2.5 flex items-center justify-between sticky bottom-0 z-20">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive = pathname === item.href || (item.href !== "/" && pathname.startsWith(item.href));
+        const isActive =
+          pathname === item.href ||
+          (item.href !== "/" && pathname.startsWith(item.href));
         return (
           <Link
             key={item.href}
             href={item.href}
-            className={`flex flex-col items-center space-y-1 text-[11px] font-medium transition-colors ${
-              isActive ? "text-[#E05A2B]" : "text-neutral-400 hover:text-neutral-600"
+            className={`relative flex flex-col items-center space-y-1 text-[11px] font-medium transition-colors ${
+              isActive
+                ? "text-[#E05A2B] font-bold"
+                : "text-neutral-400 hover:text-neutral-600"
             }`}
           >
-            <Icon className="w-5 h-5" />
+            <div className="relative">
+              <Icon className="w-5 h-5" />
+              {item.isLive && (
+                <span
+                  className="absolute -top-0.5 -right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-white"
+                  title="Active Trip in Progress"
+                />
+              )}
+            </div>
             <span>{item.label}</span>
           </Link>
         );

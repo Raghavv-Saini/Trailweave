@@ -1,16 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Compass,
   Sparkles,
-  Palette,
   ShieldCheck,
   Navigation,
   CheckCircle2,
   AlertCircle,
   Loader2,
+  ArrowRight,
 } from "lucide-react";
+import { BottomNav } from "@/components/common/BottomNav";
 
 interface HealthData {
   status: string;
@@ -23,7 +25,6 @@ interface HealthData {
 export default function Home() {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"explore" | "trip" | "artisans">("explore");
 
   useEffect(() => {
     async function checkHealth() {
@@ -99,6 +100,23 @@ export default function Home() {
           <p className="text-xs text-neutral-600 mt-2 leading-relaxed">
             Real itineraries from genuine travelers, constraint-locked scheduling, and direct artisan workshop discovery.
           </p>
+
+          <div className="mt-4 flex items-center gap-2">
+            <Link
+              href="/trip"
+              className="flex-1 py-2.5 px-3 rounded-xl bg-[#E05A2B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs hover:bg-[#c94d23] transition-colors"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Open My Active Trip</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+            <Link
+              href="/trails"
+              className="py-2.5 px-3 rounded-xl bg-white border border-amber-200 text-neutral-800 font-bold text-xs hover:bg-amber-50 transition-colors"
+            >
+              Explore Trails
+            </Link>
+          </div>
         </div>
 
         {/* Foundation Status Card */}
@@ -150,7 +168,10 @@ export default function Home() {
           </h3>
 
           <div className="space-y-2.5">
-            <div className="p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs">
+            <Link
+              href="/trails/trail_royal_palaces_crafts"
+              className="block p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs"
+            >
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-sm text-neutral-900">
                   Udaipur Royal Palaces & Crafts
@@ -169,9 +190,12 @@ export default function Home() {
                 <span>•</span>
                 <span className="text-emerald-600 font-semibold">Experienced Badge</span>
               </div>
-            </div>
+            </Link>
 
-            <div className="p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs">
+            <Link
+              href="/trails/trail_old_city_heritage_walk"
+              className="block p-3.5 rounded-xl border border-neutral-200 bg-white hover:border-amber-300 transition-all shadow-xs"
+            >
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-sm text-neutral-900">
                   Old City Evening Heritage Walk
@@ -190,43 +214,13 @@ export default function Home() {
                 <span>•</span>
                 <span className="text-emerald-600 font-semibold">Featured</span>
               </div>
-            </div>
+            </Link>
           </div>
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <nav className="border-t border-neutral-100 bg-white px-6 py-2.5 flex items-center justify-between sticky bottom-0 z-10">
-        <button
-          onClick={() => setActiveTab("explore")}
-          className={`flex flex-col items-center space-y-1 text-[11px] font-medium transition-colors ${
-            activeTab === "explore" ? "text-[#E05A2B]" : "text-neutral-400 hover:text-neutral-600"
-          }`}
-        >
-          <Compass className="w-5 h-5" />
-          <span>Explore</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("trip")}
-          className={`flex flex-col items-center space-y-1 text-[11px] font-medium transition-colors ${
-            activeTab === "trip" ? "text-[#E05A2B]" : "text-neutral-400 hover:text-neutral-600"
-          }`}
-        >
-          <Navigation className="w-5 h-5" />
-          <span>My Trip</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("artisans")}
-          className={`flex flex-col items-center space-y-1 text-[11px] font-medium transition-colors ${
-            activeTab === "artisans" ? "text-[#E05A2B]" : "text-neutral-400 hover:text-neutral-600"
-          }`}
-        >
-          <Palette className="w-5 h-5" />
-          <span>Artisans</span>
-        </button>
-      </nav>
+      {/* Persistent Bottom Navigation */}
+      <BottomNav />
     </div>
   );
 }
