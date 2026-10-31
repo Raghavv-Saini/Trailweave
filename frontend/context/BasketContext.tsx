@@ -116,7 +116,7 @@ export function BasketProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const baseItems = mode === "replace" ? [] : [...prev];
 
-      for (const stop of trail.stops) {
+      for (const stop of trail.stops || []) {
         const existingIdx = baseItems.findIndex((it) => it.place.id === stop.place_id);
         const placeData: MockPlace = {
           id: stop.place_id,

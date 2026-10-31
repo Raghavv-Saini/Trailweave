@@ -19,6 +19,8 @@ export interface MockTrailStop {
   estimated_transit_minutes: number;
   time_slot: string;
   traveler_tip: string;
+  category?: "attraction" | "heritage" | "dining" | "artisan_studio" | string;
+  entry_fee_inr?: number;
 }
 
 export interface MockTrail {
@@ -28,6 +30,7 @@ export interface MockTrail {
   description: string;
   duration_type: "single_day" | "multi_day";
   total_duration_hours: number;
+  total_days?: number;
   estimated_cost_inr: number;
   tags: string[];
   is_experienced: boolean;
