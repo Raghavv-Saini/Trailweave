@@ -398,7 +398,11 @@ class GeminiCompanionService:
         places_catalog = await _fetch_places_catalog(db, added_place_ids)
 
         start_location = StartLocation(name="Hotel Swaroop Vilas", latitude=24.5854, longitude=73.6812)
-        start_dt = getattr(trip, "start_datetime", None) or datetime.now(timezone.utc)
+        start_dt = getattr(trip, "start_datetime", None)
+        if not start_dt and current_stops:
+            start_dt = current_stops[0].get("planned_arrival")
+        if not start_dt:
+            start_dt = datetime.now(timezone.utc)
         if isinstance(start_dt, str):
             try:
                 start_dt = datetime.fromisoformat(start_dt)
@@ -428,6 +432,13 @@ class GeminiCompanionService:
         total_cost: float = eval_result["total_estimated_cost_inr"]
         total_duration: int = eval_result["total_estimated_duration_minutes"]
 
+        proposal_payload = {
+            "candidate_stops": candidate_stops_raw,
+            "total_estimated_cost_inr": total_cost,
+            "total_estimated_duration_minutes": total_duration,
+            "route_geometry": eval_result.get("route_geometry", {}),
+        }
+
         # Persist provisional proposal in database
         await db.execute(
             text("""
@@ -445,9 +456,9 @@ class GeminiCompanionService:
                 "id": proposal_id,
                 "trip_id": trip_id,
                 "base_rev": base_revision,
-                "ops": json.dumps([op.model_dump() for op in parsed_ops]),
-                "stops": json.dumps(candidate_stops_raw),
-                "diff": json.dumps(validation_diff.model_dump()),
+                "ops": json.dumps([op.model_dump() for op in parsed_ops], default=str),
+                "stops": json.dumps(proposal_payload, default=str),
+                "diff": json.dumps(validation_diff.model_dump(), default=str),
                 "is_feasible": is_feasible,
                 "expires_at": expires_at,
             }
@@ -692,8 +703,11 @@ class GeminiTrailDraftService:
     Generates engaging public community trail titles, descriptions, and tags
     from tourist-confirmed visited stops while scrubbing private notes and GPS tracks.
     """
-    def __init__(self, api_key: str = ""):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY", "") or settings.GEMINI_API_KEY
+    def __init__(self, api_key: Optional[str] = None):
+        if api_key is None:
+            self.api_key = os.getenv("GEMINI_API_KEY", "") or getattr(settings, "GEMINI_API_KEY", "")
+        else:
+            self.api_key = api_key
 
     async def generate_trail_draft(
         self,

@@ -125,6 +125,22 @@ const INITIAL_DRAFTS: ArtisanDraft[] = [
   },
 ];
 
+interface DraftEditForm {
+  artisan_name?: string;
+  craft_type?: string;
+  place_name?: string;
+  address?: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  has_workshop?: boolean;
+  workshop_fee_inr?: number | string;
+  workshop_duration_minutes?: number | string;
+  workshop_description?: string;
+  opening_time?: string;
+  closing_time?: string;
+  bio?: string;
+}
+
 export default function AdminPortalPage() {
   const [activeTab, setActiveTab] = useState<"drafts" | "artisans" | "curation">("drafts");
 
@@ -133,7 +149,7 @@ export default function AdminPortalPage() {
   const [draftFilter, setDraftFilter] = useState<"all" | "draft" | "approved" | "rejected">("all");
   const [expandedDraftId, setExpandedDraftId] = useState<string | null>("draft_shankar_demo");
   const [checkedChecklist, setCheckedChecklist] = useState<Record<string, boolean>>({});
-  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
+  const [editFormData, setEditFormData] = useState<Record<string, DraftEditForm>>({});
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // All Artisans state
@@ -145,9 +161,19 @@ export default function AdminPortalPage() {
   // Curation state
   const [trails, setTrails] = useState(MOCK_TRAILS);
   const [places, setPlaces] = useState(MOCK_PLACES);
-  const [newPlace, setNewPlace] = useState({
+  const [newPlace, setNewPlace] = useState<{
+    name: string;
+    category: "attraction" | "heritage" | "dining" | "artisan_studio";
+    address: string;
+    latitude: number;
+    longitude: number;
+    opening_time: string;
+    closing_time: string;
+    entry_fee_inr: number;
+    typical_duration_minutes: number;
+  }>({
     name: "",
-    category: "heritage" as const,
+    category: "heritage",
     address: "",
     latitude: 24.58,
     longitude: 73.68,
@@ -217,27 +243,30 @@ export default function AdminPortalPage() {
   const handleApproveDraft = async (draft: ArtisanDraft) => {
     const edits = editFormData[draft.id] || {};
     const payload = {
-      artisan_name: edits.artisan_name || draft.extracted_data.artisan_name,
-      craft_type: edits.craft_type || draft.extracted_data.craft_type,
-      place_name: edits.place_name || draft.extracted_data.place_name,
-      address: edits.address || draft.extracted_data.address,
-      latitude: edits.latitude ? parseFloat(edits.latitude) : draft.extracted_data.latitude,
-      longitude: edits.longitude ? parseFloat(edits.longitude) : draft.extracted_data.longitude,
+      artisan_name: String(edits.artisan_name || draft.extracted_data.artisan_name || ""),
+      craft_type: String(edits.craft_type || draft.extracted_data.craft_type || ""),
+      place_name: String(edits.place_name || draft.extracted_data.place_name || ""),
+      address: String(edits.address || draft.extracted_data.address || ""),
+      latitude: edits.latitude ? parseFloat(String(edits.latitude)) : draft.extracted_data.latitude,
+      longitude: edits.longitude ? parseFloat(String(edits.longitude)) : draft.extracted_data.longitude,
       has_workshop:
-        edits.has_workshop !== undefined ? edits.has_workshop : draft.extracted_data.has_workshop,
+        edits.has_workshop !== undefined
+          ? Boolean(edits.has_workshop)
+          : Boolean(draft.extracted_data.has_workshop),
       workshop_fee_inr:
         edits.workshop_fee_inr !== undefined
-          ? parseFloat(edits.workshop_fee_inr)
+          ? parseFloat(String(edits.workshop_fee_inr))
           : draft.extracted_data.workshop_fee_inr,
       workshop_duration_minutes:
         edits.workshop_duration_minutes !== undefined
-          ? parseInt(edits.workshop_duration_minutes)
+          ? parseInt(String(edits.workshop_duration_minutes))
           : draft.extracted_data.workshop_duration_minutes,
-      workshop_description:
-        edits.workshop_description || draft.extracted_data.workshop_description,
-      opening_time: edits.opening_time || draft.extracted_data.opening_time,
-      closing_time: edits.closing_time || draft.extracted_data.closing_time,
-      bio: edits.bio || draft.extracted_data.admin_brief,
+      workshop_description: String(
+        edits.workshop_description || draft.extracted_data.workshop_description || ""
+      ),
+      opening_time: String(edits.opening_time || draft.extracted_data.opening_time || ""),
+      closing_time: String(edits.closing_time || draft.extracted_data.closing_time || ""),
+      bio: String(edits.bio || draft.extracted_data.admin_brief || ""),
     };
 
     try {
@@ -450,7 +479,7 @@ export default function AdminPortalPage() {
         </div>
       </div>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-5 space-y-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ========================================================================= */}
         {/* TAB 1: VOICE ONBOARDING DRAFTS QUEUE */}
         {/* ========================================================================= */}
@@ -826,7 +855,7 @@ export default function AdminPortalPage() {
                                 <label className="flex items-center gap-2 text-xs font-bold text-neutral-800 cursor-pointer">
                                   <input
                                     type="checkbox"
-                                    checked={currentForm.has_workshop}
+                                    checked={Boolean(currentForm.has_workshop)}
                                     onChange={(e) =>
                                       setEditFormData((prev) => ({
                                         ...prev,
@@ -1246,7 +1275,7 @@ export default function AdminPortalPage() {
                       onChange={(e) =>
                         setNewPlace({
                           ...newPlace,
-                          category: e.target.value as any,
+                          category: e.target.value as "attraction" | "heritage" | "dining" | "artisan_studio",
                         })
                       }
                       className="w-full px-3 py-1.5 rounded-lg border border-neutral-200 bg-white"

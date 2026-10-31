@@ -16,7 +16,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="border-t border-neutral-100 bg-white px-6 py-2.5 flex items-center justify-between sticky bottom-0 z-20">
+    <nav className="md:hidden border-t border-neutral-200/80 bg-white/95 backdrop-blur-md px-6 py-2.5 flex items-center justify-between sticky bottom-0 z-30">
       {navItems.map((item) => {
         const Icon = item.icon;
         const isActive =

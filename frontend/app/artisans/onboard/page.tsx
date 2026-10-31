@@ -768,7 +768,7 @@ export default function ArtisanOnboardAndCataloguePage() {
         showBasket={false}
       />
 
-      <main className="flex-1 px-4 py-4 space-y-4 overflow-y-auto">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
         {/* Top Mode Switcher: नया पंजीकरण vs मेरी दुकान / मेरा कैटलॉग */}
         <div className="flex rounded-2xl bg-neutral-200/80 p-1 text-xs font-bold shadow-2xs">
           <button

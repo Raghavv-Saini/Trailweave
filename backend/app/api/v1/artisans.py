@@ -733,6 +733,12 @@ async def list_artisans(
     db: AsyncSession = Depends(get_db),
 ):
     """Browse verified Udaipur artisan studios and masterclasses with catalogue_images."""
+    if not isinstance(has_workshop, bool):
+        has_workshop = None
+    if not isinstance(max_fee, (int, float)):
+        max_fee = None
+    if not isinstance(craft_type, str):
+        craft_type = None
     query = """
         SELECT a.*, p.address, p.latitude, p.longitude, p.opening_time, p.closing_time
         FROM artisans a

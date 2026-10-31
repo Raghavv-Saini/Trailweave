@@ -196,8 +196,14 @@ class UnifiedMutationEngine:
             else:
                 dep_dt = start_datetime
 
-            now_dt = now_override or (datetime.now(dep_dt.tzinfo) if dep_dt.tzinfo else datetime.now(timezone.utc))
-            curr_time = max(dep_dt, now_dt)
+            if now_override is not None:
+                curr_time = max(dep_dt, now_override)
+            else:
+                now_local = datetime.now(dep_dt.tzinfo) if dep_dt.tzinfo else datetime.now(timezone.utc)
+                if dep_dt.date() == now_local.date() and now_local > dep_dt:
+                    curr_time = now_local
+                else:
+                    curr_time = dep_dt
             curr_lat = anchor_lat
             curr_lon = anchor_lon
         else:

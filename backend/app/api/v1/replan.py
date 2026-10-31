@@ -197,7 +197,11 @@ async def preview_replan(
         latitude=24.5854,
         longitude=73.6812,
     )
-    start_dt = getattr(trip, "start_datetime", None) or datetime.now(timezone.utc)
+    start_dt = getattr(trip, "start_datetime", None)
+    if not start_dt and current_stops:
+        start_dt = current_stops[0].get("planned_arrival")
+    if not start_dt:
+        start_dt = datetime.now(timezone.utc)
     if isinstance(start_dt, str):
         try:
             start_dt = datetime.fromisoformat(start_dt)
@@ -353,15 +357,26 @@ async def accept_replan(
             detail="Proposal has expired. Please re-preview."
         )
 
-    # Extract stored proposal payload
+    # Extract stored proposal payload (supports dict or list)
     stops_payload = proposal.candidate_stops
     if isinstance(stops_payload, str):
         stops_payload = json.loads(stops_payload)
 
-    candidate_stops = stops_payload.get("candidate_stops", [])
-    total_cost = float(stops_payload.get("total_estimated_cost_inr", 0.0))
-    total_dur = int(stops_payload.get("total_estimated_duration_minutes", 0))
-    route_geom = stops_payload.get("route_geometry", {})
+    if isinstance(stops_payload, list):
+        candidate_stops = stops_payload
+        total_cost = 0.0
+        total_dur = 0
+        route_geom = {}
+    elif isinstance(stops_payload, dict):
+        candidate_stops = stops_payload.get("candidate_stops", [])
+        total_cost = float(stops_payload.get("total_estimated_cost_inr", 0.0))
+        total_dur = int(stops_payload.get("total_estimated_duration_minutes", 0))
+        route_geom = stops_payload.get("route_geometry", {})
+    else:
+        candidate_stops = []
+        total_cost = 0.0
+        total_dur = 0
+        route_geom = {}
 
     new_revision = trip.revision + 1
     new_version_id = f"ver_{trip_id}_{new_revision}_{uuid.uuid4().hex[:6]}"

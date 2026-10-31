@@ -90,7 +90,7 @@ export default function ArtisansDirectoryPage() {
     <div className="flex-1 flex flex-col justify-between min-h-screen bg-[#FDFBF7]">
       <Header title="Udaipur Artisans" subtitle="Living Heritage & Masterclasses" />
 
-      <main className="flex-1 px-4 py-3 space-y-4 overflow-y-auto pb-24">
+      <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-6">
         {/* Onboarding CTA for Artisans */}
         <div className="p-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-[#E05A2B] text-white shadow-sm flex items-center justify-between gap-3">
           <div className="space-y-0.5">
@@ -202,9 +202,9 @@ export default function ArtisansDirectoryPage() {
           )}
         </div>
 
-        {/* Directory cards */}
+        {/* Directory cards (Responsive 3-Column Grid) */}
         {filteredArtisans.length > 0 ? (
-          <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArtisans.map((artisan) => (
               <ArtisanCard key={artisan.id} artisan={artisan} />
             ))}
