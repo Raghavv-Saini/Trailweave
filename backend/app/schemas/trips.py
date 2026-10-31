@@ -8,6 +8,12 @@ class TripStopResponse(BaseModel):
     trip_id: str
     place_id: str
     name: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    category: Optional[str] = None
+    entry_fee_inr: Optional[float] = 0.0
+    image_url: Optional[str] = None
     day_number: int = 1
     sequence_in_day: int
     planned_arrival: Optional[datetime] = None
