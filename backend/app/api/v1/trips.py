@@ -192,6 +192,11 @@ async def create_planned_trip(
     """Plan and persist an authoritative personal trip (revision = 1) using the deterministic solver."""
     candidates, trip_title, total_days = await _load_candidates_from_request(body, db)
 
+    # Preserve curated sequence when cloning community trail unless user explicitly requests re-optimization
+    optimize_route = body.optimize_route
+    if body.source_trail_id and "optimize_route" not in body.model_fields_set:
+        optimize_route = False
+
     config = PlannerConfig(
         start_location=StartLocation(
             name=body.start_location.name,
@@ -204,7 +209,7 @@ async def create_planned_trip(
         budget_mode=body.budget_mode,
         travel_mode=body.travel_mode,
         artisan_preference=body.artisan_preference,
-        optimize_route=body.optimize_route,
+        optimize_route=optimize_route,
         google_maps_api_key=settings.GOOGLE_MAPS_API_KEY,
     )
 
@@ -321,6 +326,31 @@ async def create_planned_trip(
             )
         )
 
+    # Record initial trip creation audit event
+    await db.execute(
+        text("""
+            INSERT INTO trip_events (id, trip_id, resulting_revision, actor, source, event_type, payload)
+            VALUES (
+                :eid, :trip_id, 1, 'user', 'itinerary_planner', 'trip_created',
+                CAST(:payload AS jsonb)
+            )
+        """),
+        {
+            "eid": f"event_create_{uuid.uuid4().hex[:10]}",
+            "trip_id": trip_id,
+            "payload": json.dumps({
+                "trip_id": trip_id,
+                "title": trip_title,
+                "version_id": version_id,
+                "total_days": total_days,
+                "stop_count": len(plan.stops),
+                "total_estimated_cost_inr": plan.total_estimated_cost_inr,
+                "total_estimated_duration_minutes": plan.total_estimated_duration_minutes,
+                "is_feasible": plan.is_feasible,
+            }),
+        },
+    )
+
     await db.commit()
 
     return TripResponse(
@@ -336,6 +366,7 @@ async def create_planned_trip(
         revision=1,
         current_itinerary_version_id=version_id,
         status="planned",
+        warnings=plan.closing_hour_conflicts,
         active_version=ItineraryVersionResponse(
             id=version_id,
             trip_id=trip_id,

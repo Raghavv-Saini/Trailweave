@@ -6,9 +6,14 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from typing import Dict, List, Literal, Optional, Any
-import httpx
+try:
+    import httpx
+except ImportError:
+    httpx = None
+
+IST = timezone(timedelta(hours=5, minutes=30))
 
 TravelMode = Literal["walking", "auto_rickshaw", "cab"]
 ArtisanPreference = Literal["workshop", "store", "both", "none"]
@@ -140,7 +145,7 @@ async def compute_transit_minutes(
     google_maps_api_key: str = "",
 ) -> int:
     """Fetch transit duration via Google Distance Matrix API if key is set, else fallback."""
-    if google_maps_api_key:
+    if google_maps_api_key and httpx is not None:
         gmaps_mode = "walking" if travel_mode == "walking" else "driving"
         params: Dict[str, Any] = {
             "origins": f"{lat1},{lon1}",
@@ -150,7 +155,7 @@ async def compute_transit_minutes(
         }
         if gmaps_mode == "driving":
             dep_epoch = int(departure_time.timestamp())
-            now_epoch = int(datetime.now(departure_time.tzinfo).timestamp())
+            now_epoch = int(datetime.now(departure_time.tzinfo or IST).timestamp())
             params["departure_time"] = max(dep_epoch, now_epoch)
         try:
             async with httpx.AsyncClient(timeout=4.0) as client:
@@ -175,16 +180,20 @@ async def compute_transit_minutes(
 def _clamp_to_opening_time(
     arrival_est: datetime, opening_time: Optional[time]
 ) -> tuple[datetime, float]:
-    """Shift early arrival to venue opening_time and return (clamped_arrival, wait_minutes)."""
-    if opening_time and arrival_est.time() < opening_time:
-        open_dt = arrival_est.replace(
-            hour=opening_time.hour,
-            minute=opening_time.minute,
-            second=0,
-            microsecond=0,
-        )
-        wait_mins = max(0.0, (open_dt - arrival_est).total_seconds() / 60.0)
-        return open_dt, wait_mins
+    """Shift early arrival to venue opening_time (evaluated in IST) and return (clamped_arrival, wait_minutes)."""
+    if opening_time:
+        # Check if arrival is before opening_time on the current day
+        # (avoid false clamping if opening_time is post-midnight e.g. 01:00 AM while arrival is afternoon)
+        is_night_opening = opening_time.hour < 5 and arrival_est.time().hour >= 12
+        if arrival_est.time() < opening_time and not is_night_opening:
+            open_dt = arrival_est.replace(
+                hour=opening_time.hour,
+                minute=opening_time.minute,
+                second=0,
+                microsecond=0,
+            )
+            wait_mins = max(0.0, (open_dt - arrival_est).total_seconds() / 60.0)
+            return open_dt, wait_mins
     return arrival_est, 0.0
 
 
@@ -220,7 +229,7 @@ def _partition_candidates_by_day(
     start_location: StartLocation,
     artisan_preference: ArtisanPreference = "both",
 ) -> Dict[int, List[PlaceCandidate]]:
-    """Group stops into Day 1..total_days, balancing active duration and sequence."""
+    """Group stops into Day 1..total_days with spatial clustering and load balancing."""
     days: Dict[int, List[PlaceCandidate]] = {d: [] for d in range(1, max(1, total_days) + 1)}
     if total_days <= 1:
         days[1] = sorted(
@@ -245,26 +254,54 @@ def _partition_candidates_by_day(
         )
 
     if unassigned:
-        unassigned_sorted = sorted(
-            unassigned,
-            key=lambda p: (
-                haversine_distance_meters(
-                    start_location.latitude, start_location.longitude, p.latitude, p.longitude
-                ),
-                TIME_SLOT_ORDER.get(p.time_slot or "", 0),
-                p.opening_time or time(0, 0),
-            ),
-        )
         target_per_day = math.ceil(len(candidates) / total_days)
-        for item in unassigned_sorted:
-            dur, _ = resolve_stop_duration_and_cost(item, artisan_preference)
-            # Pick the earliest day that hasn't hit target stop count, breaking ties by active duration
-            eligible_days = [
-                d for d in range(1, total_days + 1) if len(days[d]) < target_per_day
-            ] or list(range(1, total_days + 1))
-            chosen_day = min(eligible_days, key=lambda d: (len(days[d]), day_minutes[d], d))
-            days[chosen_day].append(item)
-            day_minutes[chosen_day] += dur
+
+        # Iteratively assign remaining stops to the day with the highest spatial affinity
+        while unassigned:
+            best_pair = None
+            best_affinity_score = float("inf")
+
+            for item in unassigned:
+                dur, _ = resolve_stop_duration_and_cost(item, artisan_preference)
+                eligible_days = [
+                    d for d in range(1, total_days + 1) if len(days[d]) < target_per_day
+                ] or list(range(1, total_days + 1))
+
+                for d in eligible_days:
+                    # Compute distance to existing stops in that day, or to start location if day is empty
+                    if days[d]:
+                        # Distance to last assigned stop of that day
+                        last_stop = days[d][-1]
+                        dist = haversine_distance_meters(
+                            last_stop.latitude, last_stop.longitude, item.latitude, item.longitude
+                        )
+                    else:
+                        dist = haversine_distance_meters(
+                            start_location.latitude, start_location.longitude, item.latitude, item.longitude
+                        )
+
+                    # Score combines spatial proximity, slot alignment, and day load balance
+                    slot_rank = TIME_SLOT_ORDER.get(item.time_slot or "", 0)
+                    load_penalty = day_minutes[d] * 2.0
+                    count_penalty = len(days[d]) * 500.0
+                    affinity = dist + slot_rank * 200.0 + load_penalty + count_penalty
+
+                    if affinity < best_affinity_score:
+                        best_affinity_score = affinity
+                        best_pair = (item, d, dur)
+
+            if best_pair:
+                item, chosen_day, dur = best_pair
+                unassigned.remove(item)
+                days[chosen_day].append(item)
+                day_minutes[chosen_day] += dur
+            else:
+                # Fallback safeguard
+                item = unassigned.pop(0)
+                dur, _ = resolve_stop_duration_and_cost(item, artisan_preference)
+                chosen_day = min(range(1, total_days + 1), key=lambda d: len(days[d]))
+                days[chosen_day].append(item)
+                day_minutes[chosen_day] += dur
 
     return days
 
@@ -275,6 +312,14 @@ async def solve_itinerary(
 ) -> SolvedItinerary:
     """Solve and schedule candidate stops into an authoritative itinerary."""
     total_days = max(1, config.total_days)
+
+    # Normalize start_datetime to Udaipur IST (UTC+05:30)
+    start_dt = (
+        config.start_datetime.replace(tzinfo=IST)
+        if config.start_datetime.tzinfo is None
+        else config.start_datetime.astimezone(IST)
+    )
+
     grouped_days = _partition_candidates_by_day(
         candidates, total_days, config.start_location, config.artisan_preference
     )
@@ -291,7 +336,7 @@ async def solve_itinerary(
         if not day_candidates:
             continue
 
-        day_start_dt = config.start_datetime + timedelta(days=day_num - 1)
+        day_start_dt = start_dt + timedelta(days=day_num - 1)
         curr_lat = config.start_location.latitude
         curr_lon = config.start_location.longitude
         curr_time = day_start_dt
@@ -313,7 +358,9 @@ async def solve_itinerary(
                     slot_rank = (
                         TIME_SLOT_ORDER.get(p.time_slot or "", 0) if p.time_slot else 0
                     )
-                    score = slot_rank * 1000.0 + wait_mins * 3.0 + transit_mins
+                    # Use sequence_in_day as a gentle tie-breaker if available
+                    seq_tiebreaker = (p.sequence_in_day * 0.1) if p.sequence_in_day is not None else 50.0
+                    score = slot_rank * 1000.0 + wait_mins * 3.0 + transit_mins + seq_tiebreaker
                     if score < best_score:
                         best_score = score
                         best_idx = idx
@@ -344,6 +391,13 @@ async def solve_itinerary(
                     second=0,
                     microsecond=0,
                 )
+                # If closing_time is post-midnight (e.g. 00:00 - 04:59) and arrival was afternoon/evening,
+                # or if closing_time is earlier than opening_time, wrap to the next morning
+                if (chosen.opening_time and chosen.closing_time <= chosen.opening_time) or (
+                    chosen.closing_time.hour < 5 and arrival.time().hour >= 12
+                ):
+                    close_dt += timedelta(days=1)
+
                 if departure > close_dt or arrival >= close_dt:
                     closing_hour_conflicts.append(
                         f"{chosen.name} closes at {chosen.closing_time.strftime('%H:%M')} "
@@ -432,6 +486,12 @@ async def solve_itinerary(
         closing_hour_conflicts=closing_hour_conflicts,
         route_geometry={
             "travel_mode": config.travel_mode,
+            "start_datetime": start_dt.isoformat(),
+            "start_location": {
+                "name": config.start_location.name,
+                "latitude": config.start_location.latitude,
+                "longitude": config.start_location.longitude,
+            },
             "days": route_days,
         },
     )
