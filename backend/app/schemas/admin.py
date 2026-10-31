@@ -5,13 +5,14 @@ from pydantic import BaseModel, ConfigDict
 
 class ArtisanDraftResponse(BaseModel):
     id: str
+    submission_id: Optional[str] = None
     whatsapp_message_id: Optional[str] = None
     sender_phone: str
     media_url: Optional[str] = None
     raw_transcript: Optional[str] = None
     extracted_data: Optional[Dict[str, Any]] = None
     approval_status: str = "draft"
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -49,7 +49,9 @@ CREATE TABLE IF NOT EXISTS artisans (
     artisan_name TEXT NOT NULL,
     craft_type TEXT NOT NULL, -- e.g. 'Miniature Painting', 'Terracotta Pottery', 'Pichwai Art'
     phone_number TEXT,
+    pin_hash TEXT, -- 4-digit numeric PIN hash for returning artisan login
     bio TEXT,
+    catalogue_images JSONB DEFAULT '[]'::jsonb, -- Self-service craft & artifact photo URLs
     has_workshop BOOLEAN DEFAULT FALSE,
     workshop_fee_inr NUMERIC DEFAULT 0,
     workshop_duration_minutes INT DEFAULT 45,
@@ -57,6 +59,9 @@ CREATE TABLE IF NOT EXISTS artisans (
     profile_status TEXT DEFAULT 'approved', -- 'approved', 'pending_review', 'rejected'
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE artisans ADD COLUMN IF NOT EXISTS pin_hash TEXT;
+ALTER TABLE artisans ADD COLUMN IF NOT EXISTS catalogue_images JSONB DEFAULT '[]'::jsonb;
 
 CREATE INDEX IF NOT EXISTS idx_artisans_place_id ON artisans (place_id);
 CREATE INDEX IF NOT EXISTS idx_artisans_has_workshop ON artisans (has_workshop);
@@ -202,16 +207,20 @@ CREATE INDEX IF NOT EXISTS idx_community_trail_stops_trail ON community_trail_st
 
 -- ============================================================================
 -- 10. Artisan Voice Drafts
+-- Hindi Web voice messages transcribed (Google STT hi-IN) and summarized (Gemini Admin Brief) before admin publication
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS artisan_drafts (
     id TEXT PRIMARY KEY,
+    submission_id TEXT UNIQUE,
     whatsapp_message_id TEXT UNIQUE,
     sender_phone TEXT NOT NULL,
     media_url TEXT,
     raw_transcript TEXT,
-    extracted_data JSONB,
+    extracted_data JSONB, -- Contains admin_brief, missing_info_checklist, pin_hash, catalogue_images, and pre-filled fields
     approval_status TEXT DEFAULT 'draft', -- 'draft', 'pending_confirmation', 'approved', 'rejected'
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE artisan_drafts ADD COLUMN IF NOT EXISTS submission_id TEXT UNIQUE;
 
 CREATE INDEX IF NOT EXISTS idx_artisan_drafts_status ON artisan_drafts (approval_status);
