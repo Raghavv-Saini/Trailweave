@@ -1,8 +1,8 @@
 # TrailWeave: API Specification & Gemini Tool Contracts
 
 **Status:** Authoritative API & Integration Specification  
-**Protocols:** REST (JSON over HTTPS) + Google GenAI Tool Calling + Meta WhatsApp Cloud Webhooks  
-**Related ADRs:** [ADR 0001](adr/0001-trailweave-architecture.md), [ADR 0004](adr/0004-ai-travel-companion-and-smart-geofencing.md), [ADR 0005](adr/0005-unified-trip-engine-and-active-companion.md), [ADR 0006](adr/0006-artisan-workshop-offerings-and-tourist-preferences.md), [ADR 0007](adr/0007-deterministic-itinerary-planner-and-transit-routing.md), [ADR 0008](adr/0008-unified-mutation-engine-and-replan-lifecycle.md), [ADR 0009](adr/0009-artisan-smart-recommendation-scorer-and-detour-engine.md)
+**Protocols:** REST (JSON over HTTPS) + Google GenAI Tool Calling + Google Cloud Speech-to-Text (`hi-IN`)  
+**Related ADRs:** [ADR 0001](adr/0001-trailweave-architecture.md), [ADR 0004](adr/0004-ai-travel-companion-and-smart-geofencing.md), [ADR 0005](adr/0005-unified-trip-engine-and-active-companion.md), [ADR 0006](adr/0006-artisan-workshop-offerings-and-tourist-preferences.md), [ADR 0007](adr/0007-deterministic-itinerary-planner-and-transit-routing.md), [ADR 0008](adr/0008-unified-mutation-engine-and-replan-lifecycle.md), [ADR 0009](adr/0009-artisan-smart-recommendation-scorer-and-detour-engine.md), [ADR 0010](adr/0010-web-voice-artisan-onboarding-and-catalogue.md)
 
 ---
 
@@ -368,13 +368,92 @@ Converts a finished trip into a publicly visible Community Trail (Trip-to-Trail)
 
 ---
 
-### 1.5 Meta WhatsApp Webhook Integration
+### 1.5 Artisan Hindi Voice Onboarding, Self-Service Catalogue & Admin Curation
 
-#### `GET /api/whatsapp/webhook`
-Handles Meta Webhook subscription verification handshake (`hub.mode`, `hub.verify_token`, `hub.challenge`).
+#### `POST /api/artisans/onboard`
+Ingests a Hindi voice submission from `/artisans/onboard` along with the artisan's phone number, a 4-digit numeric PIN (`4-अंकों का पिन`), optional GPS coordinates, and optional self-uploaded craft/artifact photos (`catalogue_images`). Runs Google Cloud Speech-to-Text V2 (`hi-IN`) transcription (immediately discarding raw audio bytes), prompts Gemini Flash to generate an **English Admin Brief**, a **Missing Info Checklist**, and pre-filled structured fields, and persists an `artisan_drafts` record.
+- **Request Body**:
+```json
+{
+  "phone_number": "+919829099887",
+  "pin": "1234",
+  "audio_base64": null,
+  "transcript_hint": "नमस्ते, मैं शंकर लाल कुम्हार हूँ। मेरी टेराकोटा पॉटरी की दुकान हाथीपोल में है। हम 45 मिनट की वर्कशॉप कराते हैं जिसकी फीस 250 रुपये है।",
+  "text_message": null,
+  "latitude": 24.584,
+  "longitude": 73.6865,
+  "catalogue_images": [
+    "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80"
+  ]
+}
+```
+- **Response `201 Created` (`ArtisanPortalProfileResponse`)**:
+```json
+{
+  "id": "draft_abc123",
+  "source_type": "draft",
+  "approval_status": "draft",
+  "artisan_name": "Shankar Lal Kumhar",
+  "craft_type": "Terracotta Pottery & Clay Sculpting",
+  "phone_number": "+919829099887",
+  "address": "Hathi Pole Bazaar, Old City, Udaipur",
+  "has_workshop": true,
+  "workshop_fee_inr": 250.0,
+  "workshop_duration_minutes": 45,
+  "workshop_description": "Hands-on 45-minute terracotta pottery workshop.",
+  "admin_brief": "Artisan Shankar Lal Kumhar runs a Terracotta Pottery workshop in Hathipole Bazaar offering a 45-minute hands-on session for ₹250.",
+  "missing_info_checklist": [
+    "Confirm daily opening and closing hours"
+  ],
+  "raw_transcript": "नमस्ते, मैं शंकर लाल कुम्हार हूँ। मेरी टेराकोटा पॉटरी की दुकान हाथीपोल में है। हम 45 मिनट की वर्कशॉप कराते हैं जिसकी फीस 250 रुपये है।",
+  "catalogue_images": [
+    "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80"
+  ]
+}
+```
 
-#### `POST /api/whatsapp/webhook`
-Ingests inbound WhatsApp voice notes or text messages sent by artisans. Triggers Google Cloud STT V2 transcription and Gemini Flash extraction.
+#### `POST /api/artisans/login`
+Authenticates a returning artisan using their `phone_number` and 4-digit `pin` against either approved `artisans` or pending `artisan_drafts`, returning their studio approval status and `catalogue_images`.
+- **Request Body**:
+```json
+{
+  "phone_number": "+919829099887",
+  "pin": "1234"
+}
+```
+- **Response `200 OK`**: Returns `ArtisanPortalProfileResponse`.
+
+#### `POST /api/artisans/me/catalogue`
+Appends one or more craft/artifact photos to the authenticated artisan's `catalogue_images` array.
+- **Request Body**:
+```json
+{
+  "phone_number": "+919829099887",
+  "pin": "1234",
+  "image_urls": [
+    "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=900&q=80"
+  ]
+}
+```
+- **Response `200 OK`**: Returns updated `ArtisanPortalProfileResponse`.
+
+#### `DELETE /api/artisans/me/catalogue`
+Removes a specified craft/artifact photo from the authenticated artisan's `catalogue_images` array.
+
+#### `GET /api/admin/artisan-drafts`
+Returns all incoming voice onboarding drafts with `sender_phone`, `raw_transcript`, and `extracted_data` (`admin_brief`, `missing_info_checklist`, pre-filled studio fields, and `catalogue_images`).
+
+#### `POST /api/admin/artisan-drafts/{draft_id}/approve`
+Atomically promotes a voice draft into canonical `places` (`category = 'artisan_studio'`) and `artisans` (`profile_status = 'approved'`), carrying over the artisan's phone number, PIN hash, and uploaded `catalogue_images`.
+
+#### `POST /api/admin/artisan-drafts/{draft_id}/reject`
+Marks an `artisan_draft` as `rejected`.
+
+#### `GET /api/admin/artisans` & `PATCH /api/admin/artisans/{artisan_id}`
+Returns and updates complete operational and contact information for all onboarded artisans (including `phone_number` for 1-tap `tel:` calling, coordinates, opening/closing hours, workshop pricing, bio, status, and `catalogue_images`).
+
+#### `GET /api/admin/trails`, `PATCH /api/admin/trails/{trail_id}/feature` & `POST /api/admin/places`
+Admin curation endpoints for featuring community trails and importing canonical places into `places`.
 
 ---
 

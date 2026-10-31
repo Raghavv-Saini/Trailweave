@@ -13,8 +13,8 @@ Every verified artisan profile captures two distinct modes of engagement:
 - **Retail Store / Studio Visit**: Quick stop (15–25 mins) to view finished crafts, observe traditional techniques, and buy directly from the artisan. Entry fee is typically zero.
 - **Hands-on Workshop / Masterclass**: Interactive session (45–75 mins) where tourists learn and create their own craft piece under the artisan's guidance, with a per-person workshop fee (e.g., ₹250–₹500).
 
-### 2. Structured WhatsApp Voice Onboarding for Artisans
-During the WhatsApp onboarding interaction, the AI voice agent prompts and extracts:
+### 2. Structured Hindi Web Voice Onboarding & Admin Brief for Artisans (Updated per [ADR 0010](0010-web-voice-artisan-onboarding-and-catalogue.md))
+During the `/artisans/onboard` Hindi voice onboarding interaction, Google Cloud STT (`hi-IN`) transcribes the audio and Gemini Flash generates an English Admin Brief, Missing Info Checklist, and extracts:
 - `has_workshop`: boolean (whether the artisan offers workshops/classes).
 - `workshop_fee_inr`: fee per participant.
 - `workshop_duration_minutes`: duration (e.g., 45, 60 mins).

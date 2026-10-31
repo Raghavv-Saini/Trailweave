@@ -11,7 +11,7 @@
 | **Domain** | Heritage, Tourism & Sustainable Hospitality |
 | **Hackathon Dates** | 31 October – 1 November 2026 |
 | **Geographic Pilot** | Udaipur, Rajasthan, India |
-| **Delivery Model** | Unified Mobile-First PWA (Next.js/Tailwind) + Python FastAPI + Supabase PostGIS + WhatsApp Channel |
+| **Delivery Model** | Unified Mobile-First PWA (Next.js/Tailwind) + Python FastAPI + Supabase PostGIS + Hindi Web Voice Onboarding |
 | **Status** | Approved, implementation-ready product specification |
 
 > **"TrailWeave — Explore like a local. Travel your way. Pass it on."**  
@@ -83,7 +83,7 @@ graph LR
 - **Feasibility Rate**: 100% of generated itineraries pass hard budget, transit, and open/close constraints.
 - **Active Trip Modification Success**: Both manual edits and AI-requested modifications preview before/after diffs and commit with 0% data corruption via revision locking.
 - **Artisan Discovery Uptake**: At least 30% of generated itineraries surface a relevant, budget-compliant artisan workshop with demonstrated tourist accept/reject agency.
-- **Voice Onboarding Accessibility**: 100% of scripted Hindi voice notes yield reviewable, structured artisan drafts via WhatsApp.
+- **Voice Onboarding Accessibility**: 100% of scripted Hindi voice notes yield reviewable, structured artisan drafts with an English Admin Brief via `/artisans/onboard`.
 
 ## 2.2 Exclusions from Hackathon Scope (Non-Goals)
 - Scraping arbitrary Instagram Reels or TikTok videos.
@@ -102,8 +102,8 @@ TrailWeave operates on a 3-role access model:
 | Role | Persona | Job to be Done | Surfaces |
 | :--- | :--- | :--- | :--- |
 | **`tourist`** | **Traveler & Community Curator** | Discover real Udaipur itineraries, personalize routes within budget, navigate live via the Active Companion, adapt plans manually or via AI, and share completed trips as community trails. | Mobile PWA (Home, Explorer, Trip Builder, Active Trip, Trip-to-Trail) |
-| **`artisan`** | **Local Craftsman** | Get physical store/workshop discovered by cultural tourists without learning complex apps or paying high directory fees. | WhatsApp Channel (Hindi Voice/Text) + Mobile Confirmation Link |
-| **`admin`** | **Curator & System Admin** | Verify place data, review & publish artisan drafts, curate community-submitted trails, and control demo simulations. | Mobile/Desktop Admin Portal (`/admin`) |
+| **`artisan`** | **Local Craftsman** | Get physical store/workshop discovered by cultural tourists, onboard via Hindi voice note, and manage work/artifact photos (`catalogue_images`) with a 4-digit PIN. | Hindi Web Voice & Catalogue Portal (`/artisans/onboard`) |
+| **`admin`** | **Curator & System Admin** | Review artisan voice drafts & English Admin Briefs, contact artisans via 1-tap `tel:`, view all artisan info & phone numbers, curate community trails, and manage places. | Mobile/Desktop Admin Portal (`/admin`) |
 
 *Note*: Professional travel creators participate under the `tourist` role with an optional verified "Creator" profile badge.
 
@@ -119,11 +119,11 @@ TrailWeave operates on a 3-role access model:
 | **Active Trip Companion** | Persistent "My Trip" page, progress tracking, View/Edit modes, manual upcoming stop reordering/skipping/pinning. | "Running Late (+30m)" and "Add Break" workflows. | Offline edits & background sync. |
 | **Unified Mutation Engine** | PostgreSQL authoritative revision, shared FastAPI Trip Engine, Gemini tool calling, revision locking (HTTP 409). | Supabase Realtime broadcast notifications across tabs/devices. | MCP server adapter for external AI clients. |
 | **Smart Geofencing** | 100m proximity check-in, 1-tap Manual Check-in fallback, manual checkout, 20-min grace buffer auto-checkout. | Background GPS breadcrumb tracking. | Multi-geofence transit detection. |
-| **AI Travel Companion** | Gemini Flash persona ("Cultured Local Friend"), Web Push transition notifications, in-app concierge card. | WhatsApp companion notification mirror. | Voice assistant audio responses. |
+| **AI Travel Companion** | Gemini Flash persona ("Cultured Local Friend"), Web Push transition notifications, in-app concierge card. | Multi-language tourist companion notifications. | Voice assistant audio responses. |
 | **TrailWeave Local** | Proximity artisan recommendation, transparent rationale, cost/detour impact, direct studio insertion. | Artisan crowd rotation scoring. | Sponsored merchant bids (transparent). |
 | **Trip-to-Trail** | "Finish Trip", visited/skipped confirmation, AI draft generator, privacy review, 1-tap community publishing. | Photo upload, pro travel tips. | Fork/remix lineage visualization. |
-| **Artisan WhatsApp** | Meta Cloud API webhook, Google Cloud STT V2 (`hi-IN`), Gemini structured extraction, auto-reply confirmation. | Multi-dialect Mewari tuning. | Automated inventory sync. |
-| **Admin Curation** | Artisan approval queue, Community trail feature toggle, Google Places catalog search & import. | Automated stale-data alerts. | Automated fraud/bot detection. |
+| **Artisan Voice & Catalogue** | Hindi Web Voice Onboarding (`/artisans/onboard`), 4-digit PIN auth, Google Cloud STT V2 (`hi-IN`), Gemini Admin Brief + extraction, self-service `catalogue_images`. | Multi-dialect Mewari tuning. | Automated inventory sync. |
+| **Admin Curation & Contact** | Artisan draft brief & 1-tap `tel:` call, full Artisan Directory with phone numbers, Community trail feature toggle, Canonical places import. | Automated stale-data alerts. | Automated fraud/bot detection. |
 
 ---
 
@@ -166,17 +166,18 @@ TrailWeave operates on a 3-role access model:
    - Tourist reviews privacy settings (private hotel/notes excluded) and taps **"Publish to Community"**.
    - Trail is now live in the Curated Section for future travelers!
 
-## 5.2 Artisan Journey: WhatsApp Voice Onboarding
-1. **Voice Note**: Artisan sends a Hindi voice note to the TrailWeave WhatsApp number:
+## 5.2 Artisan Journey: Hindi Web Voice Onboarding & Self-Service Catalogue
+1. **Role Switch & Voice Note**: Artisan selects **`कारीगर / Artisan`** in the header to open `/artisans/onboard`, enters their phone number and a 4-digit numeric PIN (`4-अंकों का पिन`), uploads photos of their craft/artifacts, and records a Hindi voice note:
    > *"नमस्ते, मैं जगदीश चौक में 30 साल से पिछवाई और मिनिएचर पेंटिंग की वर्कशॉप चलाता हूँ। वर्कशॉप की फीस 300 रुपये है और दुकान सुबह 10 से शाम 7 बजे खुली रहती है..."*
 2. **Backend Processing**:
-   - Webhook receives event, fetches audio via Meta Graph API.
-   - **Google Cloud STT V2 (`hi-IN`)** transcribes audio to text.
-   - **Gemini Flash** extracts typed JSON: Name, Craft, Physical Address, Opening Hours, Fee, and Consent.
-3. **Automated WhatsApp Reply**:
-   > *"धन्यवाद मोहनलाल जी! आपकी जानकारी दर्ज कर ली गई है: वर्कशॉप: ₹300, समय: 10:00-19:00। कृपया पुष्टि करें कि क्या यह सही है (हाँ / नहीं)।"*
-4. **Admin Approval**: Curator verifies the physical studio location in the Admin Portal and taps **"Approve & Publish"**.
-5. **Live Discovery**: Studio is now live and eligible for budget-compliant TrailWeave recommendations.
+   - **Google Cloud STT V2 (`hi-IN`)** transcribes the audio to Hindi text and immediately discards raw audio bytes.
+   - **Gemini Flash** generates a concise **English Admin Brief**, a **Missing Info Checklist**, and pre-filled structured fields (`artisan_name`, `craft_type`, `address`, `has_workshop`, `workshop_fee_inr`, `workshop_duration_minutes`, `opening_time`, `closing_time`).
+3. **Artisan Confirmation & Self-Service Catalogue (`मेरी दुकान / मेरा कैटलॉग`)**:
+   - Artisan sees an immediate Hindi confirmation screen and can log in anytime with their Phone Number + 4-digit PIN to check their approval status and add or remove photos of their work/artifacts (`catalogue_images`).
+4. **Admin Brief, 1-Tap Call & Approval**:
+   - Curator opens `/admin`, reads the English Admin Brief and Missing Info Checklist, calls the artisan via the 1-tap `tel:` button if needed, verifies fields, and taps **"Approve & Publish"**.
+   - Curator can also view all onboarded artisans and their phone numbers anytime in the **All Artisans & Contact Info** tab.
+5. **Live Discovery**: Studio and its `catalogue_images` gallery are now live on `/artisans` and eligible for budget-compliant TrailWeave recommendations.
 
 ---
 
@@ -211,8 +212,8 @@ TrailWeave operates on a 3-role access model:
 - **ART-01 (Artisan Workshop Offerings & Tourist Preferences)**: Support dual artisan engagement modes: retail store visits (15–25 min, ₹0 fee) and interactive workshops (45–75 min, per-person fee). Collect preference during initial onboarding and as an editable toggle in the Trip Builder (`Workshops`, `Store Visits`, `Both`). Scheduler allocates appropriate dwell times and budgets.
 - **ART-02 (Dedicated Artisan Directory & Studio Profiles Page)**: Standalone browsing page (`/artisans`) showcasing all verified local artisans in Udaipur. Displays craft category, master artisan name, heritage story, physical workshop address, store opening hours, and workshop offerings (price per person, duration, what you learn). Features a direct **"Add to Itinerary / Basket"** button with real-time budget and schedule feasibility verification.
 - **COM-08 (Trip-to-Trail Publishing)**: "Finish Trip" workflow; visited/skipped confirmation; Gemini auto-drafting; privacy review (hotel and private notes excluded); 1-tap public publishing.
-- **COM-09 (WhatsApp Voice Onboarding & Workshop Extraction)**: Meta Cloud API webhook $\rightarrow$ Google Cloud STT V2 (`hi-IN`) $\rightarrow$ Gemini Flash extracts name, craft, workshop availability (`has_workshop`), workshop fee (`workshop_fee_inr`), duration, and hours $\rightarrow$ WhatsApp auto-reply confirmation.
-- **COM-10 (Admin Curation & Google Places Import)**: Artisan draft review queue, Community trail feature toggle, Google Places API search bar for live venue imports.
+- **COM-09 (Hindi Web Voice Onboarding, 4-Digit PIN & Self-Service Catalogue)**: `/artisans/onboard` Hindi voice recorder + 4-digit PIN signup $\rightarrow$ Google Cloud STT V2 (`hi-IN`) (raw audio discarded immediately) $\rightarrow$ Gemini Flash generates English Admin Brief, Missing Info Checklist, and pre-filled fields (`artisan_name`, `craft_type`, `has_workshop`, `workshop_fee_inr`, `workshop_duration_minutes`, hours) + self-service `catalogue_images` management (`POST/DELETE /api/artisans/me/catalogue`).
+- **COM-10 (Admin Curation, Contact Directory & Place Import)**: Artisan draft review queue with English Admin Brief & 1-tap Call (`tel:`), full Artisan Directory displaying all artisan info & phone numbers, Community trail feature toggle, and canonical venue import.
 
 ---
 
@@ -403,7 +404,7 @@ CREATE TABLE community_trail_stops (
 -- 10. Artisan Voice Drafts
 CREATE TABLE artisan_drafts (
     id TEXT PRIMARY KEY,
-    whatsapp_message_id TEXT UNIQUE,
+    submission_id TEXT UNIQUE,
     sender_phone TEXT NOT NULL,
     media_url TEXT,
     raw_transcript TEXT,
@@ -424,7 +425,7 @@ CREATE TABLE artisan_drafts (
 | `GET` | `/api/trails` | Browse community trails with budget/duration/tag filters |
 | `GET` | `/api/trails/{id}` | Get full trail details and stop list |
 | `GET` | `/api/artisans` | Browse verified artisan studios with craft, workshop, and price filters |
-| `GET` | `/api/artisans/{id}` | Get full artisan studio profile, workshop details, and location |
+| `GET` | `/api/artisans/{id}` | Get full artisan studio profile, workshop details, and `catalogue_images` |
 | `GET` | `/api/trips/{trip_id}` | Load latest authoritative active trip + revision |
 | `GET` | `/api/trips/{trip_id}/events` | Load accepted change history for UI and AI context |
 | `POST` | `/api/trips/{trip_id}/stops/{stop_id}/visit` | Mark stop visited (manual or geofence) |
@@ -433,8 +434,11 @@ CREATE TABLE artisan_drafts (
 | `POST` | `/api/trips/{trip_id}/replan-accept` | Accept proposal with `expected_revision` check (HTTP 409 if stale) |
 | `POST` | `/api/trips/{trip_id}/assistant/messages` | Send AI message with fresh trip context and tool execution |
 | `POST` | `/api/trips/{trip_id}/publish-trail` | Convert completed trip to published Community Trail |
-| `GET` | `/api/whatsapp/webhook` | Meta WhatsApp verification challenge |
-| `POST` | `/api/whatsapp/webhook` | Ingest incoming WhatsApp voice/text messages |
+| `POST` | `/api/artisans/onboard` | Ingest Hindi voice note, 4-digit PIN, and `catalogue_images` via Google STT (`hi-IN`) + Gemini Admin Brief |
+| `POST` | `/api/artisans/login` | Authenticate returning artisan via phone number + 4-digit PIN |
+| `POST/DELETE` | `/api/artisans/me/catalogue` | Self-service add/remove craft & artifact photos (`catalogue_images`) |
+| `GET/POST` | `/api/admin/artisan-drafts` | Review voice drafts, English Admin Briefs, and 1-tap approve/reject |
+| `GET/PATCH` | `/api/admin/artisans` | View all artisans' complete profiles & phone numbers and update info |
 
 ### Native Gemini Function Calling Tool Contracts
 
@@ -521,7 +525,7 @@ CREATE TABLE artisan_drafts (
    - Gemini loads the latest Revision 2 state, acknowledges the manual skip, calls `search_places` and `propose_trip_changes`.
    - User B previews the AI-generated proposal and accepts $\rightarrow$ Revision increments to 3. Map and timeline refresh instantly.
 6. **Trip-to-Trail Contribution**: User B completes the journey and publishes a new derivative Community Trail with proper attribution.
-7. **Artisan WhatsApp Onboarding**: Demonstrates live Hindi voice note from local artisan $\rightarrow$ Google STT transcription $\rightarrow$ Gemini structured JSON extraction $\rightarrow$ WhatsApp auto-reply confirmation $\rightarrow$ Admin 1-tap approval.
+7. **Artisan Hindi Voice Onboarding, Catalogue & Admin Curation**: Demonstrates live Hindi voice onboarding on `/artisans/onboard` with 4-digit PIN & craft photo upload $\rightarrow$ Google STT (`hi-IN`) transcription $\rightarrow$ Gemini English Admin Brief & Missing Info checklist $\rightarrow$ Admin 1-tap `tel:` call & 1-tap approval.
 
 ---
 
@@ -536,7 +540,7 @@ CREATE TABLE artisan_drafts (
 - [x] Smart geofencing with 100m check-in, 1-tap Manual Fallback, and 20-min grace buffer checkout.
 - [x] Web Push personalized transition notifications defined.
 - [x] Multi-day relative duration schema and dynamic budgeting specified.
-- [x] Trip-to-Trail contribution loop and WhatsApp voice onboarding preserved.
+- [x] Trip-to-Trail contribution loop and Hindi Web Voice Onboarding & Self-Service Catalogue specified (see ADR 0010).
 
 ---
 
@@ -547,8 +551,8 @@ The following decisions and operational gaps are explicitly marked as **OPEN** p
 ### 12.1 Artisan Workshop Capacity Policy (`OPEN`)
 - **Context**: Miniature painters and potters have small physical workspaces (2–4 seats).
 - **Options under consideration**:
-  1. *1-Tap WhatsApp Ping (Recommended)*: 1-tap button in the PWA sending a pre-filled WhatsApp note to the artisan (*"Hi Mohanlal ji, Raghav here via TrailWeave. Arriving around 3:30 PM for a 45-min workshop. Are 2 spots open?"*).
-  2. *Strict Walk-In*: Assume drop-in availability during stated shop hours with no prior message.
+  1. *1-Tap Direct Phone Call (`tel:`) (Recommended)*: 1-tap button in the PWA allowing the tourist or admin to call the artisan directly before arrival.
+  2. *Strict Walk-In*: Assume drop-in availability during stated shop hours with no prior call.
 - **Status**: `OPEN` (`needs-info`).
 
 ### 12.2 In-Transit Delays & Missed Check-Ins (`OPEN`)

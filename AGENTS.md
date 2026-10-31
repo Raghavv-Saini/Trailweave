@@ -11,7 +11,7 @@ TrailWeave is organized into **4 parallel developer tracks** coordinated around 
 - **Track 1**: Community Discovery & UGC (`docs/tickets/track-1-community-discovery/`)
 - **Track 2**: Trip Engine & Deterministic Backend (`docs/tickets/track-2-trip-engine-backend/`)
 - **Track 3**: Active In-Trip Companion & UI (`docs/tickets/track-3-active-trip-companion/`)
-- **Track 4**: Artisan WhatsApp & Admin Portal (`docs/tickets/track-4-artisan-whatsapp-admin/`)
+- **Track 4**: Artisan Voice Onboarding, Catalogue & Admin Portal (`docs/tickets/track-4-artisan-onboarding-admin/`)
 - **Track 5**: Integration & End-to-End Demo (`docs/tickets/track-5-integration-demo/`)
 
 ---

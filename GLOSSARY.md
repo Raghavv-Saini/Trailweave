@@ -13,7 +13,7 @@ A verified, physical geographic location in Udaipur with exact latitude/longitud
 A real, completed itinerary (single-day or multi-day) submitted by a traveler with explicit consent at the end of their trip. Stored using a **relative duration model** (`suggested_duration_minutes`, `day_number`, `time_slot`), featuring verified places, traveler tips, total budget, and trip notes. Once reviewed, it is displayed in the Curated Section for other travelers to discover, clone, or adapt.
 
 #### 3. Artisan (`Artisan`)
-A local Udaipur craftsman, miniature painter, potter, textile weaver, or cultural enterprise with a physical store, studio, or workshop (`place_id`). Artisans are onboarded via WhatsApp voice/text and support two engagement modes:
+A local Udaipur craftsman, miniature painter, potter, textile weaver, or cultural enterprise with a physical store, studio, or workshop (`place_id`). Artisans onboard via the **Hindi Web Voice Onboarding & Catalogue Portal (`/artisans/onboard`)** using a Hindi voice note and a 4-digit numeric PIN (`4-अंकों का पिन`), manage their own craft/artifact photo gallery (`catalogue_images`), and support two engagement modes:
 - **Retail Store Visit**: Quick stop (15–25 mins) to observe craft-making and buy authentic items directly.
 - **Hands-on Workshop**: An interactive masterclass (45–75 mins) where tourists create their own craft piece for a per-person fee (`workshop_fee_inr`).
 
@@ -27,7 +27,7 @@ A tourist's input defining their journey parameters: single-day or multi-day dur
 A private, user-specific instance of an itinerary stored in **My Trips**. Can be in-progress, active, or completed. When active, it binds the trail's relative durations to concrete calendar arrival/departure timestamps across Day 1, Day 2, etc., verifying feasibility against opening hours and daily budget limits.
 
 #### 7. Artisan Draft (`ArtisanDraft`)
-An unapproved profile extracted from a WhatsApp voice note or message. Contains transcription, extracted structured fields, and consent metadata. Must be reviewed and approved by an Admin before becoming publicly discoverable.
+An unapproved artisan studio profile created from a Hindi voice submission on `/artisans/onboard`. Contains the artisan's phone number (`sender_phone`), raw Hindi transcription (`raw_transcript`), and `extracted_data` (comprising the English **Admin Brief**, **Missing Info Checklist**, pre-filled studio/workshop fields, hashed 4-digit PIN, and artisan-uploaded `catalogue_images`). Raw voice audio is discarded immediately after Google Cloud Speech-to-Text (`hi-IN`) transcription. Must be reviewed and approved by an Admin before becoming publicly discoverable.
 
 #### 8. Simulated Signal (`SimulatedSignal`)
 A demonstration condition (e.g. temporary venue closure, crowd surge) explicitly flagged in the UI as `SIMULATED` to trigger and demonstrate adaptive re-planning without misrepresenting real-world live data.
@@ -57,7 +57,10 @@ An append-only audit record capturing an accepted user or system action on a tri
 The persistent in-trip operational interface that tracks live journey execution, provides view/edit modes, manages geofencing, and coordinates two-way manual and AI itinerary modifications.
 
 #### 17. Artisan Studio Directory (`ArtisanStudioDirectory`)
-A dedicated discovery page (`/artisans`) showcasing verified local artisan studios in Udaipur, their craft traditions, retail hours, workshop pricing/duration, and a direct 1-tap "Add to Itinerary" action.
+A dedicated tourist discovery page (`/artisans`) showcasing verified local artisan studios in Udaipur, their craft traditions, artisan-uploaded work/artifact photo galleries (`catalogue_images`), retail hours, workshop pricing/duration, and a direct 1-tap "Add to Itinerary" action.
+
+#### 18. Artisan Catalogue (`ArtisanCatalogue`)
+The self-service collection of craft and artifact photos (`catalogue_images`) uploaded and managed directly by an artisan during onboarding or via their PIN-authenticated dashboard (`मेरी दुकान / मेरा कैटलॉग` at `/artisans/onboard`).
 
 ---
 

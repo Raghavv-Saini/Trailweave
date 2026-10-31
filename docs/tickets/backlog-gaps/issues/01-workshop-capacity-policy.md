@@ -6,7 +6,7 @@ Status: needs-info
 Miniature painters and potters in Udaipur operate out of compact studios with 2–4 seats. If multiple tourists insert a workshop into their itinerary at the same hour, the artisan may not have capacity.
 
 ## Options
-1. **1-Tap WhatsApp Ping (Recommended)**: PWA includes a 1-tap pre-filled WhatsApp button to message the artisan before arrival.
+1. **1-Tap Direct Phone Call (`tel:`) (Recommended)**: PWA includes a 1-tap `tel:` call button to contact the artisan directly before arrival.
 2. **Strict Walk-In**: Rely strictly on drop-in availability without prior contact.
 
 ## Comments

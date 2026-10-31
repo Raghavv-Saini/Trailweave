@@ -32,7 +32,7 @@ The initial TrailWeave specification relied on third-party content creators (soc
 ### 4. Simplified RBAC Roles
 The application access model is streamlined to 3 core roles:
 1. `tourist`: Browses curated itineraries, builds trips with AI, navigates live, discovers artisans, and submits completed itineraries.
-2. `artisan`: Onboards via WhatsApp voice/text, maintains physical workshop listing.
+2. `artisan`: Onboards via Hindi Web Voice Onboarding (`/artisans/onboard`) with 4-digit PIN, manages self-service `catalogue_images`, and maintains physical workshop listing (see [ADR 0010](0010-web-voice-artisan-onboarding-and-catalogue.md)).
 3. `admin`: Curation queue for artisan drafts and community-submitted itineraries, city catalog manager, and demo controls.
 
 ## Consequences
