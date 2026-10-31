@@ -234,7 +234,7 @@ export default function ArtisanOnboardAndCataloguePage() {
   // MediaRecorder & SpeechRecognition refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const speechRecRef = useRef<any>(null);
+  const speechRecRef = useRef<{ stop: () => void } | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiBase =
@@ -299,16 +299,30 @@ export default function ArtisanOnboardAndCataloguePage() {
 
     // 1. Start browser SpeechRecognition (hi-IN) if supported
     if (typeof window !== "undefined") {
-      const SpeechRec =
-        (window as any).SpeechRecognition ||
-        (window as any).webkitSpeechRecognition;
+      const win = window as unknown as Record<string, unknown>;
+      const SpeechRec = (win.SpeechRecognition || win.webkitSpeechRecognition) as
+        | {
+            new (): {
+              lang: string;
+              continuous: boolean;
+              interimResults: boolean;
+              onresult: (event: {
+                results: ArrayLike<ArrayLike<{ transcript: string }>>;
+              }) => void;
+              start: () => void;
+              stop: () => void;
+            };
+          }
+        | undefined;
       if (SpeechRec) {
         try {
           const rec = new SpeechRec();
           rec.lang = "hi-IN";
           rec.continuous = true;
           rec.interimResults = true;
-          rec.onresult = (event: any) => {
+          rec.onresult = (event: {
+            results: ArrayLike<ArrayLike<{ transcript: string }>>;
+          }) => {
             let captured = "";
             for (let i = 0; i < event.results.length; i++) {
               captured += event.results[i][0].transcript + " ";
@@ -526,8 +540,9 @@ export default function ArtisanOnboardAndCataloguePage() {
         pin: pin.trim(),
         profile,
       });
-    } catch (err: any) {
-      setOnboardError(err?.message || "पंजीकरण में त्रुटि हुई। कृपया पुनः प्रयास करें।");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setOnboardError(msg || "पंजीकरण में त्रुटि हुई। कृपया पुनः प्रयास करें।");
     } finally {
       setIsSubmittingOnboard(false);
     }

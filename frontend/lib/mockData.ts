@@ -53,6 +53,12 @@ export interface MockArtisan {
   workshop_fee_inr: number;
   workshop_duration_minutes: number;
   workshop_description: string;
+  opening_time?: string;
+  closing_time?: string;
+  phone_number?: string;
+  latitude?: number;
+  longitude?: number;
+  catalogue_images?: string[];
 }
 
 export const MOCK_PLACES: MockPlace[] = [
@@ -273,12 +279,21 @@ export const MOCK_ARTISANS: MockArtisan[] = [
     craft_type: "Pichwai & Miniature Painting",
     place_id: "place_mohanlal_studio",
     address: "14 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
+    latitude: 24.5796,
+    longitude: 73.6844,
+    opening_time: "10:00",
+    closing_time: "20:00",
+    phone_number: "+919829012345",
     bio: "4th generation Udaipur miniature artist specializing in natural stone pigments and squirrel-hair brushes.",
     has_workshop: true,
     workshop_fee_inr: 300,
     workshop_duration_minutes: 45,
     workshop_description:
-      "Learn 400-year-old squirrel-hair brush techniques on handmade paper.",
+      "Learn 400-year-old squirrel-hair brush techniques on handmade paper with natural gemstone mineral pigments.",
+    catalogue_images: [
+      "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=900&q=80",
+    ],
   },
   {
     id: "artisan_pottery",
@@ -286,12 +301,21 @@ export const MOCK_ARTISANS: MockArtisan[] = [
     craft_type: "Terracotta Pottery & Clay Sculpting",
     place_id: "place_pottery_studio",
     address: "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
+    latitude: 24.5815,
+    longitude: 73.6820,
+    opening_time: "09:30",
+    closing_time: "19:30",
+    phone_number: "+919829023456",
     bio: "Renowned Mewar potter crafting heritage earthenware and terracotta votive plaques.",
     has_workshop: true,
     workshop_fee_inr: 250,
     workshop_duration_minutes: 45,
     workshop_description:
       "Wheel throwing and traditional Mewar terracotta clay sculpting masterclass.",
+    catalogue_images: [
+      "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=900&q=80",
+    ],
   },
   {
     id: "artisan_puppetry",
@@ -299,12 +323,20 @@ export const MOCK_ARTISANS: MockArtisan[] = [
     craft_type: "Kathputli Traditional String Puppetry",
     place_id: "place_puppetry_workshop",
     address: "Gangaur Ghat Road, Old City, Udaipur, Rajasthan 313001",
+    latitude: 24.5788,
+    longitude: 73.6815,
+    opening_time: "10:00",
+    closing_time: "19:00",
+    phone_number: "+919829034567",
     bio: "Master puppeteer preserving 1,000-year-old Rajasthani wooden string puppet theater traditions.",
     has_workshop: true,
     workshop_fee_inr: 200,
     workshop_duration_minutes: 45,
     workshop_description:
       "Learn string manipulation, carving, and live traditional Rajasthani puppet theater storytelling.",
+    catalogue_images: [
+      "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+    ],
   },
   {
     id: "artisan_leather",
@@ -312,12 +344,20 @@ export const MOCK_ARTISANS: MockArtisan[] = [
     craft_type: "Handcrafted Camel Leather & Mojari Juttis",
     place_id: "place_leather_craft",
     address: "Hathi Pole Bazaar, Udaipur, Rajasthan 313001",
+    latitude: 24.5840,
+    longitude: 73.6865,
+    opening_time: "10:30",
+    closing_time: "20:30",
+    phone_number: "+919829045678",
     bio: "Heritage cobbler crafting durable vegetable-tanned camel leather juttis with silk embroidery.",
     has_workshop: false,
     workshop_fee_inr: 0,
     workshop_duration_minutes: 20,
     workshop_description:
       "Browse master leather embroidery and hand-stitching techniques.",
+    catalogue_images: [
+      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+    ],
   },
 ];
 
