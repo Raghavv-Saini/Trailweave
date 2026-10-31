@@ -2,7 +2,7 @@
 
 **Status:** Authoritative API & Integration Specification  
 **Protocols:** REST (JSON over HTTPS) + Google GenAI Tool Calling + Meta WhatsApp Cloud Webhooks  
-**Related ADRs:** [ADR 0001](adr/0001-trailweave-architecture.md), [ADR 0004](adr/0004-ai-travel-companion-and-smart-geofencing.md), [ADR 0005](adr/0005-unified-trip-engine-and-active-companion.md), [ADR 0006](adr/0006-artisan-workshop-offerings-and-tourist-preferences.md)
+**Related ADRs:** [ADR 0001](adr/0001-trailweave-architecture.md), [ADR 0004](adr/0004-ai-travel-companion-and-smart-geofencing.md), [ADR 0005](adr/0005-unified-trip-engine-and-active-companion.md), [ADR 0006](adr/0006-artisan-workshop-offerings-and-tourist-preferences.md), [ADR 0007](adr/0007-deterministic-itinerary-planner-and-transit-routing.md), [ADR 0008](adr/0008-unified-mutation-engine-and-replan-lifecycle.md), [ADR 0009](adr/0009-artisan-smart-recommendation-scorer-and-detour-engine.md)
 
 ---
 
@@ -69,6 +69,58 @@ Browse verified Udaipur artisan studios.
 
 #### `GET /api/artisans/{id}`
 Fetches full artisan studio profile, photo gallery, and workshop offerings.
+
+#### `GET /api/trips/{trip_id}/recommendations/artisans`
+Scores and discovers nearby verified Udaipur artisan studios within a 15-minute detour buffer along the tourist's active route, respecting remaining trip budget, venue operating hours, and experience preference.
+- **Query Parameters**:
+  - `preference` (optional): string (`workshops`, `store_visits`, `both`, default `both`)
+  - `max_detour_minutes` (optional): integer (max allowed detour in minutes, default `15`)
+  - `travel_mode` (optional): string (`walking`, `auto_rickshaw`, `cab`)
+- **Response `200 OK`**:
+```json
+{
+  "trip_id": "trip_demo_udaipur",
+  "preference": "both",
+  "travel_mode": "auto_rickshaw",
+  "remaining_budget_inr": 1070.0,
+  "total_candidates_evaluated": 4,
+  "recommendations": [
+    {
+      "artisan_id": "artisan_pottery",
+      "place_id": "place_pottery_studio",
+      "artisan_name": "Master Kavita Kumhar",
+      "craft_type": "Terracotta Pottery & Clay Sculpting",
+      "offering_type": "workshop",
+      "fee_inr": 250.0,
+      "duration_minutes": 45,
+      "detour_minutes": 5,
+      "optimal_insert_order": 2,
+      "rationale": "Master Kavita Kumhar: 5 min detour, ₹250 workshop fee, open until 7:30 PM, fits under your ₹1,070 budget",
+      "latitude": 24.5815,
+      "longitude": 73.682,
+      "address": "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
+      "image_url": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+      "has_workshop": true
+    }
+  ]
+}
+```
+
+#### `POST /api/trips/recommendations/artisans`
+Transient recommendation scoring for candidate routes or baskets in the Trip Builder before a trip is persisted.
+- **Request Body**:
+```json
+{
+  "stops": [
+    {"place_id": "place_city_palace", "latitude": 24.5764, "longitude": 73.6835, "entry_fee_inr": 330}
+  ],
+  "budget_inr": 2000,
+  "travel_mode": "auto_rickshaw",
+  "preference": "workshops",
+  "max_detour_minutes": 15
+}
+```
+- **Response `200 OK`**: Same `ArtisanRecommendationResponse` schema.
 
 ---
 

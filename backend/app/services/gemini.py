@@ -1,10 +1,14 @@
 """
 Google GenAI (Gemini Flash) Service & Tool Calling Interface
-Used in Track 3 (Companion) and Track 4 (Voice note structured extraction).
+Used in Track 1 (Trip-to-Trail), Track 3 (Companion), and Track 4 (Voice note structured extraction).
+Spec: docs/API_SPEC.md §1.4 & §2, ADR 0004, ADR 0005, ADR 0008
+Ticket: docs/tickets/track-3-active-trip-companion/09-ai-companion-push-notifications.md
 """
 import os
 import json
+import uuid
 import logging
+from datetime import datetime, timezone, timedelta, time
 from typing import Dict, Any, List, Optional
 
 try:
@@ -12,33 +16,147 @@ try:
 except ImportError:
     httpx = None
 
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+
+from app.core.config import settings
+from app.engine.replan import UnifiedMutationEngine, PLACE_IMAGE_MAP, DEFAULT_PLACE_IMAGE
+from app.schemas.replan import ReplanOperation, ValidationDiff
+from app.services.planner import StartLocation
+
 logger = logging.getLogger(__name__)
+
+COMPANION_SYSTEM_PROMPT = """
+You are the TrailWeave AI Travel Companion, a warm, knowledgeable, and cultured travel connoisseur intimately familiar with Udaipur ("The Cultured Local Friend").
+You speak with cultural warmth and genuine Rajasthani hospitality (often greeting with "Khamma Ghani" or "Namaste").
+You understand the topography of Udaipur: narrow pedestrian alleys around Jagdish Chowk, Gangaur Ghat, and Bhatiyani Chohatta, temple customs (shoe drop-offs, conservative dress, prayer times), afternoon heat management, scenic sunset lighting over Lake Pichola, and verified local artisan traditions (Mewar miniature painting, Molela terracotta, and Pichwai art).
+
+CRITICAL OPERATIONAL RULES:
+1. Always maintain awareness of the traveler's active trip state and current revision number.
+2. Explicitly acknowledge prior manual user edits and events (e.g., "I see you skipped the museum earlier...", "Now that you've wrapped up at City Palace...") before proposing any new itinerary changes.
+3. You never execute unvalidated or arbitrary database mutations. When the traveler requests changes ("I'm tired, can we skip the fort and find a rooftop tea shop nearby?"), you MUST execute typed tool calls:
+   - `get_current_trip`: Inspect current authoritative revision, pending stops, and budget.
+   - `get_recent_trip_events`: Review recent manual actions (skips, visits, checkouts) to acknowledge them.
+   - `search_places`: Look up nearby verified Udaipur venues, rooftop cafes, or artisan workshops.
+   - `get_place_details`: Verify venue hours, workshop fees, and address.
+   - `propose_trip_changes`: Dispatch candidate operations to the deterministic Trip Engine to generate a provisional ReplanProposal card for tourist acceptance.
+4. When proposing alterations, explain your cultural and logistical reasoning warmly, showing how the changes respect their pace, budget, and local lighting.
+"""
 
 GEMINI_TOOL_DECLARATIONS = [
     {
         "name": "get_current_trip",
-        "description": "Fetches current authoritative trip state and revision number.",
-        "parameters": {"type": "OBJECT", "properties": {"trip_id": {"type": "STRING"}}, "required": ["trip_id"]}
-    },
-    {
-        "name": "get_recent_trip_events",
-        "description": "Fetches recent accepted trip events for user context.",
-        "parameters": {"type": "OBJECT", "properties": {"trip_id": {"type": "STRING"}, "limit": {"type": "INTEGER"}}, "required": ["trip_id"]}
-    },
-    {
-        "name": "search_places",
-        "description": "Searches canonical places and verified local artisan studios in Udaipur.",
-        "parameters": {"type": "OBJECT", "properties": {"query": {"type": "STRING"}, "category": {"type": "STRING"}}}
-    },
-    {
-        "name": "propose_trip_changes",
-        "description": "Submits candidate modifications to generate provisional ReplanProposal.",
+        "description": "Fetches the current authoritative trip state, current revision number, active stops, and traveler budget/preference constraints.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
-                "trip_id": {"type": "STRING"},
-                "base_revision": {"type": "INTEGER"},
-                "operations": {"type": "ARRAY"}
+                "trip_id": {
+                    "type": "STRING",
+                    "description": "Unique identifier of the tourist trip."
+                }
+            },
+            "required": ["trip_id"]
+        }
+    },
+    {
+        "name": "get_recent_trip_events",
+        "description": "Fetches the recent accepted trip events (manual skips, additions, reorders, checkouts) so the AI can acknowledge previous user actions.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "trip_id": {
+                    "type": "STRING",
+                    "description": "Unique identifier of the tourist trip."
+                },
+                "limit": {
+                    "type": "INTEGER",
+                    "description": "Maximum number of recent events to retrieve (default: 5)."
+                }
+            },
+            "required": ["trip_id"]
+        }
+    },
+    {
+        "name": "search_places",
+        "description": "Searches canonical places and verified local artisan studios in Udaipur by keyword, category, or proximity to current coordinates.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "query": {
+                    "type": "STRING",
+                    "description": "Search term, e.g. 'pottery', 'miniature painting', 'rooftop tea', 'dining'."
+                },
+                "category": {
+                    "type": "STRING",
+                    "enum": ["attraction", "heritage", "dining", "artisan_studio"],
+                    "description": "Filter by place category."
+                },
+                "max_fee_inr": {
+                    "type": "INTEGER",
+                    "description": "Maximum entry or workshop fee allowed."
+                },
+                "max_detour_minutes": {
+                    "type": "INTEGER",
+                    "description": "Maximum travel detour time in minutes."
+                }
+            }
+        }
+    },
+    {
+        "name": "get_place_details",
+        "description": "Fetches verified operational details of a specific canonical place or artisan studio, including hours, workshop pricing, and address.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "place_id": {
+                    "type": "STRING",
+                    "description": "The unique place identifier."
+                }
+            },
+            "required": ["place_id"]
+        }
+    },
+    {
+        "name": "propose_trip_changes",
+        "description": "Submits candidate itinerary modifications to the deterministic Trip Engine and generates a provisional ReplanProposal for tourist preview and approval.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "trip_id": {
+                    "type": "STRING",
+                    "description": "The unique trip identifier."
+                },
+                "base_revision": {
+                    "type": "INTEGER",
+                    "description": "The latest trip revision number the AI is proposing changes against."
+                },
+                "operations": {
+                    "type": "ARRAY",
+                    "description": "Ordered sequence of candidate operations.",
+                    "items": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "type": {
+                                "type": "STRING",
+                                "enum": ["add_stop", "remove_stop", "skip_stop", "reorder_stops", "pin_stop"],
+                                "description": "The mutation action to perform."
+                            },
+                            "place_id": {
+                                "type": "STRING",
+                                "description": "Canonical place ID for add_stop operations."
+                            },
+                            "stop_id": {
+                                "type": "STRING",
+                                "description": "Existing stop ID for skip, remove, or pin operations."
+                            },
+                            "new_order": {
+                                "type": "INTEGER",
+                                "description": "Target sequence index within the day."
+                            }
+                        },
+                        "required": ["type"]
+                    }
+                }
             },
             "required": ["trip_id", "base_revision", "operations"]
         }
@@ -47,143 +165,70 @@ GEMINI_TOOL_DECLARATIONS = [
 
 
 class GeminiCompanionService:
-    def __init__(self, api_key: str = ""):
-        self.api_key = api_key
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or settings.GEMINI_API_KEY
+        self.mutation_engine = UnifiedMutationEngine()
 
     async def generate_reply(self, message: str, trip_context: Dict[str, Any]) -> str:
-        """Conversational companion response generation."""
+        """Conversational companion response generation fallback."""
         return "I can help adjust your itinerary! Would you like me to look for a nearby artisan workshop?"
 
-
-class GeminiTrailDraftService:
-    """
-    Trip-to-Trail AI Draft Generation using Gemini Flash.
-    Generates engaging public community trail titles, descriptions, and tags
-    from tourist-confirmed visited stops while scrubbing private notes and GPS tracks.
-    """
-    def __init__(self, api_key: str = ""):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY", "")
-
-    async def generate_trail_draft(
-        self,
-        visited_places: List[Dict[str, Any]],
-        vibe_hint: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """
-        Drafts title, narrative summary, relevant tags, and cost estimates.
-        Falls back gracefully to deterministic template generation if offline or API key is absent.
-        """
-        if not visited_places:
-            return {
-                "title": "Udaipur Old City Wander",
-                "description": "A relaxing walk through the heart of Udaipur.",
-                "tags": ["walking", "heritage"],
-                "estimated_budget_inr": 0,
-                "total_duration_hours": 2.0
-            }
-
-        # Calculate base aggregates
-        total_minutes = sum(p.get("suggested_duration_minutes", 45) for p in visited_places)
-        total_duration_hours = round(max(total_minutes / 60.0, 1.0), 1)
-        total_budget = sum(float(p.get("entry_fee_inr", 0)) for p in visited_places)
-
-        # Synthesize fallback values
-        place_names = [p.get("name", "Udaipur Stop") for p in visited_places]
-        categories = {p.get("category", "heritage") for p in visited_places}
-        
-        tags: List[str] = []
-        if "artisan_studio" in categories:
-            tags.append("artisan")
-        if "heritage" in categories:
-            tags.append("heritage")
-        if "dining" in categories:
-            tags.append("food")
-        if "attraction" in categories and "walking" not in tags:
-            tags.append("walking")
-        if not tags:
-            tags = ["heritage", "walking"]
-
-        if len(place_names) >= 2:
-            fallback_title = f"{place_names[0]} to {place_names[-1]} Discovery Walk"
-        elif len(place_names) == 1:
-            fallback_title = f"Exploring {place_names[0]} & Surroundings"
-        else:
-            fallback_title = "Udaipur Heritage & Artisan Journey"
-
-        place_list_str = ", ".join(place_names)
-        fallback_desc = (
-            f"An authentic traveler-completed journey through Udaipur. "
-            f"Highlights include exploring {place_list_str}. "
-            f"Recommended for travelers seeking genuine local experiences, rich cultural history, and artisan craft connections."
+    async def execute_get_current_trip(self, trip_id: str, db: AsyncSession) -> Dict[str, Any]:
+        """Fetch authoritative trip state, current revision, and active stops."""
+        trip_res = await db.execute(
+            text("SELECT * FROM trips WHERE id = :id"),
+            {"id": trip_id}
         )
+        trip = trip_res.fetchone()
+        if not trip:
+            return {"error": f"Trip {trip_id} not found"}
 
-        fallback_result = {
-            "title": fallback_title,
-            "description": fallback_desc,
-            "tags": tags[:4],
-            "estimated_budget_inr": total_budget,
-            "total_duration_hours": total_duration_hours
+        stops = []
+        if trip.current_itinerary_version_id:
+            stops_res = await db.execute(
+                text("""
+                    SELECT
+                        s.id, s.place_id, s.day_number, s.sequence_in_day,
+                        s.planned_arrival, s.planned_departure,
+                        s.suggested_duration_minutes, s.actual_duration_minutes,
+                        s.visit_status, s.is_pinned,
+                        p.name, p.category, p.entry_fee_inr, p.address
+                    FROM trip_stops s
+                    LEFT JOIN places p ON s.place_id = p.id
+                    WHERE s.itinerary_version_id = :vid
+                    ORDER BY s.day_number, s.sequence_in_day
+                """),
+                {"vid": trip.current_itinerary_version_id}
+            )
+            for r in stops_res.fetchall():
+                stops.append({
+                    "id": r.id,
+                    "place_id": r.place_id,
+                    "name": r.name,
+                    "category": r.category,
+                    "day_number": r.day_number,
+                    "sequence_in_day": r.sequence_in_day,
+                    "planned_arrival": r.planned_arrival.isoformat() if r.planned_arrival else None,
+                    "planned_departure": r.planned_departure.isoformat() if r.planned_departure else None,
+                    "suggested_duration_minutes": r.suggested_duration_minutes,
+                    "actual_duration_minutes": r.actual_duration_minutes,
+                    "visit_status": r.visit_status,
+                    "is_pinned": r.is_pinned,
+                    "entry_fee_inr": float(r.entry_fee_inr or 0),
+                    "address": r.address
+                })
+
+        return {
+            "trip_id": trip.id,
+            "title": trip.title,
+            "revision": trip.revision,
+            "budget_inr": float(trip.budget_inr or 0),
+            "status": trip.status,
+            "stops": stops
         }
 
-        # Attempt Gemini Flash call if API key configured
-        if self.api_key:
-            try:
-                system_instruction = (
-                    "You are a cultured local Udaipur travel curator. "
-                    "Draft an authentic, engaging community trail publication based ONLY on the provided visited stops. "
-                    "Respond with a strict JSON object containing keys: 'title' (string), 'description' (markdown string, 2-3 sentences), "
-                    "'tags' (array of strings, e.g. ['heritage', 'artisan', 'lake', 'walking'])."
-                )
-                prompt_content = (
-                    f"Visited Stops: {json.dumps(visited_places, default=str)}\n"
-                    f"Vibe hint: {vibe_hint or 'cultural heritage & artisan immersion'}\n"
-                    "Output JSON only:"
-                )
-
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.api_key}"
-                payload = {
-                    "contents": [{"parts": [{"text": prompt_content}]}],
-                    "systemInstruction": {"parts": [{"text": system_instruction}]},
-                    "generationConfig": {
-                        "responseMimeType": "application/json",
-                        "temperature": 0.4
-                    }
-                }
-
-                if httpx:
-                    async with httpx.AsyncClient(timeout=8.0) as client:
-                        resp = await client.post(url, json=payload)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            text_part = data["candidates"][0]["content"]["parts"][0]["text"]
-                            parsed = json.loads(text_part)
-                            return {
-                                "title": parsed.get("title", fallback_title),
-                                "description": parsed.get("description", fallback_desc),
-                                "tags": parsed.get("tags", tags)[:4],
-                                "estimated_budget_inr": total_budget,
-                                "total_duration_hours": total_duration_hours
-                            }
-                else:
-                    import urllib.request
-                    req = urllib.request.Request(
-                        url,
-                        data=json.dumps(payload).encode("utf-8"),
-                        headers={"Content-Type": "application/json"}
-                    )
-                    with urllib.request.urlopen(req, timeout=8.0) as resp:
-                        if resp.status == 200:
-                            data = json.loads(resp.read().decode("utf-8"))
-                            text_part = data["candidates"][0]["content"]["parts"][0]["text"]
-                            parsed = json.loads(text_part)
-                            return {
-                                "title": parsed.get("title", fallback_title),
-                                "description": parsed.get("description", fallback_desc),
-                                "tags": parsed.get("tags", tags)[:4],
-                                "estimated_budget_inr": total_budget,
-                                "total_duration_hours": total_duration_hours
-                            }
-            except Exception as e:
-                logger.warning("Gemini trail draft generation fell back to template: %s", e)
-
-        return fallback_result
+    async def execute_get_recent_trip_events(self, trip_id: str, limit: int, db: AsyncSession) -> List[Dict[str, Any]]:
+        """Fetch recent trip events (skips, visits, checkouts, replans)."""
+        res = await db.execute(
+            text("SELECT * FROM trip_events WHERE trip_id = :id ORDER BY created_at DESC LIMIT :limit"),
+            {"id": trip_id, "limit": min(max(limit,

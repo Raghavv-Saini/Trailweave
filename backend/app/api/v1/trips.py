@@ -33,6 +33,9 @@ router = APIRouter(tags=["Personal Trips & In-Trip Companion"])
 PLACE_IMAGE_MAP = {
     "place_city_palace": "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=900&q=80",
     "place_mohanlal_studio": "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
+    "place_pottery_studio": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+    "place_puppetry_workshop": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+    "place_leather_craft": "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
     "place_jagdish_temple": "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=900&q=80",
     "place_bagore_haveli": "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=900&q=80",
     "place_saheliyon_bari": "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=900&q=80",
@@ -488,32 +491,6 @@ async def get_trip(
     )
 
 
-@router.get("/trips/{trip_id}/events")
-async def get_trip_events(
-    trip_id: str,
-    db: AsyncSession = Depends(get_db)
-):
-    """Fetch append-only trip event log for audit trail & AI context."""
-    res = await db.execute(
-        text("SELECT * FROM trip_events WHERE trip_id = :id ORDER BY created_at DESC LIMIT 20"),
-        {"id": trip_id}
-    )
-    rows = res.fetchall()
-    return [
-        {
-            "id": r.id,
-            "trip_id": r.trip_id,
-            "resulting_revision": r.resulting_revision,
-            "actor": r.actor,
-            "source": r.source,
-            "event_type": r.event_type,
-            "payload": r.payload,
-            "created_at": r.created_at
-        }
-        for r in rows
-    ]
-
-
 @router.post("/trips/{trip_id}/stops/{stop_id}/visit")
 async def record_stop_visit(
     trip_id: str,
@@ -635,6 +612,31 @@ async def record_stop_checkout(
             "payload": payload_json
         }
     )
+    # Generate contextual transition notification for Web Push & In-App Concierge
+    from app.services.gemini import GeminiCompanionService
+    companion_service = GeminiCompanionService()
+    transition_tip = await companion_service.generate_transition_notification(
+        trip_id=trip_id,
+        completed_stop_id=stop_id,
+        db=db
+    )
+
+    await db.execute(
+        text("""
+            INSERT INTO trip_events (id, trip_id, resulting_revision, actor, source, event_type, payload)
+            VALUES (
+                :eid, :trip_id,
+                (SELECT revision FROM trips WHERE id = :trip_id),
+                'system', 'web_push_service', 'transition_notification_dispatched',
+                CAST(:payload AS jsonb)
+            )
+        """),
+        {
+            "eid": f"event_notif_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+            "trip_id": trip_id,
+            "payload": json.dumps(transition_tip)
+        }
+    )
     await db.commit()
 
     return {
@@ -642,7 +644,8 @@ async def record_stop_checkout(
         "stop_id": stop_id,
         "checkout_method": checkout_method,
         "departure_timestamp": departure_ts,
-        "actual_duration_minutes": actual_duration
+        "actual_duration_minutes": actual_duration,
+        "transition_notification": transition_tip
     }
 
 

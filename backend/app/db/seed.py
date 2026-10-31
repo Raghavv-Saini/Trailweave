@@ -95,6 +95,45 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "opening_time": time(10, 0),
         "closing_time": time(20, 0),
         "data_status": "verified"
+    },
+    {
+        "id": "place_pottery_studio",
+        "name": "Kavita Terracotta Pottery & Clay Studio",
+        "category": "artisan_studio",
+        "latitude": 24.5815,
+        "longitude": 73.6820,
+        "address": "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0,
+        "typical_duration_minutes": 45,
+        "opening_time": time(9, 30),
+        "closing_time": time(19, 30),
+        "data_status": "verified"
+    },
+    {
+        "id": "place_puppetry_workshop",
+        "name": "Udaipur Traditional Kathputli Puppetry Workshop",
+        "category": "artisan_studio",
+        "latitude": 24.5788,
+        "longitude": 73.6815,
+        "address": "Gangaur Ghat Road, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0,
+        "typical_duration_minutes": 45,
+        "opening_time": time(10, 0),
+        "closing_time": time(19, 0),
+        "data_status": "verified"
+    },
+    {
+        "id": "place_leather_craft",
+        "name": "Mewar Royal Leather & Jutti Craft Studio",
+        "category": "artisan_studio",
+        "latitude": 24.5840,
+        "longitude": 73.6865,
+        "address": "Hathi Pole Bazaar, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0,
+        "typical_duration_minutes": 25,
+        "opening_time": time(10, 30),
+        "closing_time": time(20, 30),
+        "data_status": "verified"
     }
 ]
 
@@ -110,6 +149,45 @@ ARTISANS_SEED: List[Dict[str, Any]] = [
         "workshop_fee_inr": 300,
         "workshop_duration_minutes": 45,
         "workshop_description": "Hands-on miniature painting masterclass on handmade vintage paper.",
+        "profile_status": "approved"
+    },
+    {
+        "id": "artisan_pottery",
+        "place_id": "place_pottery_studio",
+        "artisan_name": "Master Kavita Kumhar",
+        "craft_type": "Terracotta Pottery & Clay Sculpting",
+        "phone_number": "+919829023456",
+        "bio": "Renowned Mewar potter crafting heritage earthenware and terracotta votive plaques.",
+        "has_workshop": True,
+        "workshop_fee_inr": 250,
+        "workshop_duration_minutes": 45,
+        "workshop_description": "Wheel throwing and traditional Mewar terracotta clay sculpting masterclass.",
+        "profile_status": "approved"
+    },
+    {
+        "id": "artisan_puppetry",
+        "place_id": "place_puppetry_workshop",
+        "artisan_name": "Babu Bhatt Puppeteer",
+        "craft_type": "Kathputli Traditional String Puppetry",
+        "phone_number": "+919829034567",
+        "bio": "Master puppeteer preserving 1,000-year-old Rajasthani wooden string puppet theater traditions.",
+        "has_workshop": True,
+        "workshop_fee_inr": 200,
+        "workshop_duration_minutes": 45,
+        "workshop_description": "Learn string manipulation, carving, and live traditional Rajasthani puppet theater storytelling.",
+        "profile_status": "approved"
+    },
+    {
+        "id": "artisan_leather",
+        "place_id": "place_leather_craft",
+        "artisan_name": "Ramesh Chandra Parmar",
+        "craft_type": "Handcrafted Camel Leather & Mojari Juttis",
+        "phone_number": "+919829045678",
+        "bio": "Heritage cobbler and artisan crafting durable vegetable-tanned camel leather juttis with silk embroidery.",
+        "has_workshop": False,
+        "workshop_fee_inr": 0,
+        "workshop_duration_minutes": 20,
+        "workshop_description": "Browse master leather embroidery and hand-stitching techniques.",
         "profile_status": "approved"
     }
 ]

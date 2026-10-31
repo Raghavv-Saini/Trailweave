@@ -20,7 +20,7 @@ import { BottomNav } from "@/components/common/BottomNav";
 import { BasketDrawer } from "@/components/basket/BasketDrawer";
 import { FloatingBasketButton } from "@/components/basket/FloatingBasketButton";
 import { UseAsBaseModal } from "@/components/common/UseAsBaseModal";
-import { MOCK_TRAILS, MockPlace, MockTrail } from "@/lib/mockData";
+import { MOCK_TRAILS, MockPlace, MockTrail, MockTrailStop } from "@/lib/mockData";
 import { useBasket } from "@/context/BasketContext";
 
 export default function TrailDetailPage() {
@@ -36,7 +36,7 @@ export default function TrailDetailPage() {
   const trail: MockTrail =
     MOCK_TRAILS.find((t) => t.id === trailId) || MOCK_TRAILS[0];
 
-  const handleToggleStop = (stop: (typeof trail.stops)[0]) => {
+  const handleToggleStop = (stop: MockTrailStop) => {
     if (isInBasket(stop.place_id)) {
       removeItem(stop.place_id);
     } else {
@@ -186,7 +186,7 @@ export default function TrailDetailPage() {
 
         {/* Stops List */}
         <div className="space-y-3 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-neutral-200">
-          {trail.stops.map((stop, index) => {
+          {(trail.stops || []).map((stop, index) => {
             const inBasket = isInBasket(stop.place_id);
 
             return (
