@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 
 from app.core.database import get_db
+from app.core.security import IN_MEMORY_USERS, hash_password, require_admin
+from app.schemas.auth import AdminCreateUserRequest, UserResponse
 from app.schemas.admin import (
     ArtisanDraftResponse,
     ArtisanDraftApproveRequest,
@@ -726,3 +728,127 @@ async def create_admin_place(
         pass
 
     return AdminPlaceResponse(**record)
+
+
+@router.get("/admin/team", response_model=List[UserResponse])
+async def list_admin_team(
+    current_admin: Dict[str, Any] = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> List[UserResponse]:
+    """
+    Lists all administrator and superuser accounts.
+    Requires authenticated admin/superuser token.
+    """
+    admins_by_email: Dict[str, Dict[str, Any]] = {}
+
+    for email, rec in IN_MEMORY_USERS.items():
+        if rec.get("role") in ("admin", "superuser"):
+            admins_by_email[email] = rec
+
+    try:
+        res = await db.execute(
+            text(
+                "SELECT id, email, full_name, role, is_active, created_at FROM users WHERE role IN ('admin', 'superuser') ORDER BY created_at ASC"
+            )
+        )
+        for row in res.fetchall():
+            rm = row._mapping
+            email_key = str(rm["email"]).lower()
+            if email_key not in admins_by_email:
+                admins_by_email[email_key] = {
+                    "id": rm["id"],
+                    "email": email_key,
+                    "full_name": rm["full_name"],
+                    "role": rm["role"],
+                    "is_active": rm["is_active"],
+                    "created_at": rm["created_at"],
+                }
+    except Exception:
+        pass
+
+    return [UserResponse(**u) for u in admins_by_email.values()]
+
+
+@router.post(
+    "/admin/team",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def add_admin_team_member(
+    body: AdminCreateUserRequest,
+    current_admin: Dict[str, Any] = Depends(require_admin),
+    db: AsyncSession = Depends(get_db),
+) -> UserResponse:
+    """
+    Allows an authenticated Admin/Superuser to create a new Admin or Superuser account.
+    """
+    email = (body.email or "").strip().lower()
+    full_name = (body.full_name or "").strip()
+    role = body.role if body.role in ("admin", "superuser") else "admin"
+
+    if not email or "@" not in email:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A valid email address is required.",
+        )
+    if not full_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Full name is required.",
+        )
+
+    if email in IN_MEMORY_USERS:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="A user with this email already exists.",
+        )
+
+    hashed_pw = hash_password(body.password)
+    user_id = f"user_admin_{uuid.uuid4().hex[:8]}"
+    now = datetime.now(timezone.utc)
+
+    try:
+        existing_row = await db.execute(
+            text("SELECT id FROM users WHERE LOWER(email) = :email"),
+            {"email": email},
+        )
+        if existing_row.fetchone():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A user with this email already exists.",
+            )
+        await db.execute(
+            text(
+                """
+                INSERT INTO users (id, email, hashed_password, full_name, role, is_active, created_at, updated_at)
+                VALUES (:id, :email, :hashed_password, :full_name, :role, TRUE, :created_at, :updated_at)
+                """
+            ),
+            {
+                "id": user_id,
+                "email": email,
+                "hashed_password": hashed_pw,
+                "full_name": full_name,
+                "role": role,
+                "created_at": now,
+                "updated_at": now,
+            },
+        )
+        await db.commit()
+    except HTTPException:
+        raise
+    except Exception:
+        await db.rollback()
+
+    new_admin: Dict[str, Any] = {
+        "id": user_id,
+        "email": email,
+        "hashed_password": hashed_pw,
+        "full_name": full_name,
+        "role": role,
+        "is_active": True,
+        "created_at": now,
+    }
+    IN_MEMORY_USERS[email] = new_admin
+    return UserResponse(**new_admin)
+

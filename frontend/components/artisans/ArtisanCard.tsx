@@ -55,7 +55,7 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
   const primaryImage = images[0];
 
   return (
-    <div className="group rounded-2xl border border-neutral-200/90 bg-white hover:border-amber-400 hover:shadow-md transition-all duration-200 overflow-hidden flex flex-col justify-between">
+    <div className="group rounded-2xl border border-[#E8E4DC] bg-white hover:border-[#1E3A5F]/40 hover:shadow-xs transition-all duration-200 overflow-hidden flex flex-col justify-between">
       {/* Photo Preview Carousel / Banner */}
       {primaryImage ? (
         <div className="relative h-44 w-full bg-neutral-100 overflow-hidden">
@@ -69,11 +69,11 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
 
           {/* Craft Badge on Photo */}
           <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/95 text-[#E05A2B] px-2.5 py-1 rounded-full shadow-xs backdrop-blur-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-white/95 text-[#1E3A5F] px-2.5 py-1 rounded-full shadow-xs backdrop-blur-xs">
               {artisan.craft_type}
             </span>
             {artisan.has_workshop ? (
-              <span className="text-[10px] font-bold bg-amber-500/90 text-white px-2 py-0.5 rounded-full backdrop-blur-xs flex items-center gap-1 shadow-xs">
+              <span className="text-[10px] font-semibold bg-[#1E3A5F]/90 text-white px-2 py-0.5 rounded-full backdrop-blur-xs flex items-center gap-1 shadow-xs">
                 <Sparkles className="w-2.5 h-2.5" /> Hands-on Class
               </span>
             ) : (
@@ -93,8 +93,8 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
 
           {/* Price pill if workshop */}
           {artisan.has_workshop && (
-            <div className="absolute bottom-3 left-3 bg-white/95 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-0.5 shadow-sm">
-              <IndianRupee className="w-3 h-3 stroke-[2.5]" />
+            <div className="absolute bottom-3 left-3 bg-white/95 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-0.5 shadow-xs">
+              <IndianRupee className="w-3 h-3 stroke-[2.2]" />
               {artisan.workshop_fee_inr}
               <span className="text-[10px] font-normal text-neutral-500 ml-0.5">/ person</span>
             </div>
@@ -102,12 +102,12 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
         </div>
       ) : (
         <div className="px-4 pt-4 flex items-center justify-between">
-          <span className="text-[10px] font-extrabold text-[#E05A2B] uppercase tracking-wider bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+          <span className="text-[10px] font-bold text-[#1E3A5F] uppercase tracking-wider bg-[#1E3A5F]/10 px-2 py-0.5 rounded-md border border-[#1E3A5F]/20">
             {artisan.craft_type}
           </span>
           {artisan.has_workshop && (
-            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-0.5">
-              <IndianRupee className="w-3 h-3 stroke-[2.5]" />
+            <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center gap-0.5">
+              <IndianRupee className="w-3 h-3 stroke-[2.2]" />
               {artisan.workshop_fee_inr}
             </span>
           )}
@@ -119,46 +119,46 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
         <div className="space-y-1.5">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="font-bold text-neutral-900 text-base leading-tight group-hover:text-[#E05A2B] transition-colors">
+              <h3 className="font-serif font-medium text-lg text-[#191C1E] leading-tight group-hover:text-[#1E3A5F] transition-colors">
                 <Link href={`/artisans/${artisan.id}`}>{artisan.artisan_name}</Link>
               </h3>
-              <p className="text-xs text-neutral-500 flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+              <p className="text-xs text-[#7A746B] flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3.5 h-3.5 text-[#7A746B] shrink-0" />
                 <span className="line-clamp-1">{artisan.address}</span>
               </p>
             </div>
           </div>
 
           {/* Operating hours & duration */}
-          <div className="flex items-center gap-3 text-[11px] text-neutral-500 font-medium pt-1">
+          <div className="flex items-center gap-3 text-[11px] text-[#7A746B] font-medium pt-1">
             {artisan.opening_time && artisan.closing_time && (
               <span className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-neutral-400 shrink-0" />
+                <Clock className="w-3 h-3 text-[#7A746B] shrink-0" />
                 Open {artisan.opening_time} - {artisan.closing_time}
               </span>
             )}
             {artisan.has_workshop && (
-              <span className="flex items-center gap-1 text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded-md">
+              <span className="flex items-center gap-1 text-[#1E3A5F] font-semibold bg-[#1E3A5F]/10 px-2 py-0.5 rounded-md">
                 <Sparkles className="w-3 h-3 shrink-0" />
                 {artisan.workshop_duration_minutes}m hands-on
               </span>
             )}
           </div>
 
-          <p className="text-xs text-neutral-600 line-clamp-2 leading-relaxed pt-1">
+          <p className="text-xs text-[#3F464C] line-clamp-2 leading-relaxed pt-1">
             {artisan.workshop_description || artisan.bio}
           </p>
         </div>
 
         {/* Action Buttons: 1-Tap Add to Basket & View Studio */}
-        <div className="pt-3 border-t border-neutral-100 flex items-center gap-2">
+        <div className="pt-3 border-t border-[#E8E4DC] flex items-center gap-2">
           <button
             onClick={handleBasketToggle}
             data-testid={`add-basket-${artisan.id}`}
-            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs ${
+            className={`flex-1 py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer ${
               inBasket
-                ? "bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-500/20"
-                : "bg-[#E05A2B] text-white hover:bg-[#c94d23]"
+                ? "bg-emerald-700 text-white hover:bg-emerald-800 ring-2 ring-emerald-500/20"
+                : "bg-[#1E3A5F] text-white hover:bg-[#152943]"
             }`}
           >
             {inBasket ? (
@@ -176,7 +176,7 @@ export function ArtisanCard({ artisan }: ArtisanCardProps) {
 
           <Link
             href={`/artisans/${artisan.id}`}
-            className="py-2 px-3 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-50 hover:border-neutral-300 font-semibold text-xs flex items-center justify-center gap-1 transition-colors"
+            className="py-2 px-3 rounded-xl border border-[#E8E4DC] bg-white text-[#191C1E] hover:bg-[#F4EFEA] font-semibold text-xs flex items-center justify-center gap-1 transition-colors"
           >
             Studio Details &rarr;
           </Link>

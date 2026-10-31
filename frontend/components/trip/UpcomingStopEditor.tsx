@@ -379,7 +379,7 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
             <Lock className="w-3 h-3 text-neutral-400" /> Historical stops are immutable
           </span>
           {hasModifications ? (
-            <span className="font-extrabold text-[#E05A2B]">
+            <span className="font-bold text-[#1E3A5F]">
               {stagedOperations.length} modification{stagedOperations.length > 1 ? "s" : ""} staged
             </span>
           ) : (
@@ -430,28 +430,28 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
 
       {/* Recommended Artisan Studios (Within 15 Min Detour Buffer) */}
       {recommendations.length > 0 && (
-        <div className="rounded-2xl border border-amber-200/90 bg-amber-50/50 overflow-hidden shadow-2xs">
+        <div className="rounded-2xl border border-[#E8E4DC] bg-[#FBF9F5] overflow-hidden shadow-2xs">
           <button
             type="button"
             onClick={() => setIsRecommendationsOpen((prev) => !prev)}
-            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-amber-950 hover:bg-amber-100/50 transition-colors cursor-pointer"
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-[#191C1E] hover:bg-[#F4EFEA] transition-colors cursor-pointer"
           >
             <span className="flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-[#E05A2B]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#1E3A5F]" />
               <span>
                 Nearby Artisan Workshops ({recommendations.length} within 15m detour)
               </span>
             </span>
             {isRecommendationsOpen ? (
-              <ChevronUp className="w-4 h-4 text-amber-700" />
+              <ChevronUp className="w-4 h-4 text-[#7A746B]" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-amber-700" />
+              <ChevronDown className="w-4 h-4 text-[#7A746B]" />
             )}
           </button>
 
           {isRecommendationsOpen && (
-            <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-amber-200/60">
-              <p className="text-[11px] text-amber-900 leading-relaxed">
+            <div className="px-3.5 pb-3.5 pt-1 space-y-2.5 border-t border-[#E8E4DC]">
+              <p className="text-[11px] text-[#7A746B] leading-relaxed">
                 Add verified Udaipur craftsmen into your itinerary with transparent detour impact:
               </p>
               <div className="space-y-2">
@@ -471,8 +471,8 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
 
       {/* Upcoming Stops Section (Editable) */}
       <div className="space-y-2">
-        <span className="text-[10px] font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1 px-1">
-          <Sparkles className="w-3 h-3 text-[#E05A2B]" />
+        <span className="text-[10px] font-bold text-[#7A746B] uppercase tracking-wider flex items-center gap-1 px-1">
+          <Sparkles className="w-3 h-3 text-[#1E3A5F]" />
           Upcoming Itinerary Stops (Direct Manipulation)
         </span>
 
@@ -485,7 +485,7 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
             {removedStops.length > 0 && (
               <button
                 onClick={handleDiscardAll}
-                className="mt-2 text-xs font-bold text-[#E05A2B] hover:underline"
+                className="mt-2 text-xs font-bold text-[#1E3A5F] hover:underline cursor-pointer"
               >
                 Restore removed stops
               </button>
@@ -503,9 +503,9 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
                   key={stop.id}
                   className={`p-3.5 rounded-2xl border transition-all ${
                     isSkippedInEditor
-                      ? "border-amber-300 bg-amber-50/50"
+                      ? "border-stone-300 bg-[#FBF9F5]"
                       : stop.is_pinned
-                      ? "border-amber-400/80 bg-white shadow-2xs"
+                      ? "border-[#1E3A5F]/40 bg-white shadow-2xs"
                       : "border-neutral-200 bg-white shadow-2xs hover:border-neutral-300"
                   }`}
                 >
@@ -522,13 +522,13 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
                         </span>
 
                         {stop.is_pinned && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-0.5">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20 flex items-center gap-0.5">
                             <Pin className="w-2.5 h-2.5" /> Pinned
                           </span>
                         )}
 
                         {isSkippedInEditor && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-0.5">
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-stone-100 text-stone-700 border border-stone-300 flex items-center gap-0.5">
                             <SkipForward className="w-2.5 h-2.5" /> Skipped (Audit Kept)
                           </span>
                         )}
@@ -577,8 +577,8 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
                         title={stop.is_pinned ? "Unpin Stop" : "Pin Must-Visit Stop"}
                         className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                           stop.is_pinned
-                            ? "bg-amber-100 text-amber-800 border-amber-300"
-                            : "border-neutral-200 text-neutral-400 hover:text-amber-700 hover:bg-amber-50"
+                            ? "bg-[#1E3A5F]/10 text-[#1E3A5F] border-[#1E3A5F]/30"
+                            : "border-neutral-200 text-neutral-400 hover:text-[#1E3A5F] hover:bg-[#1E3A5F]/5"
                         }`}
                       >
                         <Pin className="w-3.5 h-3.5" />
@@ -590,8 +590,8 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
                         title={isSkippedInEditor ? "Unskip Stop" : "Skip Stop (Keep Audit)"}
                         className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
                           isSkippedInEditor
-                            ? "bg-amber-500 text-white border-amber-600"
-                            : "border-neutral-200 text-neutral-400 hover:text-amber-700 hover:bg-amber-50"
+                            ? "bg-[#1E3A5F] text-white border-[#1E3A5F]"
+                            : "border-neutral-200 text-neutral-400 hover:text-[#1E3A5F] hover:bg-[#1E3A5F]/5"
                         }`}
                       >
                         <SkipForward className="w-3.5 h-3.5" />
@@ -615,7 +615,7 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
       </div>
 
       {/* Editor Action Bar */}
-      <div className="p-4 rounded-2xl bg-white border border-neutral-200 shadow-sm flex items-center justify-between gap-3 sticky bottom-2">
+      <div className="p-4 rounded-2xl bg-white border border-[#E8E4DC] shadow-sm flex items-center justify-between gap-3 sticky bottom-2">
         <button
           onClick={handleDiscardAll}
           disabled={!hasModifications}
@@ -628,7 +628,7 @@ export function UpcomingStopEditor({ onClose }: UpcomingStopEditorProps) {
         <button
           onClick={handleOpenPreview}
           disabled={!hasModifications || isLoadingPreview}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#E05A2B] hover:bg-[#c94d22] text-white text-xs font-extrabold shadow-sm transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-[#1E3A5F] hover:bg-[#152943] text-white text-xs font-bold shadow-xs transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Eye className="w-3.5 h-3.5" />
           <span>

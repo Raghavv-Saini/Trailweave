@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/common/Header";
+import { useAuth } from "@/context/AuthContext";
 import { BottomNav } from "@/components/common/BottomNav";
 import { ActiveStopCard } from "@/components/trip/ActiveStopCard";
 import { TimelineList } from "@/components/trip/TimelineList";
@@ -60,6 +62,8 @@ function calculateDistanceMeters(
 }
 
 export default function ActiveTripPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
   const {
     tripId,
     tripTitle,
@@ -71,6 +75,12 @@ export default function ActiveTripPage() {
     resetDemoTrip,
     requestReplanPreview,
   } = useTrip();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login?redirect=/trip");
+    }
+  }, [isLoading, isAuthenticated, router]);
 
   // Mode switcher: Operational View vs Edit Mode
   const [viewMode, setViewMode] = useState<"operational" | "edit">("operational");
@@ -497,7 +507,7 @@ export default function ActiveTripPage() {
                   }`}
                 >
                   {statusBanner.type === "grace_buffer" ? (
-                    <Timer className="w-4 h-4 text-[#E05A2B] shrink-0 mt-0.5" />
+                    <Timer className="w-4 h-4 text-[#1E3A5F] shrink-0 mt-0.5" />
                   ) : statusBanner.type === "checkout" ? (
                     <LogOut className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   ) : (

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/common/Header";
 import { BottomNav } from "@/components/common/BottomNav";
 import { TrailCard } from "@/components/discovery/TrailCard";
@@ -14,10 +15,35 @@ import { FloatingBasketButton } from "@/components/basket/FloatingBasketButton";
 import { UseAsBaseModal } from "@/components/common/UseAsBaseModal";
 import { MOCK_TRAILS, MockTrail } from "@/lib/mockData";
 import { useBasket } from "@/context/BasketContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function TrailsExplorerPage() {
+  const router = useRouter();
+  const { isAuthenticated, isLoading } = useAuth();
   const { totalCount, addAllStops } = useBasket();
   const [isBasketOpen, setIsBasketOpen] = useState(false);
+  const [allTrails, setAllTrails] = useState<MockTrail[]>(MOCK_TRAILS);
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login?redirect=/trails");
+    }
+  }, [isLoading, isAuthenticated, router]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem("trailweave_user_trails") || "[]");
+      if (Array.isArray(stored) && stored.length > 0) {
+        const merged = [...stored];
+        for (const t of MOCK_TRAILS) {
+          if (!merged.some((m: MockTrail) => m.id === t.id)) {
+            merged.push(t);
+          }
+        }
+        setAllTrails(merged);
+      }
+    } catch {}
+  }, []);
 
   // Filters state
   const [duration, setDuration] = useState<DurationFilter>("all");
@@ -30,7 +56,7 @@ export default function TrailsExplorerPage() {
   const tags = ["all", "heritage", "artisan", "walking", "food"];
 
   // Filter evaluation logic
-  const filteredTrails = MOCK_TRAILS.filter((trail) => {
+  const filteredTrails = allTrails.filter((trail) => {
     // 1. Duration filter
     if (duration !== "all" && trail.duration_type !== duration) {
       return false;

@@ -21,8 +21,8 @@ export function FloatingBasketButton({ onClick }: FloatingBasketButtonProps) {
         aria-label="View Trip Basket"
       >
         <div className="relative">
-          <ShoppingBag className="w-4 h-4 text-[#E05A2B]" />
-          <span className="absolute -top-1.5 -right-2 w-4 h-4 rounded-full bg-[#E05A2B] text-white text-[10px] font-bold flex items-center justify-center">
+          <ShoppingBag className="w-4 h-4 text-white" />
+          <span className="absolute -top-1.5 -right-2 w-4 h-4 rounded-full bg-[#1E3A5F] text-white text-[10px] font-bold flex items-center justify-center ring-2 ring-neutral-900">
             {totalCount}
           </span>
         </div>

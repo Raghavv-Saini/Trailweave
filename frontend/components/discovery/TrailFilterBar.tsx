@@ -26,20 +26,20 @@ export function TrailFilterBar({
   onTagChange,
 }: TrailFilterBarProps) {
   return (
-    <div className="space-y-3.5 bg-neutral-50/80 p-3.5 rounded-2xl border border-neutral-100">
+    <div className="space-y-3.5 bg-[#FBF9F5] p-3.5 rounded-2xl border border-[#E8E4DC]">
       {/* 1. Duration Filter */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
-          <Clock className="w-3 h-3 text-neutral-400" />
+        <label className="text-[11px] font-bold uppercase tracking-wider text-[#7A746B] flex items-center gap-1">
+          <Clock className="w-3 h-3 text-[#7A746B]" />
           <span>Duration</span>
         </label>
-        <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-neutral-200/80">
+        <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-[#E8E4DC]">
           <button
             type="button"
             onClick={() => onDurationChange("all")}
             className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
               duration === "all"
-                ? "bg-[#E05A2B] text-white shadow-xs"
+                ? "bg-[#1E3A5F] text-white shadow-xs"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
@@ -50,7 +50,7 @@ export function TrailFilterBar({
             onClick={() => onDurationChange("single_day")}
             className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
               duration === "single_day"
-                ? "bg-[#E05A2B] text-white shadow-xs"
+                ? "bg-[#1E3A5F] text-white shadow-xs"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
@@ -61,7 +61,7 @@ export function TrailFilterBar({
             onClick={() => onDurationChange("multi_day")}
             className={`py-1.5 text-xs font-semibold rounded-lg transition-all ${
               duration === "multi_day"
-                ? "bg-[#E05A2B] text-white shadow-xs"
+                ? "bg-[#1E3A5F] text-white shadow-xs"
                 : "text-neutral-600 hover:text-neutral-900"
             }`}
           >
@@ -72,8 +72,8 @@ export function TrailFilterBar({
 
       {/* 2. Budget Cap (3 Quick Chips - Q2 Option A) */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
-          <IndianRupee className="w-3 h-3 text-neutral-400" />
+        <label className="text-[11px] font-bold uppercase tracking-wider text-[#7A746B] flex items-center gap-1">
+          <IndianRupee className="w-3 h-3 text-[#7A746B]" />
           <span>Budget Cap</span>
         </label>
         <div className="grid grid-cols-3 gap-1.5">
@@ -82,8 +82,8 @@ export function TrailFilterBar({
             onClick={() => onBudgetChange("all")}
             className={`py-1.5 px-2 text-xs font-semibold rounded-xl border transition-all text-center ${
               budget === "all"
-                ? "border-neutral-900 bg-neutral-900 text-white shadow-xs"
-                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                ? "border-[#191C1E] bg-[#191C1E] text-white shadow-xs"
+                : "border-[#E8E4DC] bg-white text-neutral-600 hover:border-neutral-300"
             }`}
           >
             Any Budget
@@ -93,8 +93,8 @@ export function TrailFilterBar({
             onClick={() => onBudgetChange("under_500")}
             className={`py-1.5 px-2 text-xs font-semibold rounded-xl border transition-all text-center ${
               budget === "under_500"
-                ? "border-[#E05A2B] bg-amber-50 text-[#E05A2B] font-bold shadow-xs"
-                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                ? "border-[#1E3A5F] bg-[#1E3A5F]/10 text-[#1E3A5F] font-bold shadow-xs"
+                : "border-[#E8E4DC] bg-white text-neutral-600 hover:border-neutral-300"
             }`}
           >
             &lt; ₹500
@@ -104,8 +104,8 @@ export function TrailFilterBar({
             onClick={() => onBudgetChange("under_1500")}
             className={`py-1.5 px-2 text-xs font-semibold rounded-xl border transition-all text-center ${
               budget === "under_1500"
-                ? "border-[#E05A2B] bg-amber-50 text-[#E05A2B] font-bold shadow-xs"
-                : "border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300"
+                ? "border-[#1E3A5F] bg-[#1E3A5F]/10 text-[#1E3A5F] font-bold shadow-xs"
+                : "border-[#E8E4DC] bg-white text-neutral-600 hover:border-neutral-300"
             }`}
           >
             &lt; ₹1,500
@@ -115,8 +115,8 @@ export function TrailFilterBar({
 
       {/* 3. Interest Tag Chips */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 flex items-center gap-1">
-          <Tag className="w-3 h-3 text-neutral-400" />
+        <label className="text-[11px] font-bold uppercase tracking-wider text-[#7A746B] flex items-center gap-1">
+          <Tag className="w-3 h-3 text-[#7A746B]" />
           <span>Interests</span>
         </label>
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
@@ -129,8 +129,8 @@ export function TrailFilterBar({
                 onClick={() => onTagChange(tag)}
                 className={`px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors capitalize ${
                   isSelected
-                    ? "bg-[#E05A2B] text-white shadow-xs font-semibold"
-                    : "bg-white text-neutral-600 border border-neutral-200 hover:border-neutral-300"
+                    ? "bg-[#1E3A5F] text-white shadow-xs font-semibold"
+                    : "bg-white text-neutral-600 border border-[#E8E4DC] hover:border-neutral-300"
                 }`}
               >
                 {tag}

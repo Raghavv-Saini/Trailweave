@@ -62,12 +62,12 @@ export function ArtisanRecommendationCard({
       className={`p-3.5 rounded-2xl border transition-all shadow-2xs ${
         isStaged
           ? "bg-emerald-50/80 border-emerald-300 ring-1 ring-emerald-400"
-          : "bg-white border-amber-200/90 hover:border-amber-300 hover:shadow-xs"
+          : "bg-white border-[#E8E4DC] hover:border-[#1E3A5F]/40 hover:shadow-xs"
       }`}
     >
       <div className="flex items-start gap-3">
         {/* Thumbnail */}
-        <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 shrink-0 relative border border-neutral-200/60">
+        <div className="w-16 h-16 rounded-xl overflow-hidden bg-neutral-100 shrink-0 relative border border-[#E8E4DC]">
           {image_url ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -76,7 +76,7 @@ export function ArtisanRecommendationCard({
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-amber-600 bg-amber-50">
+            <div className="w-full h-full flex items-center justify-center text-[#1E3A5F] bg-[#1E3A5F]/10">
               <Palette className="w-6 h-6" />
             </div>
           )}
@@ -88,8 +88,8 @@ export function ArtisanRecommendationCard({
         {/* Content */}
         <div className="flex-1 min-w-0 space-y-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100/80 text-amber-900 flex items-center gap-1">
-              <Sparkles className="w-2.5 h-2.5 text-[#E05A2B]" />
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20 flex items-center gap-1">
+              <Sparkles className="w-2.5 h-2.5 text-[#1E3A5F]" />
               {craft_type}
             </span>
             <span className="text-[10px] font-semibold text-neutral-500">
@@ -97,28 +97,28 @@ export function ArtisanRecommendationCard({
             </span>
           </div>
 
-          <h4 className="text-xs font-bold text-neutral-900 truncate">
+          <h4 className="font-serif text-sm font-medium text-[#191C1E] truncate">
             {artisan_name}
           </h4>
 
           {address && (
-            <p className="text-[11px] text-neutral-500 truncate">{address}</p>
+            <p className="text-[11px] text-[#7A746B] truncate">{address}</p>
           )}
 
           {/* Timing & Cost badges */}
           <div className="flex items-center gap-3 pt-0.5 text-[11px] font-medium text-neutral-600">
             <span className="flex items-center gap-1">
-              <Navigation className="w-3 h-3 text-[#E05A2B]" />
-              <span className="font-bold text-neutral-900">
+              <Navigation className="w-3 h-3 text-[#1E3A5F]" />
+              <span className="font-bold text-[#191C1E]">
                 {detour_minutes} min
               </span>{" "}
               detour
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="w-3 h-3 text-amber-700" />
+              <Clock className="w-3 h-3 text-[#7A746B]" />
               <span>{duration_minutes}m</span>
             </span>
-            <span className="flex items-center gap-0.5 text-emerald-700 font-bold">
+            <span className="flex items-center gap-0.5 text-emerald-800 font-bold">
               <IndianRupee className="w-3 h-3" />
               {fee_inr === 0 ? "Free entry" : `₹${fee_inr}`}
             </span>
@@ -127,15 +127,15 @@ export function ArtisanRecommendationCard({
       </div>
 
       {/* Transparent Rationale Box */}
-      <div className="mt-2.5 p-2 rounded-xl bg-amber-50/70 border border-amber-100 text-[11px] text-amber-950 flex items-start gap-1.5 leading-snug">
-        <Sparkles className="w-3.5 h-3.5 text-[#E05A2B] shrink-0 mt-0.5" />
+      <div className="mt-2.5 p-2 rounded-xl bg-[#FBF9F5] border border-[#E8E4DC] text-[11px] text-[#3F464C] flex items-start gap-1.5 leading-snug">
+        <Sparkles className="w-3.5 h-3.5 text-[#1E3A5F] shrink-0 mt-0.5" />
         <p className="font-medium">{rationale}</p>
       </div>
 
       {/* 1-Tap Action Button */}
       <div className="mt-2.5 flex items-center justify-end">
         {isStaged ? (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100/70 px-3 py-1.5 rounded-xl">
+          <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100/70 px-3 py-1.5 rounded-xl">
             <Check className="w-3.5 h-3.5" /> Added to Itinerary
           </span>
         ) : (
@@ -143,7 +143,7 @@ export function ArtisanRecommendationCard({
             type="button"
             onClick={() => onAccept(recommendation)}
             disabled={isLoading}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#E05A2B] hover:bg-[#c9491e] active:scale-95 text-white text-xs font-bold shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#1E3A5F] hover:bg-[#152943] active:scale-95 text-white text-xs font-bold shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
             <span>Accept &amp; Add to Route</span>

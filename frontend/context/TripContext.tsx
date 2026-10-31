@@ -84,12 +84,30 @@ export interface CompanionResponse {
   acknowledged_events?: string[];
 }
 
+export interface TripBuilderInput {
+  title?: string;
+  days: number;
+  budgetInr?: number;
+  travelMode?: "walking" | "auto_rickshaw" | "cab";
+  places: Array<{
+    id: string;
+    name: string;
+    category?: string;
+    latitude?: number;
+    longitude?: number;
+    address?: string;
+    entry_fee_inr?: number;
+    typical_duration_minutes?: number;
+  }>;
+}
+
 interface TripContextType {
   tripId: string;
   tripTitle: string;
   revision: number;
   stops: TripStop[];
   auditEvents: TripAuditEvent[];
+  createTripFromBuilder: (input: TripBuilderInput) => Promise<void>;
   markVisited: (stopId: string, method?: CheckinMethod) => Promise<void>;
   markCheckout: (
     stopId: string,
@@ -294,11 +312,137 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
 const TripContext = createContext<TripContextType | undefined>(undefined);
 
 export function TripProvider({ children }: { children: React.ReactNode }) {
-  const [tripId] = useState<string>("trip_udaipur_heritage_01");
+  const [tripId, setTripId] = useState<string>("trip_udaipur_heritage_01");
   const [tripTitle, setTripTitle] = useState<string>("Udaipur Living Heritage & Crafts Walk");
   const [revision, setRevision] = useState<number>(1);
   const [stops, setStops] = useState<TripStop[]>(INITIAL_DEMO_STOPS);
   const [auditEvents, setAuditEvents] = useState<TripAuditEvent[]>([]);
+
+  // Hydrate saved user-generated trip if present
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("trailweave_active_trip_v1");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.tripId && Array.isArray(parsed?.stops) && parsed.stops.length > 0) {
+          setTripId(parsed.tripId);
+          setTripTitle(parsed.tripTitle || "My Udaipur Itinerary");
+          setRevision(parsed.revision || 1);
+          setStops(parsed.stops);
+          return;
+        }
+      }
+    } catch {}
+  }, []);
+
+  const createTripFromBuilder = useCallback(
+    async (input: TripBuilderInput) => {
+      const totalDays = Math.max(1, input.days || 1);
+      const customTitle =
+        input.title?.trim() ||
+        (totalDays === 1
+          ? "Udaipur Single-Day Cultural Journey"
+          : `Udaipur ${totalDays}-Day Heritage & Crafts Itinerary`);
+
+      const candidatePlaces =
+        input.places && input.places.length > 0
+          ? input.places
+          : [
+              { id: "place_city_palace", name: "City Palace Udaipur", typical_duration_minutes: 120 },
+              { id: "place_jagdish_temple", name: "Jagdish Temple", typical_duration_minutes: 45 },
+              { id: "place_mohanlal_studio", name: "Master Mohanlal Miniature Art Studio", typical_duration_minutes: 45 },
+              { id: "place_bagore_haveli", name: "Bagore Ki Haveli", typical_duration_minutes: 90 },
+              { id: "place_saheliyon_bari", name: "Saheliyon Ki Bari", typical_duration_minutes: 60 },
+              { id: "place_sukhadia_circle", name: "Sukhadia Circle Street Food", typical_duration_minutes: 60 },
+            ];
+
+      // Build deterministic multi-day schedule
+      const baseDate = new Date("2026-11-01T09:30:00Z");
+      const generatedStops: TripStop[] = candidatePlaces.map((p, idx) => {
+        const dayNum = (idx % totalDays) + 1;
+        const seqInDay = Math.floor(idx / totalDays) + 1;
+        const defaults = PLACE_DEFAULTS[p.id] || PLACE_DEFAULTS.place_city_palace;
+        const durationMins = p.typical_duration_minutes || 60;
+        const arrivalDate = new Date(
+          baseDate.getTime() +
+            (dayNum - 1) * 24 * 60 * 60 * 1000 +
+            (seqInDay - 1) * (durationMins + 30) * 60 * 1000
+        );
+        const departureDate = new Date(arrivalDate.getTime() + durationMins * 60 * 1000);
+
+        return {
+          id: `stop_${p.id}_${idx + 1}`,
+          place_id: p.id,
+          name: p.name,
+          address: p.address || defaults.address,
+          latitude: p.latitude ?? defaults.latitude,
+          longitude: p.longitude ?? defaults.longitude,
+          category: p.category || defaults.category,
+          entry_fee_inr: p.entry_fee_inr ?? defaults.entry_fee_inr,
+          image_url: defaults.image_url,
+          day_number: dayNum,
+          sequence_in_day: seqInDay,
+          planned_arrival: arrivalDate.toISOString(),
+          planned_departure: departureDate.toISOString(),
+          suggested_duration_minutes: durationMins,
+          actual_duration_minutes: null,
+          visit_status: "pending",
+          is_pinned: false,
+        };
+      });
+
+      let finalTripId = `trip_custom_${Date.now().toString(36)}`;
+      let finalRevision = 1;
+
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/trips`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            user_id: "tourist_demo_user",
+            title: customTitle,
+            start_datetime: "2026-11-01T09:30:00+05:30",
+            total_days: totalDays,
+            budget_inr: input.budgetInr || 2500,
+            budget_mode: "total",
+            travel_mode: input.travelMode || "auto_rickshaw",
+            artisan_preference: "both",
+            start_location: {
+              name: "Udaipur Old City Center",
+              latitude: 24.5794,
+              longitude: 73.6841,
+            },
+            place_ids: candidatePlaces.map((p) => p.id),
+            optimize_route: true,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.id) finalTripId = data.id;
+          if (data.revision) finalRevision = data.revision;
+        }
+      } catch {}
+
+      setTripId(finalTripId);
+      setTripTitle(customTitle);
+      setRevision(finalRevision);
+      setStops(generatedStops);
+      setAuditEvents([]);
+
+      try {
+        localStorage.setItem(
+          "trailweave_active_trip_v1",
+          JSON.stringify({
+            tripId: finalTripId,
+            tripTitle: customTitle,
+            revision: finalRevision,
+            stops: generatedStops,
+          })
+        );
+      } catch {}
+    },
+    []
+  );
 
   const refreshTrip = useCallback(async () => {
     try {
@@ -720,6 +864,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         revision,
         stops,
         auditEvents,
+        createTripFromBuilder,
         markVisited,
         markCheckout,
         markSkipped,

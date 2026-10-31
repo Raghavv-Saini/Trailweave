@@ -386,4 +386,21 @@ CREATE TABLE artisan_drafts (
 );
 
 CREATE INDEX idx_artisan_drafts_status ON artisan_drafts (approval_status);
+
+-- ============================================================================
+-- 11. Users (Tourists, Admins & Superusers - ADR 0011)
+-- ============================================================================
+CREATE TABLE users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    hashed_password TEXT NOT NULL,
+    full_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'tourist', -- 'tourist', 'admin', 'superuser'
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_users_email ON users (email);
+CREATE INDEX idx_users_role ON users (role);
 ```

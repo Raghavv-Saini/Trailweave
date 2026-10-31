@@ -54,20 +54,20 @@ export function ActiveStopCard({
   )}&destination_place_id=${encodeURIComponent(stop.name + " Udaipur")}&travelmode=walking`;
 
   return (
-    <div className="rounded-2xl border-2 border-[#E05A2B]/25 bg-gradient-to-br from-white to-amber-50/40 shadow-sm overflow-hidden">
+    <div className="rounded-2xl border border-[#E8E4DC] bg-white shadow-xs overflow-hidden">
       {/* Place Image Banner */}
-      <div className="relative h-40 w-full bg-neutral-200 overflow-hidden">
+      <div className="relative h-44 w-full bg-neutral-200 overflow-hidden">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={stop.image_url}
           alt={stop.name}
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-[#E05A2B] px-2.5 py-1 rounded-md shadow-xs">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-white bg-[#1E3A5F] px-2.5 py-1 rounded-md shadow-xs">
             {isVisited
               ? isCheckedOut
                 ? "Completed Stop"
@@ -79,18 +79,18 @@ export function ActiveStopCard({
 
           <div className="flex items-center gap-1.5">
             {stop.is_pinned && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-400 text-neutral-950 shadow-xs">
-                <Pin className="w-3 h-3 fill-neutral-950" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-[#191C1E] shadow-xs">
+                <Pin className="w-3 h-3 text-[#1E3A5F]" />
                 Pinned
               </span>
             )}
             <span
               className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full capitalize shadow-xs ${
                 isVisited
-                  ? "bg-emerald-500 text-white"
+                  ? "bg-emerald-700 text-white"
                   : isSkipped
                   ? "bg-neutral-600 text-white"
-                  : "bg-amber-100 text-amber-950"
+                  : "bg-white text-[#1E3A5F]"
               }`}
             >
               {stop.visit_status}
@@ -101,18 +101,18 @@ export function ActiveStopCard({
         {/* Bottom Image Overlay Info */}
         <div className="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
           <div>
-            <span className="text-[10px] uppercase tracking-wider font-semibold text-amber-200 block">
+            <span className="text-[10px] uppercase tracking-wider font-semibold text-white/80 block">
               {stop.category.replace("_", " ")} •{" "}
               {stop.entry_fee_inr > 0 ? `₹${stop.entry_fee_inr} Entry` : "Free Entry"}
             </span>
-            <h2 className="text-base font-bold leading-snug">{stop.name}</h2>
+            <h2 className="font-serif text-lg font-medium leading-snug">{stop.name}</h2>
           </div>
 
           {typeof distanceMeters === "number" && (
             <span
               className={`text-[10px] font-bold px-2 py-1 rounded-lg backdrop-blur-xs flex items-center gap-1 ${
                 isWithin100m
-                  ? "bg-emerald-500/90 text-white"
+                  ? "bg-emerald-600 text-white"
                   : "bg-black/60 text-neutral-100"
               }`}
             >
@@ -127,16 +127,16 @@ export function ActiveStopCard({
       <div className="p-4 space-y-3.5">
         {/* Address & Planned Schedule */}
         <div className="space-y-1.5 text-xs">
-          <p className="text-neutral-600 flex items-start gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-[#E05A2B] shrink-0 mt-0.5" />
+          <p className="text-[#7A746B] flex items-start gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-[#1E3A5F] shrink-0 mt-0.5" />
             <span>{stop.address}</span>
           </p>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-neutral-600 bg-neutral-50 px-3 py-2 rounded-xl border border-neutral-100">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1 text-[11px] text-[#3F464C] bg-[#FBF9F5] px-3 py-2 rounded-xl border border-[#E8E4DC]">
             <span className="flex items-center gap-1 font-medium">
-              <Clock className="w-3.5 h-3.5 text-[#E05A2B]" />
+              <Clock className="w-3.5 h-3.5 text-[#1E3A5F]" />
               Planned: {formatTimeWindow(stop.planned_arrival)} –{" "}
-              <strong className="text-neutral-900">
+              <strong className="text-[#191C1E]">
                 {formatTimeWindow(stop.planned_departure)}
               </strong>
             </span>
@@ -172,7 +172,7 @@ export function ActiveStopCard({
           {!isVisited ? (
             <button
               onClick={() => onManualCheckin(stop.id)}
-              className="flex-1 py-2.5 px-3 rounded-xl bg-[#E05A2B] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-[#c94d23] transition-colors cursor-pointer"
+              className="flex-1 py-2.5 px-3 rounded-xl bg-[#1E3A5F] text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs hover:bg-[#152943] transition-colors cursor-pointer"
             >
               <CheckCircle2 className="w-4 h-4" />
               <span>1-Tap Manual Check-in Fallback</span>
@@ -198,10 +198,10 @@ export function ActiveStopCard({
             href={googleMapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-2.5 rounded-xl border border-neutral-200 bg-white text-neutral-800 hover:bg-neutral-50 text-xs font-semibold flex items-center gap-1.5 shadow-2xs shrink-0"
+            className="px-3 py-2.5 rounded-xl border border-[#E8E4DC] bg-white text-neutral-800 hover:bg-[#F4EFEA] text-xs font-semibold flex items-center gap-1.5 shadow-2xs shrink-0"
             aria-label={`Open Google Maps directions to ${stop.name}`}
           >
-            <Navigation className="w-4 h-4 text-[#E05A2B]" />
+            <Navigation className="w-4 h-4 text-[#1E3A5F]" />
             <span>Directions</span>
           </a>
         </div>
