@@ -1,0 +1,18 @@
+# 10: Hindi Web Voice Onboarding, 4-Digit PIN & Self-Service Artisan Catalogue
+
+**What to build:**
+A zero-barrier, Hindi-first Web/PWA onboarding and self-service catalogue portal (`/artisans/onboard`, reachable via the top `Tourist / कारीगर (Artisan)` role switcher) that allows local Udaipur craftsmen to register their studios using natural Hindi voice notes and manage photos of their work/artifacts. Artisans enter their phone number, set a UPI-style 4-digit numeric PIN (`4-अंकों का पिन`), record a Hindi voice note in the browser (or upload audio / enter text), optionally share 1-tap GPS coordinates, and upload photos of their craft and artifacts (`catalogue_images`). The backend transcribes the voice note using Google Cloud Speech-to-Text V2 (`hi-IN`), discards the raw audio immediately, prompts Gemini Flash to produce an **English Admin Brief**, a **Missing Info Checklist**, and pre-filled structured fields in `artisan_drafts`, and enables returning artisans to log in with their phone number + 4-digit PIN to view their approval status and add or remove photos from their catalogue anytime.
+
+**Blocked by:** None (can start immediately)
+
+**Status:** ready-for-agent
+
+- [ ] Role switcher (`Tourist` vs. `कारीगर / Artisan`) in the top header and home page directing artisans to `/artisans/onboard`.
+- [ ] Hindi-first New Onboarding UI (`नया पंजीकरण`) on `/artisans/onboard` with required phone number, 4-digit numeric PIN (`4-अंकों का पिन`), 1-tap Hindi voice recorder (`MediaRecorder` + live browser `hi-IN` speech capture + audio upload + optional text fallback), optional 1-tap GPS location button, and self-service craft/artifact photo upload (`catalogue_images`).
+- [ ] `POST /api/artisans/onboard` transcribes incoming audio using Google Cloud Speech-to-Text V2 (`hi-IN`) (with live browser transcript hint & deterministic fallback) and immediately discards raw audio bytes (`media_url = NULL`).
+- [ ] Prompts Gemini Flash to generate `extracted_data` containing:
+  - `admin_brief` (concise English summary of the artisan's Hindi message),
+  - `missing_info_checklist` (missing details for the Admin to ask when calling the artisan), and
+  - Pre-filled structured fields: `artisan_name`, `craft_type`, `place_name`, `address`, `latitude`, `longitude`, `has_workshop` (boolean), `workshop_fee_inr` (numeric), `workshop_duration_minutes` (integer), `workshop_description`, `opening_time`, and `closing_time`.
+- [ ] Stores the draft in `artisan_drafts` (`approval_status = 'draft'`) with hashed 4-digit PIN and `catalogue_images`, and shows an immediate Hindi/English confirmation card to the artisan.
+- [ ] Returning Artisan Login (`POST /api/artisans/login`) & Dashboard (`मेरी दुकान / मेरा कैटलॉग`) authenticating via phone number + 4-digit PIN (with persistent device session) to display approval status and allow adding (`POST /api/artisans/me/catalogue`) or removing (`DELETE /api/artisans/me/catalogue`) craft/artifact photos at any time.

@@ -13,7 +13,7 @@ The project is structured into **4 parallel developer tracks** with sparse depen
 | [**Track 1: Community Discovery & UGC**](track-1-community-discovery/) | Homepage, Trail Explorer, Basket, Trip-to-Trail | **Dev 1** | [Ticket 02](track-1-community-discovery/02-community-trail-explorer-stop-basket.md) | `02`, `03` |
 | [**Track 2: Trip Engine & Backend**](track-2-trip-engine-backend/) | DB Schema, Solver, Replan API, Artisan Scorer | **Dev 2** | [Ticket 01](track-2-trip-engine-backend/01-foundation-postgis-schema-seed.md) | `01`, `04`, `05`, `06` |
 | [**Track 3: Active Trip Companion**](track-3-active-trip-companion/) | Active Trip UI, Manual Check-in, Edit Mode, AI Chat | **Dev 3** | [Ticket 07](track-3-active-trip-companion/07-active-trip-view-manual-checkin.md) | `07`, `08`, `09` |
-| [**Track 4: Artisan WhatsApp & Admin**](track-4-artisan-whatsapp-admin/) | WhatsApp Webhook, STT, Gemini Hindi, `/artisans`, `/admin` | **Dev 4** | [Ticket 10](track-4-artisan-whatsapp-admin/10-whatsapp-voice-extraction-pipeline.md) | `10`, `11`, `12` |
+| [**Track 4: Artisan Voice Onboarding, Catalogue & Admin**](track-4-artisan-onboarding-admin/) | Hindi Web Voice Onboarding (`/artisans/onboard`), 4-Digit PIN, Catalogue Photos, STT (`hi-IN`), Gemini Admin Brief, `/artisans`, `/admin` | **Dev 4** | [Ticket 10](track-4-artisan-onboarding-admin/10-hindi-web-voice-onboarding-catalogue.md) | `10`, `11`, `12` |
 | [**Track 5: Integration & Demo**](track-5-integration-demo/) | End-to-End Demo Script, Concurrency & Simulations | **All 4 Devs** | Blocked by Tracks 1–4 | `13` |
 
 ---
@@ -44,9 +44,9 @@ graph TD
     end
 
     subgraph Track4 [Track 4: Dev 4 - Artisan Inclusion]
-        T10["10: WhatsApp Voice Extraction Pipeline"]
-        T11["11: Artisan Studio Directory"]
-        T12["12: Admin Curation & Verification Portal"]
+        T10["10: Hindi Web Voice Onboarding & Self-Service Catalogue"]
+        T11["11: Artisan Studio Directory & Catalogue Gallery"]
+        T12["12: Admin Curation, Contact Directory & Verification Portal"]
     end
 
     subgraph Integration [Track 5: All 4 Devs - Integration]
@@ -93,8 +93,8 @@ docs/tickets/
 │   ├── 07-active-trip-view-manual-checkin.md
 │   ├── 08-upcoming-stop-manual-editor.md
 │   └── 09-ai-companion-push-notifications.md
-├── track-4-artisan-whatsapp-admin/                   <-- Dev 4
-│   ├── 10-whatsapp-voice-extraction-pipeline.md
+├── track-4-artisan-onboarding-admin/                  <-- Dev 4
+│   ├── 10-hindi-web-voice-onboarding-catalogue.md
 │   ├── 11-artisan-studio-directory.md
 │   └── 12-admin-curation-verification-portal.md
 └── track-5-integration-demo/                         <-- All 4 Devs

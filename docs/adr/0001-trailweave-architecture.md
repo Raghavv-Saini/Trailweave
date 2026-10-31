@@ -5,7 +5,7 @@ Accepted
 
 ## Context
 TrailWeave is being developed for the **Aravalli Build Championship: Road to DevFest Udaipur** (31 October – 1 November 2026).
-The original PRD specified a responsive web MVP + WhatsApp channel. Following technical grilling and user requirements refinement, a mobile app was deemed critical for tourist on-the-ground accessibility and ease of use. Additionally, end-to-end trip creation flexibility (from scratch with AI, from anchors, or from creator trails), strict budget adherence, and real WhatsApp integration with Google Cloud STT were specified.
+The original PRD specified a responsive web MVP. Following technical grilling and user requirements refinement, a mobile app was deemed critical for tourist on-the-ground accessibility and ease of use. Additionally, end-to-end trip creation flexibility (from scratch with AI, from anchors, or from creator trails), strict budget adherence, and Hindi voice onboarding with Google Cloud STT (see [ADR 0010](0010-web-voice-artisan-onboarding-and-catalogue.md)) were specified.
 
 ## Decisions
 
@@ -42,10 +42,10 @@ The original PRD specified a responsive web MVP + WhatsApp channel. Following te
 - Every artisan is explicitly associated with a physical workshop, studio, or store address (`place_id`).
 - When a tourist accepts a recommendation, that physical venue is inserted directly into the route timeline, respecting the user's budget.
 
-### 8. WhatsApp Voice Onboarding & AI Pipeline
-- Meta WhatsApp Cloud API webhooks (`GET` verification, `POST` event ingest).
-- Audio downloaded via Meta Graph API.
-- Transcribed via Google Cloud Speech-to-Text V2 (`hi-IN`), with Gemini Flash structured JSON entity extraction and conversational processing.
+### 8. Hindi Web Voice Onboarding, Catalogue & AI Pipeline (Updated per [ADR 0010](0010-web-voice-artisan-onboarding-and-catalogue.md))
+- Mobile-first Hindi Web Voice Onboarding & Catalogue Portal (`/artisans/onboard`, `POST /api/artisans/onboard`) with UPI-style 4-digit PIN authentication and self-service `catalogue_images`.
+- Audio transcribed in-memory via Google Cloud Speech-to-Text V2 (`hi-IN`) and discarded immediately.
+- Gemini Flash generates an English Admin Brief, Missing Info Checklist, and structured JSON entity extraction for curator approval in `/admin`.
 
 ### 9. Live Day Mode with Proximity Detection
 - Interactive trip execution screen with manual controls ("Mark Visited", "Skip", "Running Late", "Simulated Congestion").

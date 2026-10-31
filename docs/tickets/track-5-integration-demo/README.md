@@ -15,5 +15,5 @@ Deliver and rehearse the scripted 4-minute presentation flow for the Aravalli Bu
 4. User B navigates active trip (manual check-in verified).
 5. User B executes manual skip (Rev 2).
 6. User B asks AI companion to replace stop (Rev 3).
-7. Live WhatsApp voice note onboarding & admin approval demonstrated.
+7. Live Hindi Web voice onboarding (`/artisans/onboard`), self-service photo catalogue, and Admin Brief 1-tap approval demonstrated.
 See Section 10 of [`docs/PRD.md`](../../PRD.md).

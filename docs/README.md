@@ -19,17 +19,21 @@ docs/
 │   ├── track-1-community-discovery/ # Dev 1: Discovery, Stop Mixing & Trip-to-Trail Publishing
 │   ├── track-2-trip-engine-backend/ # Dev 2: PostGIS DB, Itinerary Solver & Replan API
 │   ├── track-3-active-trip-companion/ # Dev 3: Active Trip View, Geofencing & Push Notifications
-│   ├── track-4-artisan-whatsapp-admin/ # Dev 4: WhatsApp Ingestion, /artisans & /admin Portal
+│   ├── track-4-artisan-onboarding-admin/ # Dev 4: Hindi Web Voice Onboarding, Catalogue, /artisans & /admin Portal
 │   ├── track-5-integration-demo/  # All Devs: End-to-End Demo Script & Simulated Signals
 │   └── backlog-gaps/              # Post-MVP edge cases & open operational questions
 │
-├── adr/                           # Architecture Decision Records (ADR 0001–0006)
+├── adr/                           # Architecture Decision Records (ADR 0001–0010)
 │   ├── 0001-trailweave-architecture.md
 │   ├── 0002-pivot-to-user-curated-itineraries.md
 │   ├── 0003-multiday-relative-duration-model.md
 │   ├── 0004-ai-travel-companion-and-smart-geofencing.md
 │   ├── 0005-unified-trip-engine-and-active-companion.md
-│   └── 0006-artisan-workshop-offerings-and-tourist-preferences.md
+│   ├── 0006-artisan-workshop-offerings-and-tourist-preferences.md
+│   ├── 0007-deterministic-itinerary-planner-and-transit-routing.md
+│   ├── 0008-unified-mutation-engine-and-replan-lifecycle.md
+│   ├── 0009-artisan-smart-recommendation-scorer-and-detour-engine.md
+│   └── 0010-web-voice-artisan-onboarding-and-catalogue.md
 │
 ├── agents/                        # Agentic workflows, triage guidelines & issue tracker setup
 │   ├── domain.md

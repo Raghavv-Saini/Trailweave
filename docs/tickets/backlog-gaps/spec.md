@@ -6,7 +6,7 @@ This feature tracking directory documents the 6 operational and technical gaps i
 The user has marked these questions as **OPEN** pending future prioritization.
 
 ## Gaps Under Investigation
-1. **01-workshop-capacity-policy**: Artisan workshop seating capacity (1-tap WhatsApp reservation vs strict walk-in).
+1. **01-workshop-capacity-policy**: Artisan workshop seating capacity (1-tap direct phone call reservation vs strict walk-in).
 2. **02-in-transit-delays-missed-checkins**: Traveler delay in transit (e.g., unplanned chai stall) drifting downstream temple closing times.
 3. **03-community-trail-publishing-moderation**: Instant community publishing vs mandatory admin approval.
 4. **04-old-city-pedestrian-zones**: Udaipur Old City vehicular bans and micro-transit/walking drop gates.

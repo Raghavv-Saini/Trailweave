@@ -15,12 +15,11 @@ TrailWeave uses a decoupled, mobile-first architecture designed for zero-install
 graph TD
     subgraph ClientLayers [Client Surfaces]
         TouristPWA["Tourist PWA (Next.js 15 / React / Tailwind CSS)<br/>• Mobile-first ergonomics<br/>• HTML5 Geolocation Watcher<br/>• Service Worker & Web Push Notifications"]
-        AdminPortal["Admin / Curator Portal (`/admin`)<br/>• Place import & verification<br/>• Artisan draft approval queue"]
-        WhatsAppUser["Local Artisan<br/>• WhatsApp Voice / Text Messaging"]
+        ArtisanPortal["Artisan Hindi Voice & Catalogue Portal (`/artisans/onboard`)<br/>• 1-Tap Hindi Mic Recorder & 4-Digit PIN<br/>• Self-Service Craft & Artifact Photo Upload"]
+        AdminPortal["Admin / Curator Portal (`/admin`)<br/>• Artisan draft brief & 1-tap `tel:` call<br/>• Full Artisan Contact Directory & Place Curation"]
     end
 
     subgraph ExternalGateways [External Gateways]
-        MetaAPI["Meta WhatsApp Cloud API Webhook"]
         GoogleMaps["Google Maps Platform<br/>• Deep-link Navigation<br/>• Directions / Matrix"]
         GoogleSTT["Google Cloud Speech-to-Text V2 (`hi-IN`)"]
     end
@@ -28,7 +27,7 @@ graph TD
     subgraph BackendAPI [FastAPI Backend Service]
         FastAPIRouter["FastAPI REST Application"]
         TripEngine["Authoritative Trip Engine<br/>• Deterministic Constraint Solver<br/>• TrailWeave Artisan Scorer<br/>• Optimistic Concurrency Manager"]
-        GeminiOrchestrator["Gemini Flash Agent Orchestrator<br/>• Tool / Function Calling Engine<br/>• Cultured Companion Persona"]
+        GeminiOrchestrator["Gemini Flash Agent Orchestrator<br/>• Tool / Function Calling Engine<br/>• Admin Brief & Field Extractor"]
     end
 
     subgraph DataStorage [Database Layer]
@@ -36,9 +35,8 @@ graph TD
     end
 
     TouristPWA -->|HTTPS / REST API| FastAPIRouter
+    ArtisanPortal -->|Audio + PIN + Photos| FastAPIRouter
     AdminPortal -->|HTTPS / REST API| FastAPIRouter
-    WhatsAppUser -->|Audio / Text| MetaAPI
-    MetaAPI -->|Webhook POST| FastAPIRouter
     FastAPIRouter --> GoogleSTT
     FastAPIRouter --> GeminiOrchestrator
     FastAPIRouter --> TripEngine
@@ -50,8 +48,8 @@ graph TD
 - **Frontend**: Next.js (App Router), React, Tailwind CSS, Lucide icons, HTML5 Geolocation API, Web Push Service Worker.
 - **Backend**: Python 3.11+, FastAPI, Pydantic v2, Google GenAI SDK.
 - **Database**: Supabase PostgreSQL with PostGIS extension for geospatial operations and spatial indexing.
-- **Speech & AI**: Google Cloud STT V2 (`hi-IN`), Gemini 1.5/2.0 Flash for structured extraction and conversational tool calling.
-- **Messaging Gateway**: Meta WhatsApp Cloud API webhooks.
+- **Speech & AI**: Google Cloud STT V2 (`hi-IN`), Gemini 1.5/2.0 Flash for English Admin Brief generation, structured extraction, and conversational tool calling.
+- **Artisan Onboarding & Catalogue**: Hindi Web Voice Onboarding (`/artisans/onboard`), UPI-style 4-digit PIN authentication, and self-service artifact photo catalogue (`catalogue_images`).
 
 ---
 
