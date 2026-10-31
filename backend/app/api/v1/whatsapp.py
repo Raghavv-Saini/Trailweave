@@ -4,6 +4,7 @@ Spec: docs/API_SPEC.md §1.5
 """
 from fastapi import APIRouter, Query, Response, status, Request
 from pydantic import BaseModel
+from app.core.config import settings
 
 router = APIRouter(tags=["WhatsApp Webhook"])
 
@@ -15,8 +16,12 @@ async def verify_whatsapp_webhook(
     hub_challenge: str = Query(None, alias="hub.challenge"),
 ):
     """Handles Meta Webhook subscription verification handshake."""
-    if hub_mode == "subscribe":
-        return Response(content=hub_challenge, media_type="text/plain")
+    expected_token = (settings.WHATSAPP_VERIFY_TOKEN or "").strip()
+    if not expected_token:
+        return Response(content="Verification failed", status_code=status.HTTP_403_FORBIDDEN)
+
+    if hub_mode == "subscribe" and hub_verify_token == expected_token:
+        return Response(content=hub_challenge or "", media_type="text/plain")
     return Response(content="Verification failed", status_code=status.HTTP_403_FORBIDDEN)
 
 

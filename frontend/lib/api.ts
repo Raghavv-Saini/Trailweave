@@ -3,7 +3,10 @@
  * Interacts with FastAPI endpoints configured in docs/API_SPEC.md.
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const rawBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = rawBase.replace(/\/+$/, "").endsWith("/api/v1")
+  ? rawBase.replace(/\/+$/, "")
+  : `${rawBase.replace(/\/+$/, "")}/api/v1`;
 
 export async function fetchFromApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;

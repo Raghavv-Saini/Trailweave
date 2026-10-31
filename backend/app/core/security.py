@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 import hashlib
 import hmac
 import json
+import os
 import re
 from typing import Any, Dict, Optional
 
@@ -31,9 +32,52 @@ except ImportError:
             self.status_code = status_code
             self.detail = detail
 
-PIN_HASH_SALT = "trailweave_udaipur_artisan_pin_v1"
-PASSWORD_HASH_SALT = "trailweave_udaipur_user_password_v1"
-JWT_SECRET_KEY = "trailweave_udaipur_jwt_secret_key_v1"
+from app.core.config import settings
+
+# SHA-256 digests of compromised legacy default secrets from public git history
+_COMPROMISED_SECRET_HASHES = {
+    "759c144e1e5cbf801a9dac48f363f9011587002f88c27d6e32932fb9186a8a6a",
+    "905c94fd7a15ae5a89c35bb055e6dd0908345418887bf835a4ddf8b806acf2dd",
+    "dbabc115574ba4538f635df292ad89df59343942a96f5b3c78bf7e51d6b66945",
+}
+
+
+def _get_required_security_secret(name: str) -> str:
+    """
+    Reads a required auth/security secret from Settings (loaded from env/.env) or os.environ.
+    Fails fast with a clear error if unset or if attempting to use compromised legacy defaults.
+    """
+    val = (getattr(settings, name, "") or os.environ.get(name, "")).strip()
+    if not val:
+        raise RuntimeError(
+            f"Critical security configuration missing: '{name}' is not set. "
+            f"Please set '{name}' in your environment or .env file before starting TrailWeave. "
+            f"Do not use compromised legacy default values."
+        )
+    val_digest = hashlib.sha256(val.encode("utf-8")).hexdigest()
+    if val_digest in _COMPROMISED_SECRET_HASHES:
+        raise RuntimeError(
+            f"Critical security configuration error: '{name}' is set to a compromised "
+            f"legacy value from git history. Please generate a new unique secret."
+        )
+    return val
+
+
+def get_pin_hash_salt() -> str:
+    return _get_required_security_secret("PIN_HASH_SALT")
+
+
+def get_password_hash_salt() -> str:
+    return _get_required_security_secret("PASSWORD_HASH_SALT")
+
+
+def get_jwt_secret_key() -> str:
+    return _get_required_security_secret("JWT_SECRET_KEY")
+
+
+PIN_HASH_SALT: str = get_pin_hash_salt()
+PASSWORD_HASH_SALT: str = get_password_hash_salt()
+JWT_SECRET_KEY: str = get_jwt_secret_key()
 
 
 def normalize_phone_number(phone: str) -> str:
@@ -70,10 +114,11 @@ def hash_pin(pin: str) -> str:
     Deterministically hashes a 4-digit numeric PIN using PBKDF2-HMAC-SHA256.
     """
     cleaned = validate_four_digit_pin(pin)
+    salt = get_pin_hash_salt()
     dk = hashlib.pbkdf2_hmac(
         "sha256",
         cleaned.encode("utf-8"),
-        PIN_HASH_SALT.encode("utf-8"),
+        salt.encode("utf-8"),
         10000
     )
     return f"pbkdf2_sha256${dk.hex()}"
@@ -103,10 +148,11 @@ def hash_password(password: str) -> str:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Password must be at least 4 characters long."
         )
+    salt = get_password_hash_salt()
     dk = hashlib.pbkdf2_hmac(
         "sha256",
         cleaned.encode("utf-8"),
-        PASSWORD_HASH_SALT.encode("utf-8"),
+        salt.encode("utf-8"),
         10000
     )
     return f"pbkdf2_sha256${dk.hex()}"
@@ -139,8 +185,9 @@ def create_access_token(user_data: Dict[str, Any]) -> str:
     }
     payload_bytes = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
     payload_b64 = base64.urlsafe_b64encode(payload_bytes).decode("utf-8").rstrip("=")
+    jwt_secret = get_jwt_secret_key()
     signature = hmac.new(
-        JWT_SECRET_KEY.encode("utf-8"),
+        jwt_secret.encode("utf-8"),
         payload_b64.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
@@ -157,8 +204,9 @@ def decode_access_token(token: str) -> Optional[Dict[str, Any]]:
     if len(parts) != 3:
         return None
     _, payload_b64, signature = parts
+    jwt_secret = get_jwt_secret_key()
     expected_sig = hmac.new(
-        JWT_SECRET_KEY.encode("utf-8"),
+        jwt_secret.encode("utf-8"),
         payload_b64.encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()

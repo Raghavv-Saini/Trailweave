@@ -36,6 +36,7 @@ interface TripToTrailModalProps {
 type PublishStep = "checklist" | "ai_draft" | "privacy" | "success";
 
 const AVAILABLE_TAGS = ["heritage", "artisan", "walking", "food", "lake", "photography", "temples"];
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export function TripToTrailModal({
   isOpen,
@@ -146,7 +147,7 @@ export function TripToTrailModal({
     setTotalDurationHours(Math.max(hours, 1.0));
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/trips/${tripId}/draft-trail-content`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trips/${tripId}/draft-trail-content`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -241,7 +242,7 @@ export function TripToTrailModal({
     let newTrail: MockTrail;
 
     try {
-      const res = await fetch(`http://localhost:8000/api/v1/trips/${tripId}/publish-trail`, {
+      const res = await fetch(`${API_BASE_URL}/api/v1/trips/${tripId}/publish-trail`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

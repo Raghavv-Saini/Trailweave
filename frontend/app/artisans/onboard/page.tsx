@@ -235,7 +235,7 @@ export default function ArtisanOnboardAndCataloguePage() {
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiBase =
-    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+    process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
   // Hydrate persistent artisan device session from localStorage on mount
   useEffect(() => {
@@ -493,7 +493,7 @@ export default function ArtisanOnboardAndCataloguePage() {
 
       let profile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/onboard`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/onboard`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -558,7 +558,7 @@ export default function ArtisanOnboardAndCataloguePage() {
       let statusErr: string | null = null;
 
       try {
-        const res = await fetch(`${apiBase}/artisans/login`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -661,7 +661,7 @@ export default function ArtisanOnboardAndCataloguePage() {
     try {
       let updatedProfile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/me/catalogue`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/me/catalogue`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -707,7 +707,7 @@ export default function ArtisanOnboardAndCataloguePage() {
     try {
       let updatedProfile: ArtisanPortalProfile | null = null;
       try {
-        const res = await fetch(`${apiBase}/artisans/me/catalogue`, {
+        const res = await fetch(`${apiBase}/api/v1/artisans/me/catalogue`, {
           method: "DELETE",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
