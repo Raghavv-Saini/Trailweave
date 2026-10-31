@@ -62,12 +62,12 @@ export function TimelineList({
             onClick={() => onSelectStop && onSelectStop(stop)}
             className={`p-3.5 rounded-2xl border transition-all space-y-2.5 ${
               isActive
-                ? "bg-amber-50/40 border-[#E05A2B] ring-1 ring-[#E05A2B]/30"
+                ? "bg-[#1E3A5F]/5 border-[#1E3A5F] ring-1 ring-[#1E3A5F]/20"
                 : isVisited
                 ? "bg-emerald-50/30 border-emerald-200/80"
                 : isSkipped
-                ? "bg-neutral-50 border-neutral-200 opacity-75"
-                : "bg-white border-neutral-200/90 hover:border-amber-300 cursor-pointer"
+                ? "bg-[#FBF9F5] border-[#E8E4DC] opacity-75"
+                : "bg-white border-[#E8E4DC] hover:border-[#1E3A5F]/40 cursor-pointer"
             }`}
           >
             {/* Top Row: Sequence + Name + Status Badge + Pinned Indicator */}
@@ -76,10 +76,10 @@ export function TimelineList({
                 <span
                   className={`shrink-0 w-6 h-6 rounded-full font-bold text-[11px] flex items-center justify-center mt-0.5 ${
                     isVisited
-                      ? "bg-emerald-600 text-white"
+                      ? "bg-emerald-700 text-white"
                       : isActive
-                      ? "bg-[#E05A2B] text-white"
-                      : "bg-neutral-100 text-neutral-600"
+                      ? "bg-[#1E3A5F] text-white"
+                      : "bg-[#F4EFEA] text-[#191C1E]"
                   }`}
                 >
                   {idx + 1}
@@ -87,27 +87,27 @@ export function TimelineList({
 
                 <div className="min-w-0">
                   <div className="flex items-center flex-wrap gap-1.5">
-                    <h4 className="text-xs font-bold text-neutral-900 truncate">
+                    <h4 className="font-serif text-sm font-medium text-[#191C1E] truncate">
                       {stop.name}
                     </h4>
                     {stop.is_pinned && (
                       <span
                         title="Pinned Stop"
-                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[10px] font-bold"
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20 text-[10px] font-bold"
                       >
-                        <Pin className="w-2.5 h-2.5 text-amber-600 fill-amber-600" />
+                        <Pin className="w-2.5 h-2.5 text-[#1E3A5F]" />
                         Pinned
                       </span>
                     )}
                   </div>
 
-                  <p className="text-[11px] text-neutral-500 flex items-center gap-1 mt-0.5 truncate">
-                    <MapPin className="w-3 h-3 text-neutral-400 shrink-0" />
+                  <p className="text-[11px] text-[#7A746B] flex items-center gap-1 mt-0.5 truncate">
+                    <MapPin className="w-3 h-3 text-[#7A746B] shrink-0" />
                     <span className="truncate">{stop.address}</span>
                   </p>
 
-                  <p className="text-[10px] text-neutral-500 font-medium flex items-center gap-1.5 mt-1">
-                    <Clock className="w-3 h-3 text-[#E05A2B]" />
+                  <p className="text-[10px] text-[#7A746B] font-medium flex items-center gap-1.5 mt-1">
+                    <Clock className="w-3 h-3 text-[#1E3A5F]" />
                     <span>
                       {formatTime(stop.planned_arrival)} –{" "}
                       {formatTime(stop.planned_departure)}
@@ -126,7 +126,7 @@ export function TimelineList({
                       ? "bg-emerald-100 text-emerald-800 border-emerald-200"
                       : isSkipped
                       ? "bg-neutral-200 text-neutral-700 border-neutral-300"
-                      : "bg-amber-100 text-amber-900 border-amber-200"
+                      : "bg-[#1E3A5F]/10 text-[#1E3A5F] border-[#1E3A5F]/20"
                   }`}
                 >
                   {stop.visit_status}
@@ -137,7 +137,7 @@ export function TimelineList({
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
-                  className="p-1.5 rounded-lg border border-neutral-200 bg-white text-neutral-600 hover:text-[#E05A2B] hover:border-amber-200"
+                  className="p-1.5 rounded-lg border border-[#E8E4DC] bg-white text-neutral-600 hover:text-[#1E3A5F] hover:border-[#1E3A5F]/30"
                   title={`Directions to ${stop.name}`}
                 >
                   <Navigation className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export function TimelineList({
                     e.stopPropagation();
                     onManualCheckin(stop.id);
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-[#E05A2B] text-white font-bold text-[11px] flex items-center gap-1.5 shadow-2xs hover:bg-[#c94d23] transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-xl bg-[#1E3A5F] text-white font-bold text-[11px] flex items-center gap-1.5 shadow-2xs hover:bg-[#152943] transition-colors cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>1-Tap Manual Check-in Fallback</span>
@@ -186,8 +186,8 @@ export function TimelineList({
 
             {isVisited && !isCheckedOut && onCheckout && (
               <div className="pt-1.5 flex items-center justify-between gap-2 border-t border-emerald-200/60">
-                <span className="text-[10px] text-amber-800 font-semibold flex items-center gap-1">
-                  <Timer className="w-3 h-3 text-[#E05A2B]" />
+                <span className="text-[10px] text-[#1E3A5F] font-semibold flex items-center gap-1">
+                  <Timer className="w-3 h-3 text-[#1E3A5F]" />
                   Touring • +20m grace buffer active
                 </span>
                 <button

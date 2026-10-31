@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Newsreader, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "@/context/AuthContext";
 import { BasketProvider } from "@/context/BasketContext";
 import { TripProvider } from "@/context/TripContext";
 
@@ -45,15 +46,17 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${jakarta.variable} ${newsreader.variable}`}>
       <body
-        className="font-sans antialiased bg-[#FDFBF7] text-[#1A1D20] min-h-screen selection:bg-amber-100 selection:text-amber-900 flex flex-col"
+        className="font-sans antialiased bg-[#FDFBF7] text-[#1A1D20] min-h-screen selection:bg-[#1E3A5F]/15 selection:text-[#1E3A5F] flex flex-col"
       >
-        <BasketProvider>
-          <TripProvider>
-            <div className="w-full min-h-screen flex flex-col">
-              {children}
-            </div>
-          </TripProvider>
-        </BasketProvider>
+        <AuthProvider>
+          <BasketProvider>
+            <TripProvider>
+              <div className="w-full min-h-screen flex flex-col">
+                {children}
+              </div>
+            </TripProvider>
+          </BasketProvider>
+        </AuthProvider>
       </body>
     </html>
   );

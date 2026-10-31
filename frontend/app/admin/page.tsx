@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Header } from "@/components/common/Header";
 import { BottomNav } from "@/components/common/BottomNav";
+import { useAuth } from "@/context/AuthContext";
 import {
   Mic,
   Phone,
@@ -142,7 +144,28 @@ interface DraftEditForm {
 }
 
 export default function AdminPortalPage() {
-  const [activeTab, setActiveTab] = useState<"drafts" | "artisans" | "curation">("drafts");
+  const router = useRouter();
+  const { isAuthenticated, isAdmin, isLoading, adminTeam, fetchAdminTeam, addAdminMember } = useAuth();
+  const [activeTab, setActiveTab] = useState<"drafts" | "artisans" | "curation" | "team">("drafts");
+
+  // New Admin Form state
+  const [newAdminName, setNewAdminName] = useState("");
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [newAdminPassword, setNewAdminPassword] = useState("");
+  const [newAdminRole, setNewAdminRole] = useState<"admin" | "superuser">("admin");
+  const [adminFormError, setAdminFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isLoading && (!isAuthenticated || !isAdmin)) {
+      router.replace("/login?role=admin");
+    }
+  }, [isLoading, isAuthenticated, isAdmin, router]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      fetchAdminTeam();
+    }
+  }, [isAdmin, fetchAdminTeam]);
 
   // Drafts state
   const [drafts, setDrafts] = useState<ArtisanDraft[]>(INITIAL_DRAFTS);
@@ -437,14 +460,14 @@ export default function AdminPortalPage() {
             onClick={() => setActiveTab("drafts")}
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === "drafts"
-                ? "border-[#E05A2B] text-[#E05A2B]"
+                ? "border-[#1E3A5F] text-[#1E3A5F]"
                 : "border-transparent text-neutral-500 hover:text-neutral-900"
             }`}
           >
             <Mic className="w-4 h-4" />
             <span>Voice Onboarding Drafts</span>
             {pendingDraftsCount > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#E05A2B] text-white">
+              <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-[#1E3A5F] text-white">
                 {pendingDraftsCount}
               </span>
             )}
@@ -454,7 +477,7 @@ export default function AdminPortalPage() {
             onClick={() => setActiveTab("artisans")}
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === "artisans"
-                ? "border-[#E05A2B] text-[#E05A2B]"
+                ? "border-[#1E3A5F] text-[#1E3A5F]"
                 : "border-transparent text-neutral-500 hover:text-neutral-900"
             }`}
           >
@@ -469,12 +492,27 @@ export default function AdminPortalPage() {
             onClick={() => setActiveTab("curation")}
             className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
               activeTab === "curation"
-                ? "border-[#E05A2B] text-[#E05A2B]"
+                ? "border-[#1E3A5F] text-[#1E3A5F]"
                 : "border-transparent text-neutral-500 hover:text-neutral-900"
             }`}
           >
             <Layers className="w-4 h-4" />
             <span>Trails &amp; Places Curation</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("team")}
+            className={`flex items-center gap-1.5 py-3 px-3.5 border-b-2 text-xs font-bold transition-colors whitespace-nowrap cursor-pointer ${
+              activeTab === "team"
+                ? "border-[#1E3A5F] text-[#1E3A5F]"
+                : "border-transparent text-neutral-500 hover:text-neutral-900"
+            }`}
+          >
+            <Shield className="w-4 h-4" />
+            <span>Admin Team &amp; Superusers</span>
+            <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-600">
+              {adminTeam.length}
+            </span>
           </button>
         </div>
       </div>
@@ -589,7 +627,7 @@ export default function AdminPortalPage() {
                                 : draft.approval_status}
                             </span>
                           </div>
-                          <p className="text-xs text-[#E05A2B] font-bold">
+                          <p className="text-xs text-[#1E3A5F] font-bold">
                             {ext.craft_type || "Traditional Craft"}
                           </p>
                         </div>
@@ -1366,6 +1404,163 @@ export default function AdminPortalPage() {
                 >
                   <Plus className="w-4 h-4" />
                   <span>Verify &amp; Add Place to Canonical Catalogue</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 4: ADMIN TEAM & SUPERUSERS MANAGEMENT */}
+        {/* ========================================================================= */}
+        {activeTab === "team" && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Left Column: Active Admin Team List */}
+            <div className="lg:col-span-7 bg-white rounded-2xl border border-neutral-200 p-5 space-y-4 shadow-2xs">
+              <div className="flex items-center justify-between border-b border-neutral-100 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-neutral-900 flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#1E3A5F]" />
+                    <span>Active Administrators &amp; Superusers</span>
+                  </h2>
+                  <p className="text-xs text-neutral-500 mt-0.5">
+                    Admins have superuser access to verify artisans, curate trails, and add new administrators.
+                  </p>
+                </div>
+                <span className="px-2.5 py-1 rounded-full bg-neutral-100 text-xs font-bold text-neutral-700">
+                  {adminTeam.length} Admins
+                </span>
+              </div>
+
+              <div className="divide-y divide-neutral-100">
+                {adminTeam.map((member) => (
+                  <div
+                    key={member.id || member.email}
+                    className="py-3 flex items-center justify-between gap-3"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-neutral-900">
+                        {member.full_name}
+                      </p>
+                      <p className="text-xs text-neutral-500">{member.email}</p>
+                    </div>
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                        member.role === "superuser"
+                          ? "bg-amber-100 text-amber-900"
+                          : "bg-blue-50 text-[#1E3A5F]"
+                      }`}
+                    >
+                      {member.role}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right Column: Add New Admin Form */}
+            <div className="lg:col-span-5 bg-white rounded-2xl border border-neutral-200 p-5 space-y-4 shadow-2xs">
+              <div className="border-b border-neutral-100 pb-3">
+                <h3 className="text-sm font-bold text-neutral-900 flex items-center gap-1.5">
+                  <Plus className="w-4 h-4 text-[#E05A2B]" />
+                  <span>Add New Administrator</span>
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  Create a new admin account with email and password credentials.
+                </p>
+              </div>
+
+              {adminFormError && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
+                  {adminFormError}
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setAdminFormError(null);
+                  const res = await addAdminMember(
+                    newAdminEmail,
+                    newAdminPassword,
+                    newAdminName,
+                    newAdminRole
+                  );
+                  if (!res.success) {
+                    setAdminFormError(res.error || "Failed to add administrator.");
+                  } else {
+                    showToast(`✓ Added ${newAdminName} (${newAdminEmail}) as ${newAdminRole}!`);
+                    setNewAdminName("");
+                    setNewAdminEmail("");
+                    setNewAdminPassword("");
+                  }
+                }}
+                className="space-y-3 text-xs"
+              >
+                <div className="space-y-1">
+                  <label className="font-semibold text-neutral-700 block">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newAdminName}
+                    onChange={(e) => setNewAdminName(e.target.value)}
+                    placeholder="e.g. Meera Sisodia"
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-neutral-700 block">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={newAdminEmail}
+                    onChange={(e) => setNewAdminEmail(e.target.value)}
+                    placeholder="meera.admin@trailweave.org"
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-neutral-700 block">
+                    Temporary Password
+                  </label>
+                  <input
+                    type="password"
+                    required
+                    value={newAdminPassword}
+                    onChange={(e) => setNewAdminPassword(e.target.value)}
+                    placeholder="Minimum 4 characters"
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-200"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold text-neutral-700 block">
+                    Privilege Level
+                  </label>
+                  <select
+                    value={newAdminRole}
+                    onChange={(e) =>
+                      setNewAdminRole(e.target.value as "admin" | "superuser")
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-neutral-200 bg-white"
+                  >
+                    <option value="admin">Admin</option>
+                    <option value="superuser">Superuser</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-[#1E3A5F] hover:bg-[#152842] text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Create Admin Account</span>
                 </button>
               </form>
             </div>

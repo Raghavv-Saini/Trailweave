@@ -86,12 +86,12 @@ export function ReplanPreviewModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-neutral-950/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-neutral-100 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 border-b border-neutral-100 flex items-center justify-between bg-neutral-50/50">
+        <div className="p-5 border-b border-[#E8E4DC] flex items-center justify-between bg-[#FBF9F5]">
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E05A2B] bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/60">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A5F] bg-[#1E3A5F]/10 px-2.5 py-0.5 rounded-full border border-[#1E3A5F]/20">
               Replan Preview
             </span>
-            <h3 className="text-base font-extrabold text-neutral-900 mt-1">
+            <h3 className="font-serif text-lg font-medium text-[#191C1E] mt-1">
               Review Staged Changes
             </h3>
           </div>
@@ -140,7 +140,7 @@ export function ReplanPreviewModal({
                 <span className="text-sm font-extrabold text-neutral-300">
                   Rev {proposal.base_revision}
                 </span>
-                <ArrowRight className="w-3.5 h-3.5 text-[#E05A2B]" />
+                <ArrowRight className="w-3.5 h-3.5 text-white/70" />
                 <span className="text-sm font-extrabold text-emerald-400">
                   Rev {proposal.base_revision + 1}
                 </span>
@@ -156,14 +156,14 @@ export function ReplanPreviewModal({
             {/* Cost Delta */}
             <div className="p-3.5 rounded-2xl bg-neutral-50 border border-neutral-200/80 space-y-1">
               <span className="text-[10px] font-bold text-neutral-500 uppercase flex items-center gap-1">
-                <Coins className="w-3 h-3 text-amber-600" /> Budget Delta
+                <Coins className="w-3 h-3 text-[#1E3A5F]" /> Budget Delta
               </span>
               <p
                 className={`text-base font-extrabold ${
                   isCostReduced
                     ? "text-emerald-600"
                     : isCostIncreased
-                    ? "text-[#E05A2B]"
+                    ? "text-[#1E3A5F]"
                     : "text-neutral-700"
                 }`}
               >
@@ -190,7 +190,7 @@ export function ReplanPreviewModal({
                   isDurationReduced
                     ? "text-emerald-600"
                     : isDurationIncreased
-                    ? "text-[#E05A2B]"
+                    ? "text-[#1E3A5F]"
                     : "text-neutral-700"
                 }`}
               >
@@ -282,7 +282,7 @@ export function ReplanPreviewModal({
           <button
             onClick={handleConfirmAndApply}
             disabled={isCommitting || Boolean(conflictError)}
-            className="flex-1 py-2.5 px-4 rounded-xl bg-[#E05A2B] hover:bg-[#c94d22] text-white text-xs font-extrabold shadow-sm flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+            className="flex-1 py-2.5 px-4 rounded-xl bg-[#1E3A5F] hover:bg-[#152943] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
           >
             {isCommitting ? (
               <>

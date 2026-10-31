@@ -582,3 +582,62 @@ The Gemini assistant is conditioned as a "Cultured Local Companion" and strictly
   }
 ]
 ```
+
+---
+
+### 1.7 Tourist & Admin Authentication & Superuser Team Management (ADR 0011)
+
+#### `POST /api/v1/auth/signup` (and `/api/auth/signup`)
+Registers a new Tourist account with email and password and returns an access token.
+- **Request Body:**
+```json
+{
+  "email": "tourist@example.com",
+  "password": "securepassword123",
+  "full_name": "Aarav Mehta"
+}
+```
+- **Response (`201 Created`):**
+```json
+{
+  "access_token": "tw_jwt_...",
+  "token_type": "bearer",
+  "user": {
+    "id": "user_...",
+    "email": "tourist@example.com",
+    "full_name": "Aarav Mehta",
+    "role": "tourist",
+    "is_active": true,
+    "created_at": "2026-11-01T00:00:00Z"
+  }
+}
+```
+
+#### `POST /api/v1/auth/login` (and `/api/auth/login`)
+Authenticates an existing Tourist or Admin/Superuser using email and password.
+- **Request Body:**
+```json
+{
+  "email": "admin@trailweave.org",
+  "password": "admin123"
+}
+```
+
+#### `GET /api/v1/auth/me` (and `/api/auth/me`)
+Returns the currently authenticated user profile from the `Authorization: Bearer <token>` header.
+
+#### `GET /api/v1/admin/team` (and `/api/admin/team`)
+Returns all administrator and superuser accounts. Requires `admin` or `superuser` role (`403 Forbidden` for tourists).
+
+#### `POST /api/v1/admin/team` (and `/api/admin/team`)
+Allows an authenticated administrator/superuser to add a new administrator (`role: "admin"` or `"superuser"`).
+- **Request Body:**
+```json
+{
+  "email": "new.admin@trailweave.org",
+  "password": "adminpassword123",
+  "full_name": "Priya Rathore",
+  "role": "admin"
+}
+```
+

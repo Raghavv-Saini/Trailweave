@@ -98,12 +98,12 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
   };
 
   return (
-    <div className="mt-2.5 p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/90 shadow-2xs text-neutral-900 space-y-2.5">
+    <div className="mt-2.5 p-3.5 rounded-2xl bg-[#FBF9F5] border border-[#E8E4DC] shadow-xs text-[#191C1E] space-y-2.5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-[#E05A2B]" />
-          <span className="text-xs font-bold text-neutral-900">
+          <Sparkles className="w-3.5 h-3.5 text-[#1E3A5F]" />
+          <span className="text-xs font-bold text-[#191C1E]">
             Itinerary Proposal (Rev {proposal.base_revision} → {proposal.base_revision + 1})
           </span>
         </div>
@@ -120,7 +120,7 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
 
       {/* Diff metrics */}
       <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white/80 border border-amber-100">
+        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white border border-[#E8E4DC]">
           <Clock className="w-3.5 h-3.5 text-neutral-500" />
           <span className="text-neutral-600">Time:</span>
           <span
@@ -128,7 +128,7 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
               durationDelta < 0
                 ? "text-emerald-700"
                 : durationDelta > 0
-                ? "text-amber-800"
+                ? "text-[#1E3A5F]"
                 : "text-neutral-700"
             }`}
           >
@@ -136,7 +136,7 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white/80 border border-amber-100">
+        <div className="flex items-center gap-1.5 p-2 rounded-xl bg-white border border-[#E8E4DC]">
           <span className="text-neutral-500 text-xs font-bold">₹</span>
           <span className="text-neutral-600">Cost:</span>
           <span
@@ -144,7 +144,7 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
               costDelta < 0
                 ? "text-emerald-700"
                 : costDelta > 0
-                ? "text-amber-800"
+                ? "text-[#1E3A5F]"
                 : "text-neutral-700"
             }`}
           >
@@ -211,7 +211,7 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
         <button
           onClick={handleAccept}
           disabled={isCommitting}
-          className="w-full py-2.5 px-3 rounded-xl bg-[#E05A2B] hover:bg-[#c94d23] text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+          className="w-full py-2.5 px-3 rounded-xl bg-[#1E3A5F] hover:bg-[#152943] text-white flex items-center justify-center gap-1.5 text-xs font-bold shadow-xs transition-colors cursor-pointer disabled:opacity-50"
         >
           {isCommitting ? (
             <>

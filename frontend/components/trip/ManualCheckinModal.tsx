@@ -65,7 +65,7 @@ export function ManualCheckinModal({
         <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-100 space-y-1">
           <p className="text-xs font-bold text-neutral-800">{stop.name}</p>
           <p className="text-[11px] text-neutral-500 flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-[#E05A2B]" />
+            <MapPin className="w-3 h-3 text-[#1E3A5F]" />
             <span>{stop.address}</span>
           </p>
           <p className="text-[10px] text-neutral-400">

@@ -14,6 +14,7 @@ from app.api.v1.replan import router as replan_router
 from app.api.v1.assistant import router as assistant_router
 from app.api.v1.whatsapp import router as whatsapp_router
 from app.api.v1.admin import router as admin_router
+from app.api.v1.auth import router as auth_router
 
 
 @asynccontextmanager
@@ -59,6 +60,7 @@ for prefix in ["/api", "/api/v1"]:
     app.include_router(assistant_router, prefix=prefix)
     app.include_router(whatsapp_router, prefix=prefix)
     app.include_router(admin_router, prefix=prefix)
+    app.include_router(auth_router, prefix=f"{prefix}/auth")
 
 
 @app.get("/")

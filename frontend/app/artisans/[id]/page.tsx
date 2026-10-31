@@ -121,14 +121,14 @@ export default function ArtisanDetailPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/artisans"
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-600 hover:text-neutral-900 bg-white px-3 py-1.5 rounded-full border border-neutral-200/80 shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-600 hover:text-neutral-900 bg-white px-3 py-1.5 rounded-full border border-[#E8E4DC] shadow-2xs transition-colors"
           >
-            <ArrowLeft className="w-3.5 h-3.5 text-[#E05A2B]" /> All Artisans
+            <ArrowLeft className="w-3.5 h-3.5 text-[#1E3A5F]" /> All Artisans
           </Link>
 
           <button
             onClick={handleShare}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 bg-white px-3 py-1.5 rounded-full border border-neutral-200/80 shadow-2xs transition-colors"
+            className="inline-flex items-center gap-1 text-xs font-semibold text-neutral-500 hover:text-neutral-900 bg-white px-3 py-1.5 rounded-full border border-[#E8E4DC] shadow-2xs transition-colors cursor-pointer"
           >
             <Share2 className="w-3.5 h-3.5" />
             {copiedLink ? "Link Copied!" : "Share"}
@@ -136,7 +136,7 @@ export default function ArtisanDetailPage() {
         </div>
 
         {/* Master Photo / Catalogue Gallery */}
-        <div className="rounded-2xl overflow-hidden border border-neutral-200 bg-white shadow-xs space-y-2">
+        <div className="rounded-2xl overflow-hidden border border-[#E8E4DC] bg-white shadow-xs space-y-2">
           <div className="relative h-60 w-full bg-neutral-900 group">
             <img
               src={images[selectedPhotoIndex] || images[0]}
@@ -157,10 +157,10 @@ export default function ArtisanDetailPage() {
 
             {/* Badges on primary image */}
             <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider bg-white/95 text-[#E05A2B] px-2.5 py-1 rounded-full shadow-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-white/95 text-[#1E3A5F] px-2.5 py-1 rounded-full shadow-xs">
                 {artisan.craft_type}
               </span>
-              <span className="text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+              <span className="text-[10px] font-semibold bg-[#1E3A5F]/90 text-white px-2.5 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
                 <Award className="w-3 h-3" /> Master Craftsman
               </span>
             </div>
@@ -178,7 +178,7 @@ export default function ArtisanDetailPage() {
                   onClick={() =>
                     setSelectedPhotoIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))
                   }
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs"
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -186,7 +186,7 @@ export default function ArtisanDetailPage() {
                   onClick={() =>
                     setSelectedPhotoIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))
                   }
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full bg-black/50 hover:bg-black/80 text-white backdrop-blur-xs cursor-pointer"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -201,9 +201,9 @@ export default function ArtisanDetailPage() {
                 <button
                   key={idx}
                   onClick={() => setSelectedPhotoIndex(idx)}
-                  className={`relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all ${
+                  className={`relative w-14 h-14 rounded-lg overflow-hidden shrink-0 border-2 transition-all cursor-pointer ${
                     idx === selectedPhotoIndex
-                      ? "border-[#E05A2B] ring-2 ring-[#E05A2B]/20 scale-105"
+                      ? "border-[#1E3A5F] ring-2 ring-[#1E3A5F]/20 scale-105"
                       : "border-transparent opacity-70 hover:opacity-100"
                   }`}
                 >
@@ -215,37 +215,37 @@ export default function ArtisanDetailPage() {
         </div>
 
         {/* Artisan Heritage & Studio Bio */}
-        <div className="p-4 rounded-2xl bg-white border border-neutral-200/90 shadow-xs space-y-3">
+        <div className="p-5 rounded-2xl bg-white border border-[#E8E4DC] shadow-xs space-y-3.5">
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-600 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#1E3A5F] uppercase tracking-wider">
               <span>Mewar Cultural Heritage</span>
             </div>
-            <h1 className="text-xl font-extrabold text-neutral-900 mt-0.5">
+            <h1 className="font-serif text-2xl sm:text-3xl font-medium text-[#191C1E] mt-0.5">
               {artisan.artisan_name}
             </h1>
-            <p className="text-xs text-neutral-500 flex items-center gap-1 mt-1">
-              <MapPin className="w-3.5 h-3.5 text-neutral-400 shrink-0" />
+            <p className="text-xs text-[#7A746B] flex items-center gap-1 mt-1">
+              <MapPin className="w-3.5 h-3.5 text-[#7A746B] shrink-0" />
               <span>{artisan.address}</span>
             </p>
           </div>
 
           {/* Quick info badges */}
-          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-neutral-100">
-            <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/60">
-              <span className="text-[10px] uppercase font-bold text-neutral-500 block">
+          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-[#E8E4DC]/60">
+            <div className="p-2.5 rounded-xl bg-[#FBF9F5] border border-[#E8E4DC]">
+              <span className="text-[10px] uppercase font-bold text-[#7A746B] block">
                 Studio Hours
               </span>
-              <span className="text-xs font-bold text-neutral-800 flex items-center gap-1 mt-0.5">
-                <Clock className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+              <span className="text-xs font-bold text-[#191C1E] flex items-center gap-1 mt-0.5">
+                <Clock className="w-3.5 h-3.5 text-[#7A746B] shrink-0" />
                 {artisan.opening_time || "10:00"} - {artisan.closing_time || "20:00"}
               </span>
             </div>
 
             <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/60">
-              <span className="text-[10px] uppercase font-bold text-neutral-500 block">
+              <span className="text-[10px] uppercase font-bold text-emerald-800/80 block">
                 Studio Experience
               </span>
-              <span className="text-xs font-bold text-emerald-800 flex items-center gap-1 mt-0.5">
+              <span className="text-xs font-bold text-emerald-900 flex items-center gap-1 mt-0.5">
                 {artisan.has_workshop ? (
                   <>
                     <Sparkles className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
@@ -263,66 +263,66 @@ export default function ArtisanDetailPage() {
 
           {/* Master story / bio */}
           <div className="space-y-1 pt-1">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-400">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#7A746B]">
               Heritage & Master Craftsmanship
             </h3>
-            <p className="text-xs text-neutral-700 leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#3F464C] leading-relaxed">
               {artisan.bio ||
                 `${artisan.artisan_name} has practiced traditional ${artisan.craft_type} across Udaipur's Old City quarter for generations, preserving heritage art forms using natural minerals and authentic Mewari techniques.`}
             </p>
           </div>
 
           {/* Direct contact and directions */}
-          <div className="flex items-center gap-2 pt-2 border-t border-neutral-100">
+          <div className="flex items-center gap-2 pt-2 border-t border-[#E8E4DC]/60">
             {artisan.phone_number && (
               <a
                 href={`tel:${artisan.phone_number}`}
-                className="flex-1 py-2 px-3 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+                className="flex-1 py-2 px-3 rounded-xl border border-[#E8E4DC] hover:bg-[#F4EFEA] text-[#191C1E] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
               >
-                <Phone className="w-3.5 h-3.5 text-[#E05A2B]" /> Call Studio
+                <Phone className="w-3.5 h-3.5 text-[#1E3A5F]" /> Call Studio
               </a>
             )}
             <a
               href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 py-2 px-3 rounded-xl border border-neutral-200 hover:bg-neutral-50 text-neutral-700 font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
+              className="flex-1 py-2 px-3 rounded-xl border border-[#E8E4DC] hover:bg-[#F4EFEA] text-[#191C1E] font-bold text-xs flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Navigation className="w-3.5 h-3.5 text-amber-600" /> Get Directions
+              <Navigation className="w-3.5 h-3.5 text-[#1E3A5F]" /> Get Directions
             </a>
           </div>
         </div>
 
         {/* Hands-on Workshop Masterclass Section */}
         {artisan.has_workshop && (
-          <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 shadow-xs space-y-3">
+          <div className="p-5 rounded-2xl bg-[#FBF9F5] border border-[#E8E4DC] shadow-xs space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#E05A2B] flex items-center gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#1E3A5F] flex items-center gap-1">
                 <Sparkles className="w-3.5 h-3.5" /> Hands-On Masterclass Offering
               </span>
-              <span className="text-xs font-extrabold text-emerald-800 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs flex items-center gap-0.5">
-                <IndianRupee className="w-3 h-3 stroke-[2.5]" />
+              <span className="text-xs font-extrabold text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs flex items-center gap-0.5">
+                <IndianRupee className="w-3 h-3 stroke-[2.2]" />
                 {artisan.workshop_fee_inr}
                 <span className="text-[10px] font-normal text-neutral-500 ml-0.5">/ person</span>
               </span>
             </div>
 
-            <p className="text-xs text-neutral-700 leading-relaxed font-medium">
+            <p className="text-xs sm:text-sm text-[#3F464C] leading-relaxed">
               {artisan.workshop_description}
             </p>
 
-            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-amber-200/50 text-xs">
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-[#E8E4DC]/60 text-xs">
               <div className="space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-neutral-500">Duration</span>
-                <p className="font-bold text-neutral-800 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-neutral-400" />
+                <span className="text-[10px] uppercase font-bold text-[#7A746B]">Duration</span>
+                <p className="font-bold text-[#191C1E] flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-[#7A746B]" />
                   {artisan.workshop_duration_minutes} minutes
                 </p>
               </div>
               <div className="space-y-0.5">
-                <span className="text-[10px] uppercase font-bold text-neutral-500">Materials</span>
-                <p className="font-bold text-neutral-800 flex items-center gap-1">
-                  <Sparkles className="w-3 h-3 text-amber-600" />
+                <span className="text-[10px] uppercase font-bold text-[#7A746B]">Materials</span>
+                <p className="font-bold text-[#191C1E] flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-[#1E3A5F]" />
                   All included + take-home
                 </p>
               </div>
@@ -335,10 +335,10 @@ export default function ArtisanDetailPage() {
           <button
             onClick={handleBasketToggle}
             data-testid="artisan-detail-basket-btn"
-            className={`w-full py-3.5 px-4 rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 ${
+            className={`w-full py-3.5 px-4 rounded-xl font-bold text-xs sm:text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${
               inBasket
-                ? "bg-emerald-600 text-white hover:bg-emerald-700 ring-2 ring-emerald-500/20"
-                : "bg-[#E05A2B] text-white hover:bg-[#c94d23] active:scale-[0.99]"
+                ? "bg-emerald-700 text-white hover:bg-emerald-800 ring-2 ring-emerald-500/20"
+                : "bg-[#1E3A5F] text-white hover:bg-[#152943] active:scale-[0.99]"
             }`}
           >
             {inBasket ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
-import { Sparkles, X, Send, Bot } from "lucide-react";
+import { Compass, X, Send, Bot } from "lucide-react";
 import { useTrip } from "@/context/TripContext";
 import { ReplanProposalCard, ReplanProposalData } from "./ReplanProposalCard";
 
@@ -100,19 +100,19 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
     <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs">
       <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
         {/* Header */}
-        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between bg-amber-50/70">
+        <div className="px-5 py-4 border-b border-[#E8E4DC] flex items-center justify-between bg-[#FBF9F5]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#E05A2B] to-amber-500 text-white flex items-center justify-center shadow-xs">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-xl bg-[#1E3A5F] text-white flex items-center justify-center shadow-xs">
+              <Compass className="w-4 h-4 stroke-[2.2]" />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <h2 className="font-bold text-neutral-900 text-sm">Gemini Companion</h2>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-amber-200/60 text-amber-900">
+                <h2 className="font-serif font-medium text-[#191C1E] text-sm">Gemini Companion</h2>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20">
                   Rev {revision}
                 </span>
               </div>
-              <p className="text-[10px] text-neutral-600 font-medium">
+              <p className="text-[10px] text-[#7A746B] font-medium">
                 Cultured Local Companion • Udaipur
               </p>
             </div>
@@ -134,7 +134,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
             >
               <div className="flex items-start gap-1.5 max-w-[92%]">
                 {m.sender === "ai" && (
-                  <div className="w-6 h-6 rounded-lg bg-amber-100 text-[#E05A2B] flex items-center justify-center shrink-0 mt-0.5">
+                  <div className="w-6 h-6 rounded-lg bg-[#1E3A5F]/10 text-[#1E3A5F] flex items-center justify-center shrink-0 mt-0.5">
                     <Bot className="w-3.5 h-3.5" />
                   </div>
                 )}
@@ -142,8 +142,8 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
                 <div
                   className={`p-3 rounded-2xl text-xs leading-relaxed ${
                     m.sender === "user"
-                      ? "bg-neutral-900 text-white rounded-br-xs"
-                      : "bg-neutral-100/90 text-neutral-800 rounded-bl-xs border border-neutral-200/50"
+                      ? "bg-[#1E3A5F] text-white rounded-br-xs"
+                      : "bg-[#FBF9F5] text-[#191C1E] rounded-bl-xs border border-[#E8E4DC]"
                   }`}
                 >
                   <p>{m.text}</p>
@@ -160,7 +160,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
 
                   <div
                     className={`mt-1 text-[9px] font-medium ${
-                      m.sender === "user" ? "text-neutral-400 text-right" : "text-neutral-500"
+                      m.sender === "user" ? "text-white/60 text-right" : "text-[#7A746B]"
                     }`}
                   >
                     {m.timestamp}
@@ -172,8 +172,8 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
 
           {/* Loading typing indicator */}
           {isLoading && (
-            <div className="flex items-center gap-1.5 text-xs text-neutral-500 animate-pulse pl-1">
-              <Bot className="w-4 h-4 text-[#E05A2B]" />
+            <div className="flex items-center gap-1.5 text-xs text-[#7A746B] animate-pulse pl-1">
+              <Bot className="w-4 h-4 text-[#1E3A5F]" />
               <span>Companion is consulting Udaipur routes & artisan hours...</span>
             </div>
           )}
@@ -182,12 +182,12 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
         </div>
 
         {/* Suggested Quick Prompt Pills */}
-        <div className="px-3 py-2 border-t border-neutral-100 bg-neutral-50/50 overflow-x-auto flex gap-1.5 scrollbar-none">
+        <div className="px-3 py-2 border-t border-[#E8E4DC] bg-[#FBF9F5] overflow-x-auto flex gap-1.5 scrollbar-none">
           {QUICK_PROMPTS.map((prompt, idx) => (
             <button
               key={idx}
               onClick={() => handleSend(prompt)}
-              className="whitespace-nowrap px-2.5 py-1 rounded-full bg-white border border-neutral-200 text-[10px] text-neutral-700 hover:border-[#E05A2B] hover:text-[#E05A2B] transition-colors cursor-pointer shrink-0 font-medium"
+              className="whitespace-nowrap px-2.5 py-1 rounded-full bg-white border border-[#E8E4DC] text-[10px] text-[#191C1E] hover:border-[#1E3A5F] hover:text-[#1E3A5F] transition-colors cursor-pointer shrink-0 font-medium"
             >
               {prompt}
             </button>
@@ -195,19 +195,19 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
         </div>
 
         {/* Input box */}
-        <div className="p-3 border-t border-neutral-100 flex items-center gap-2 bg-white">
+        <div className="p-3 border-t border-[#E8E4DC] flex items-center gap-2 bg-white">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Ask companion to skip, adapt stops, or find crafts..."
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-neutral-100 text-xs border-0 focus:outline-none focus:ring-2 focus:ring-[#E05A2B]/40"
+            className="flex-1 px-3.5 py-2.5 rounded-xl bg-[#FBF9F5] text-xs border border-[#E8E4DC] focus:outline-none focus:ring-1 focus:ring-[#1E3A5F]"
           />
           <button
             onClick={() => handleSend()}
             disabled={!input.trim() || isLoading}
-            className="p-2.5 rounded-xl bg-[#E05A2B] text-white hover:bg-[#c94d23] transition-colors disabled:opacity-40 cursor-pointer"
+            className="p-2.5 rounded-xl bg-[#1E3A5F] text-white hover:bg-[#152943] transition-colors disabled:opacity-40 cursor-pointer"
           >
             <Send className="w-4 h-4" />
           </button>
