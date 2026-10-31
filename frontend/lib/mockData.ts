@@ -25,18 +25,21 @@ export interface MockTrailStop {
 
 export interface MockTrail {
   id: string;
-  title: string;
+  author_id?: string;
   author_name: string;
+  title: string;
   description: string;
+  destination?: string;
   duration_type: "single_day" | "multi_day";
-  total_duration_hours: number;
   total_days?: number;
+  total_duration_hours: number;
   estimated_cost_inr: number;
   tags: string[];
   is_experienced: boolean;
+  visibility?: "public" | "unlisted" | "private";
   is_featured: boolean;
   stops_count: number;
-  stops?: MockTrailStop[];
+  stops: MockTrailStop[];
 }
 
 export interface MockArtisan {
@@ -78,7 +81,7 @@ export const MOCK_PLACES: MockPlace[] = [
     name: "Kavita Terracotta Pottery & Clay Studio",
     category: "artisan_studio",
     latitude: 24.5815,
-    longitude: 73.6820,
+    longitude: 73.682,
     address: "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
     entry_fee_inr: 0,
     typical_duration_minutes: 45,
@@ -97,7 +100,7 @@ export const MOCK_PLACES: MockPlace[] = [
     id: "place_leather_craft",
     name: "Mewar Royal Leather & Jutti Craft Studio",
     category: "artisan_studio",
-    latitude: 24.5840,
+    latitude: 24.584,
     longitude: 73.6865,
     address: "Hathi Pole Bazaar, Udaipur, Rajasthan 313001",
     entry_fee_inr: 0,
@@ -318,3 +321,34 @@ export const MOCK_ARTISANS: MockArtisan[] = [
   },
 ];
 
+export function addPublishedTrail(trail: MockTrail): void {
+  if (!MOCK_TRAILS.some((t) => t.id === trail.id)) {
+    MOCK_TRAILS.unshift(trail);
+  }
+  if (typeof window !== "undefined") {
+    try {
+      const stored = JSON.parse(localStorage.getItem("trailweave_user_trails") || "[]");
+      const filtered = stored.filter((t: MockTrail) => t.id !== trail.id);
+      filtered.unshift(trail);
+      localStorage.setItem("trailweave_user_trails", JSON.stringify(filtered));
+    } catch {
+      // Ignore storage errors in restricted contexts
+    }
+  }
+}
+
+// Hydrate stored user trails from localStorage on client
+if (typeof window !== "undefined") {
+  try {
+    const stored = JSON.parse(localStorage.getItem("trailweave_user_trails") || "[]");
+    if (Array.isArray(stored)) {
+      for (const t of stored) {
+        if (!MOCK_TRAILS.some((existing) => existing.id === t.id)) {
+          MOCK_TRAILS.unshift(t);
+        }
+      }
+    }
+  } catch {
+    // Ignore
+  }
+}
