@@ -312,7 +312,7 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
 const TripContext = createContext<TripContextType | undefined>(undefined);
 
 export function TripProvider({ children }: { children: React.ReactNode }) {
-  const [tripId, setTripId] = useState<string>("trip_udaipur_heritage_01");
+  const [tripId, setTripId] = useState<string>("trip_demo_udaipur");
   const [tripTitle, setTripTitle] = useState<string>("Udaipur Living Heritage & Crafts Walk");
   const [revision, setRevision] = useState<number>(1);
   const [stops, setStops] = useState<TripStop[]>(INITIAL_DEMO_STOPS);
@@ -830,27 +830,70 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
       ? "I see you skipped a stop earlier on your route, so I've taken that into account! "
       : "";
 
-    const isReplanIntent = ["skip", "drop", "tired", "tea", "rooftop", "workshop", "pottery", "add"].some((k) =>
-      msgLower.includes(k)
-    );
+    const isReplanIntent = [
+      "skip", "drop", "tired", "tea", "rooftop", "workshop", "pottery", "add",
+      "ramesh", "leather", "jutti", "ambrai", "studio", "plan", "circle", "craft", "mojari"
+    ].some((k) => msgLower.includes(k));
 
-    if (isReplanIntent && pending.length > 0) {
-      const stopToSkip = pending[0];
-      const ops: ReplanOperation[] = [
-        { type: "skip_stop", stop_id: stopToSkip.id },
-        { type: "add_stop", place_id: "place_sukhadia_circle", new_order: stopToSkip.sequence_in_day },
-      ];
+    if (isReplanIntent) {
+      let placeToAddId = "place_sukhadia_circle";
+      let placeToAddName = "Sukhadia Circle Street Food & Chai";
+
+      if (["ramesh", "leather", "jutti", "hathi pole", "mojari"].some((k) => msgLower.includes(k))) {
+        placeToAddId = "place_leather_craft";
+        placeToAddName = "Mewar Royal Leather & Jutti Craft Studio (Ramesh Chandra)";
+      } else if (["ambrai", "ghat", "bagore", "haveli", "gangaur"].some((k) => msgLower.includes(k))) {
+        placeToAddId = "place_bagore_haveli";
+        placeToAddName = "Bagore Ki Haveli & Waterfront";
+      } else if (["pottery", "clay", "kavita"].some((k) => msgLower.includes(k))) {
+        placeToAddId = "place_pottery_studio";
+        placeToAddName = "Kavita Terracotta Pottery & Clay Studio";
+      } else if (["miniature", "painting", "mohanlal", "pichwai"].some((k) => msgLower.includes(k))) {
+        placeToAddId = "place_mohanlal_studio";
+        placeToAddName = "Master Mohanlal Miniature Art Studio";
+      }
+
+      const wantsSkip = ["skip", "drop", "tired", "remove", "replace"].some((k) => msgLower.includes(k));
+      const stopToSkip = wantsSkip && pending.length > 0 ? pending[0] : null;
+
+      const ops: ReplanOperation[] = [];
+      if (stopToSkip) {
+        ops.push({ type: "skip_stop", stop_id: stopToSkip.id });
+      }
+      const newOrder = stopToSkip ? stopToSkip.sequence_in_day : (pending.length > 0 ? pending[0].sequence_in_day : stops.length + 1);
+      ops.push({ type: "add_stop", place_id: placeToAddId, new_order: newOrder });
+
       const proposal = await requestReplanPreview(ops);
 
+      const narrative = stopToSkip
+        ? `Khamma Ghani! ${ackText}I completely understand wanting a gentler pace. I've prepared a proposal to skip ${stopToSkip.name} and guide you toward ${placeToAddName}. Review the proposal below and tap 'Accept' to update to Revision ${revision + 1}.`
+        : `Khamma Ghani! ${ackText}I would be delighted to weave ${placeToAddName} into your itinerary! Review the proposal card below and tap 'Accept' to update your active route to Revision ${revision + 1}.`;
+
       return {
-        response_narrative: `Khamma Ghani! ${ackText}I completely understand wanting a gentler pace. I've prepared a proposal to skip ${stopToSkip.name} and guide you toward Sukhadia Circle for lakeside evening tea. Review the proposal below and tap 'Accept' to update to Revision ${revision + 1}.`,
+        response_narrative: narrative,
         replan_proposal: proposal,
         acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
       };
     }
 
+    if (["fatehsagar", "fateh sagar", "fateh"].some((k) => msgLower.includes(k))) {
+      return {
+        response_narrative: `Khamma Ghani! ${ackText}Fateh Sagar Lake is delightful for an afternoon or evening walk! Here are my favorite local spots there:\n\n1. **Fateh Sagar Paal (Bombay Market)**: Stroll along the promenade for famous kulhad chai, cold coffee, and roasted bhutta.\n2. **Nehru Park**: Hop on the boat from the jetty to reach the island garden in the center of the lake.\n3. **Rani Road Cafes**: Scenic cafes overlooking the water away from the city buzz.\n4. **Sukhadia Circle**: Just 5 minutes away, vibrant kiosks for pav bhaji and rabdi falooda!\n\nWould you like me to propose adding a stop near Fateh Sagar to your route?`,
+        replan_proposal: null,
+        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
+      };
+    }
+
+    if (["lakeside", "restaurant", "dining", "dinner", "lunch", "eat", "food", "cafe", "rooftop"].some((k) => msgLower.includes(k))) {
+      return {
+        response_narrative: `Khamma Ghani! ${ackText}For authentic lakeside dining and atmospheric views in Udaipur, I highly recommend:\n\n1. **Ambrai Restaurant (Amet Haveli)**: Waterfront dining with prime views of illuminated City Palace and Jag Mandir.\n2. **Upre by 1559 AD**: Romantic rooftop cabanas overlooking Lake Pichola with delectable Mewari curries.\n3. **Jheel's Ginger Coffee Bar & Bakery**: Relaxed lakeside cafe right on Gangaur Ghat for morning espresso or sunset views.\n4. **Sukhadia Circle Street Food**: Bustling evening kiosks around the illuminated fountain.\n\nLet me know if you would like me to propose adding any of these venues to your active itinerary!`,
+        replan_proposal: null,
+        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
+      };
+    }
+
     return {
-      response_narrative: `Khamma Ghani! ${ackText}I am keeping an eye on your journey through Udaipur (currently on Revision ${revision}). Ask me anytime to skip stops, discover Mewar craft masterclasses, or find nearby rooftop cafes!`,
+      response_narrative: `Khamma Ghani! ${ackText}I am keeping an eye on your journey through Udaipur (currently on Revision ${revision}). Feel free to ask me about lakeside dining, Fateh Sagar cafes, sunset vantage points, or verified Mewar artisan workshops in Jagdish Chowk!`,
       replan_proposal: null,
       acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
     };
