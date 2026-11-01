@@ -112,7 +112,7 @@ const CRAFT_SAMPLE_PHOTOS = [
   },
   {
     label: "चमड़े की मोजड़ी (Leather Craft)",
-    url: "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+    url: "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
   },
 ];
 
