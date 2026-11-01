@@ -432,7 +432,8 @@ async def get_trip(
                         p.latitude,
                         p.longitude,
                         p.category,
-                        p.entry_fee_inr
+                        p.entry_fee_inr,
+                        p.image_url AS place_image_url
                     FROM trip_stops s
                     LEFT JOIN places p ON s.place_id = p.id
                     WHERE s.itinerary_version_id = :vid
@@ -451,7 +452,7 @@ async def get_trip(
                     longitude=float(s.longitude) if s.longitude is not None else None,
                     category=s.category,
                     entry_fee_inr=float(s.entry_fee_inr) if s.entry_fee_inr is not None else 0.0,
-                    image_url=PLACE_IMAGE_MAP.get(s.place_id, DEFAULT_PLACE_IMAGE),
+                    image_url=getattr(s, "place_image_url", None) or PLACE_IMAGE_MAP.get(s.place_id, DEFAULT_PLACE_IMAGE),
                     day_number=s.day_number,
                     sequence_in_day=s.sequence_in_day,
                     planned_arrival=s.planned_arrival,

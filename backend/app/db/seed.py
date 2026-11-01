@@ -3,6 +3,7 @@ Seed data script for TrailWeave MVP.
 Populates verified Udaipur places, artisans, initial community trails, and the demo active trip into Supabase PostgreSQL.
 """
 import asyncio
+import json
 import os
 import sys
 from datetime import time, datetime, timezone
@@ -16,6 +17,7 @@ if backend_dir not in sys.path:
 
 from sqlalchemy import text
 from app.core.database import engine
+from app.core.security import hash_pin
 
 PLACES_SEED: List[Dict[str, Any]] = [
     {
@@ -29,6 +31,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 120,
         "opening_time": time(9, 0),
         "closing_time": time(17, 30),
+        "image_url": "https://images.unsplash.com/photo-1615836245337-f5b9b2303f10?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -42,6 +45,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 30,
         "opening_time": time(5, 0),
         "closing_time": time(22, 0),
+        "image_url": "https://images.pexels.com/photos/15534239/pexels-photo-15534239.jpeg?auto=compress&cs=tinysrgb&w=900",
         "data_status": "verified"
     },
     {
@@ -55,6 +59,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 60,
         "opening_time": time(9, 0),
         "closing_time": time(19, 0),
+        "image_url": "https://images.unsplash.com/photo-1651306614297-9c1301ad460e?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -68,6 +73,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 90,
         "opening_time": time(10, 0),
         "closing_time": time(20, 0),
+        "image_url": "https://images.unsplash.com/photo-1722080711528-095791cd14d4?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -81,6 +87,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 45,
         "opening_time": time(17, 0),
         "closing_time": time(23, 0),
+        "image_url": "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -94,6 +101,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 45,
         "opening_time": time(10, 0),
         "closing_time": time(20, 0),
+        "image_url": "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -107,6 +115,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 45,
         "opening_time": time(9, 30),
         "closing_time": time(19, 30),
+        "image_url": "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -120,6 +129,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 45,
         "opening_time": time(10, 0),
         "closing_time": time(19, 0),
+        "image_url": "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
         "data_status": "verified"
     },
     {
@@ -133,6 +143,7 @@ PLACES_SEED: List[Dict[str, Any]] = [
         "typical_duration_minutes": 25,
         "opening_time": time(10, 30),
         "closing_time": time(20, 30),
+        "image_url": "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
         "data_status": "verified"
     }
 ]
@@ -144,7 +155,12 @@ ARTISANS_SEED: List[Dict[str, Any]] = [
         "artisan_name": "Master Mohanlal Sharma",
         "craft_type": "Pichwai & Miniature Painting",
         "phone_number": "+919829012345",
+        "pin_hash": hash_pin("1234"),
         "bio": "4th generation Udaipur miniature artist specializing in natural stone pigments and squirrel-hair brushes.",
+        "catalogue_images": json.dumps([
+            "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=900&q=80",
+            "https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=900&q=80",
+        ]),
         "has_workshop": True,
         "workshop_fee_inr": 300,
         "workshop_duration_minutes": 45,
@@ -157,7 +173,12 @@ ARTISANS_SEED: List[Dict[str, Any]] = [
         "artisan_name": "Master Kavita Kumhar",
         "craft_type": "Terracotta Pottery & Clay Sculpting",
         "phone_number": "+919829023456",
+        "pin_hash": hash_pin("1234"),
         "bio": "Renowned Mewar potter crafting heritage earthenware and terracotta votive plaques.",
+        "catalogue_images": json.dumps([
+            "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=80",
+            "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=900&q=80",
+        ]),
         "has_workshop": True,
         "workshop_fee_inr": 250,
         "workshop_duration_minutes": 45,
@@ -170,7 +191,11 @@ ARTISANS_SEED: List[Dict[str, Any]] = [
         "artisan_name": "Babu Bhatt Puppeteer",
         "craft_type": "Kathputli Traditional String Puppetry",
         "phone_number": "+919829034567",
+        "pin_hash": hash_pin("1234"),
         "bio": "Master puppeteer preserving 1,000-year-old Rajasthani wooden string puppet theater traditions.",
+        "catalogue_images": json.dumps([
+            "https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=900&q=80",
+        ]),
         "has_workshop": True,
         "workshop_fee_inr": 200,
         "workshop_duration_minutes": 45,
@@ -183,7 +208,11 @@ ARTISANS_SEED: List[Dict[str, Any]] = [
         "artisan_name": "Ramesh Chandra Parmar",
         "craft_type": "Handcrafted Camel Leather & Mojari Juttis",
         "phone_number": "+919829045678",
+        "pin_hash": hash_pin("1234"),
         "bio": "Heritage cobbler and artisan crafting durable vegetable-tanned camel leather juttis with silk embroidery.",
+        "catalogue_images": json.dumps([
+            "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
+        ]),
         "has_workshop": False,
         "workshop_fee_inr": 0,
         "workshop_duration_minutes": 20,
@@ -366,14 +395,46 @@ DEMO_TRIP_STOPS_SEED: List[Dict[str, Any]] = [
         "place_id": "place_bagore_haveli",
         "day_number": 1,
         "sequence_in_day": 4,
-        "planned_arrival": datetime(2026, 10, 31, 13, 30, tzinfo=timezone.utc),
-        "planned_departure": datetime(2026, 10, 31, 15, 0, tzinfo=timezone.utc),
+        "planned_arrival": datetime(2026, 10, 31, 13, 15, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 14, 45, tzinfo=timezone.utc),
         "suggested_duration_minutes": 90,
         "actual_duration_minutes": None,
         "is_pinned": False,
         "visit_status": "pending",
         "source_attribution": "Old City Evening Heritage Walk",
         "private_notes": "Walk via Gangaur Ghat lakeside lane"
+    },
+    {
+        "id": "stop_sb",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_saheliyon_bari",
+        "day_number": 1,
+        "sequence_in_day": 5,
+        "planned_arrival": datetime(2026, 10, 31, 15, 15, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 16, 15, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 60,
+        "actual_duration_minutes": None,
+        "is_pinned": False,
+        "visit_status": "pending",
+        "source_attribution": "Udaipur Royal Palaces & Crafts",
+        "private_notes": "Fountain gardens and marble lotus kiosks"
+    },
+    {
+        "id": "stop_sc",
+        "trip_id": "trip_demo_udaipur",
+        "itinerary_version_id": "ver_demo_1",
+        "place_id": "place_sukhadia_circle",
+        "day_number": 1,
+        "sequence_in_day": 6,
+        "planned_arrival": datetime(2026, 10, 31, 17, 0, tzinfo=timezone.utc),
+        "planned_departure": datetime(2026, 10, 31, 18, 0, tzinfo=timezone.utc),
+        "suggested_duration_minutes": 60,
+        "actual_duration_minutes": None,
+        "is_pinned": False,
+        "visit_status": "pending",
+        "source_attribution": "Old City Evening Heritage Walk",
+        "private_notes": "Evening street food and kulhad chai"
     }
 ]
 
@@ -383,16 +444,20 @@ async def seed_database() -> None:
     print("🌱 Starting TrailWeave database seeding...")
 
     async with engine.begin() as conn:
+        await conn.execute(text("ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT"))
+        await conn.execute(text("ALTER TABLE artisans ADD COLUMN IF NOT EXISTS pin_hash TEXT"))
+        await conn.execute(text("ALTER TABLE artisans ADD COLUMN IF NOT EXISTS catalogue_images JSONB DEFAULT '[]'::jsonb"))
+
         # 1. Seed Places
         for p in PLACES_SEED:
             await conn.execute(
                 text("""
                     INSERT INTO places (
                         id, name, category, latitude, longitude, address,
-                        entry_fee_inr, typical_duration_minutes, opening_time, closing_time, data_status
+                        entry_fee_inr, typical_duration_minutes, opening_time, closing_time, image_url, data_status
                     ) VALUES (
                         :id, :name, :category, :latitude, :longitude, :address,
-                        :entry_fee_inr, :typical_duration_minutes, :opening_time, :closing_time, :data_status
+                        :entry_fee_inr, :typical_duration_minutes, :opening_time, :closing_time, :image_url, :data_status
                     )
                     ON CONFLICT (id) DO UPDATE SET
                         name = EXCLUDED.name,
@@ -404,6 +469,7 @@ async def seed_database() -> None:
                         typical_duration_minutes = EXCLUDED.typical_duration_minutes,
                         opening_time = EXCLUDED.opening_time,
                         closing_time = EXCLUDED.closing_time,
+                        image_url = EXCLUDED.image_url,
                         data_status = EXCLUDED.data_status;
                 """),
                 p
@@ -415,12 +481,12 @@ async def seed_database() -> None:
             await conn.execute(
                 text("""
                     INSERT INTO artisans (
-                        id, place_id, artisan_name, craft_type, phone_number,
-                        bio, has_workshop, workshop_fee_inr, workshop_duration_minutes,
+                        id, place_id, artisan_name, craft_type, phone_number, pin_hash,
+                        bio, catalogue_images, has_workshop, workshop_fee_inr, workshop_duration_minutes,
                         workshop_description, profile_status
                     ) VALUES (
-                        :id, :place_id, :artisan_name, :craft_type, :phone_number,
-                        :bio, :has_workshop, :workshop_fee_inr, :workshop_duration_minutes,
+                        :id, :place_id, :artisan_name, :craft_type, :phone_number, :pin_hash,
+                        :bio, CAST(:catalogue_images AS jsonb), :has_workshop, :workshop_fee_inr, :workshop_duration_minutes,
                         :workshop_description, :profile_status
                     )
                     ON CONFLICT (id) DO UPDATE SET
@@ -428,7 +494,9 @@ async def seed_database() -> None:
                         artisan_name = EXCLUDED.artisan_name,
                         craft_type = EXCLUDED.craft_type,
                         phone_number = EXCLUDED.phone_number,
+                        pin_hash = COALESCE(artisans.pin_hash, EXCLUDED.pin_hash),
                         bio = EXCLUDED.bio,
+                        catalogue_images = EXCLUDED.catalogue_images,
                         has_workshop = EXCLUDED.has_workshop,
                         workshop_fee_inr = EXCLUDED.workshop_fee_inr,
                         workshop_duration_minutes = EXCLUDED.workshop_duration_minutes,
@@ -493,12 +561,14 @@ async def seed_database() -> None:
                     budget_inr, budget_mode, artisan_preference, revision,
                     current_itinerary_version_id, status
                 ) VALUES (
-                    'trip_demo_udaipur', 'user_demo_raghav', 'My Udaipur Cultural Journey',
+                    'trip_demo_udaipur', 'user_demo_raghav', 'Udaipur Living Heritage & Crafts Walk',
                     'Udaipur', 'single_day', 1, 1500, 'total', 'both', 1,
                     'ver_demo_1', 'in_progress'
                 )
                 ON CONFLICT (id) DO UPDATE SET
-                    current_itinerary_version_id = COALESCE(trips.current_itinerary_version_id, 'ver_demo_1'),
+                    title = 'Udaipur Living Heritage & Crafts Walk',
+                    revision = 1,
+                    current_itinerary_version_id = 'ver_demo_1',
                     status = 'in_progress';
             """)
         )
@@ -508,10 +578,17 @@ async def seed_database() -> None:
                 INSERT INTO itinerary_versions (
                     id, trip_id, version_number, total_estimated_cost_inr, total_estimated_duration_minutes
                 ) VALUES (
-                    'ver_demo_1', 'trip_demo_udaipur', 1, 730, 285
+                    'ver_demo_1', 'trip_demo_udaipur', 1, 780, 405
                 )
-                ON CONFLICT (id) DO NOTHING;
+                ON CONFLICT (id) DO UPDATE SET
+                    version_number = 1,
+                    total_estimated_cost_inr = 780,
+                    total_estimated_duration_minutes = 405;
             """)
+        )
+
+        await conn.execute(
+            text("DELETE FROM trip_stops WHERE trip_id = 'trip_demo_udaipur'")
         )
 
         for ts in DEMO_TRIP_STOPS_SEED:
@@ -527,9 +604,19 @@ async def seed_database() -> None:
                         :actual_duration_minutes, :is_pinned, :visit_status, :source_attribution, :private_notes
                     )
                     ON CONFLICT (id) DO UPDATE SET
+                        trip_id = EXCLUDED.trip_id,
+                        itinerary_version_id = EXCLUDED.itinerary_version_id,
+                        place_id = EXCLUDED.place_id,
+                        day_number = EXCLUDED.day_number,
+                        sequence_in_day = EXCLUDED.sequence_in_day,
                         planned_arrival = EXCLUDED.planned_arrival,
                         planned_departure = EXCLUDED.planned_departure,
-                        suggested_duration_minutes = EXCLUDED.suggested_duration_minutes;
+                        suggested_duration_minutes = EXCLUDED.suggested_duration_minutes,
+                        actual_duration_minutes = EXCLUDED.actual_duration_minutes,
+                        is_pinned = EXCLUDED.is_pinned,
+                        visit_status = EXCLUDED.visit_status,
+                        source_attribution = EXCLUDED.source_attribution,
+                        private_notes = EXCLUDED.private_notes;
                 """),
                 ts
             )

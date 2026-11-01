@@ -60,6 +60,7 @@ async def _fetch_trip_active_stops(
                 p.typical_duration_minutes,
                 p.opening_time,
                 p.closing_time,
+                p.image_url,
                 COALESCE(BOOL_OR(a.has_workshop), FALSE) AS has_workshop,
                 COALESCE(MIN(a.workshop_fee_inr) FILTER (WHERE a.has_workshop), 0) AS workshop_fee_inr,
                 COALESCE(MIN(a.workshop_duration_minutes) FILTER (WHERE a.has_workshop), 45) AS workshop_duration_minutes
@@ -73,7 +74,7 @@ async def _fetch_trip_active_stops(
                 s.suggested_duration_minutes, s.actual_duration_minutes, s.is_pinned,
                 s.visit_status, s.source_attribution, s.private_notes, p.name,
                 p.address, p.latitude, p.longitude, p.category, p.entry_fee_inr,
-                p.typical_duration_minutes, p.opening_time, p.closing_time
+                p.typical_duration_minutes, p.opening_time, p.closing_time, p.image_url
             ORDER BY s.day_number, s.sequence_in_day
         """),
         {"trip_id": trip_id, "vid": version_id},
@@ -108,7 +109,7 @@ async def _fetch_trip_active_stops(
             "has_workshop": r.has_workshop,
             "workshop_fee_inr": float(r.workshop_fee_inr or 0.0),
             "workshop_duration_minutes": int(r.workshop_duration_minutes or 45),
-            "image_url": PLACE_IMAGE_MAP.get(r.place_id, DEFAULT_PLACE_IMAGE),
+            "image_url": getattr(r, "image_url", None) or PLACE_IMAGE_MAP.get(r.place_id, DEFAULT_PLACE_IMAGE),
         })
     return stops
 

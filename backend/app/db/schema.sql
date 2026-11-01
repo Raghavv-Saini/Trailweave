@@ -19,9 +19,12 @@ CREATE TABLE IF NOT EXISTS places (
     typical_duration_minutes INT DEFAULT 45,
     opening_time TIME,
     closing_time TIME,
+    image_url TEXT,
     data_status TEXT DEFAULT 'verified', -- 'verified', 'reported', 'estimated', 'demo_simulated'
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE places ADD COLUMN IF NOT EXISTS image_url TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_places_geom ON places USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_places_category ON places (category);
