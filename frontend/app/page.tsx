@@ -232,7 +232,7 @@ export default function TouristHomePage() {
               </p>
             </div>
             <div className="flex items-center text-xs font-bold text-[#1E3A5F] gap-1 pt-1">
-              <span>Open Community Trails (/trails)</span>
+              <span>Explore Community Trails</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
@@ -254,7 +254,7 @@ export default function TouristHomePage() {
               </p>
             </div>
             <div className="flex items-center text-xs font-bold text-[#9E7432] gap-1 pt-1">
-              <span>Explore Artisan Directory (/artisans)</span>
+              <span>Explore Artisan Directory</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>
@@ -276,7 +276,7 @@ export default function TouristHomePage() {
               </p>
             </div>
             <div className="flex items-center text-xs font-bold text-emerald-800 gap-1 pt-1">
-              <span>Go to My Active Trip (/trip)</span>
+              <span>Go to Active Trip</span>
               <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
           </Link>

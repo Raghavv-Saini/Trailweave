@@ -398,7 +398,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         const updated = recalculateTimelineSchedule(prev, mode);
         try {
           localStorage.setItem(
-            "trailweave_active_trip_v2",
+            "trailweave_active_trip_v3",
             JSON.stringify({
               tripId,
               tripTitle,

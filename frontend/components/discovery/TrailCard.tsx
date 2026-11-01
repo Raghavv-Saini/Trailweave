@@ -10,6 +10,44 @@ interface TrailCardProps {
   onUseAsBase?: (trail: MockTrail) => void;
 }
 
+function getTagStyle(tag: string): { label: string; className: string } {
+  const normalized = tag.toLowerCase().trim();
+  switch (normalized) {
+    case "heritage":
+      return {
+        label: "Heritage",
+        className: "bg-[#9E7432]/10 text-[#9E7432] border border-[#9E7432]/25",
+      };
+    case "artisan":
+      return {
+        label: "Artisan Craft",
+        className: "bg-[#1E3A5F]/10 text-[#1E3A5F] border border-[#1E3A5F]/20",
+      };
+    case "walking":
+      return {
+        label: "Walking Route",
+        className: "bg-emerald-50 text-emerald-800 border border-emerald-200/70",
+      };
+    case "food":
+      return {
+        label: "Local Food",
+        className: "bg-[#FAF8F5] text-[#7A746B] border border-[#E8E4DC]",
+      };
+    case "evening":
+      return {
+        label: "Sunset / Evening",
+        className: "bg-[#FAF8F5] text-[#7A746B] border border-[#E8E4DC]",
+      };
+    default:
+      return {
+        label:
+          normalized.charAt(0).toUpperCase() +
+          normalized.slice(1).replace("_", " "),
+        className: "bg-[#FAF8F5] text-[#5A544B] border border-[#E8E4DC]",
+      };
+  }
+}
+
 export function TrailCard({ trail, onUseAsBase }: TrailCardProps) {
   return (
     <div className="p-5 rounded-2xl border border-[#E8E4DC] bg-white hover:border-[#1E3A5F]/40 hover:shadow-md transition-all shadow-2xs h-full flex flex-col justify-between space-y-4">
@@ -73,15 +111,18 @@ export function TrailCard({ trail, onUseAsBase }: TrailCardProps) {
 
         {/* Tags */}
         {trail.tags && trail.tags.length > 0 && (
-          <div className="flex items-center gap-1 flex-wrap pt-1">
-            {trail.tags.map((tag) => (
-              <span
-                key={tag}
-                className="text-[10px] font-medium text-[#7A746B] bg-[#F7F4EE] px-2 py-0.5 rounded-md capitalize"
-              >
-                #{tag}
-              </span>
-            ))}
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            {trail.tags.map((tag) => {
+              const { label, className } = getTagStyle(tag);
+              return (
+                <span
+                  key={tag}
+                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${className}`}
+                >
+                  {label}
+                </span>
+              );
+            })}
           </div>
         )}
       </div>
