@@ -177,3 +177,77 @@ async def test_checkout_triggers_transition_push_notification_and_audit_event():
             await session.execute(text("DELETE FROM trips WHERE id = :id"), {"id": trip_id})
             await session.commit()
 
+
+@pytest.mark.asyncio
+async def test_companion_transit_route_confirmation_and_multi_turn_update():
+    """
+    Verifies the multi-turn travel assistant flow:
+    1. Traveler asks to travel from City Palace to Bagore Ki Haveli by auto.
+    2. Companion calculates distance/time/fare via calculate_transit_route and asks for confirmation.
+    3. Traveler confirms ("Yes, please update it in the itinerary") with conversation history.
+    4. Companion updates the travel mode in the itinerary via propose_trip_changes.
+    """
+    transport = ASGITransport(app=app)
+
+    create_payload = {
+        "user_id": "test_transit_confirm_tourist",
+        "title": "Udaipur Transit Test Trip",
+        "start_datetime": "2026-11-01T09:00:00+05:30",
+        "total_days": 1,
+        "budget_inr": 2500,
+        "budget_mode": "total",
+        "travel_mode": "walking",
+        "artisan_preference": "both",
+        "start_location": {
+            "name": "Hotel Swaroop Vilas",
+            "latitude": 24.5854,
+            "longitude": 73.6812,
+        },
+        "place_ids": [
+            "place_city_palace",
+            "place_jagdish_temple",
+            "place_bagore_haveli",
+        ],
+        "optimize_route": False,
+    }
+
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        create_resp = await client.post("/api/trips", json=create_payload)
+        assert create_resp.status_code == 201, create_resp.text
+        trip = create_resp.json()
+        trip_id = trip["id"]
+
+        # Turn 1: User asks to travel from City Palace to Bagore Ki Haveli by auto
+        turn1_msg = "I need to travel from City Palace to Bagore Ki Haveli by auto"
+        resp1 = await client.post(
+            f"/api/trips/{trip_id}/assistant/messages",
+            json={"message": turn1_msg, "history": []},
+        )
+        assert resp1.status_code == 200, resp1.text
+        data1 = resp1.json()
+        narrative1 = data1["response_narrative"]
+        assert len(narrative1) > 15
+        # Should mention auto / minutes / km / fare and NOT give a canned Jagdish Temple dress code reply
+        assert "modest clothing covering shoulders" not in narrative1.lower()
+        assert any(k in narrative1.lower() for k in ["auto", "min", "km", "₹", "bagore"])
+
+        # Turn 2: User confirms ("Yes, please change that in the itinerary")
+        history = [
+            {"role": "user", "text": turn1_msg},
+            {"role": "ai", "text": narrative1},
+        ]
+        turn2_msg = "Yes, please change that in the itinerary now"
+        resp2 = await client.post(
+            f"/api/trips/{trip_id}/assistant/messages",
+            json={"message": turn2_msg, "history": history},
+        )
+        assert resp2.status_code == 200, resp2.text
+        data2 = resp2.json()
+        assert data2["replan_proposal"] is not None or data2["trip_updated"] is True
+
+        # Clean up
+        async with async_session_maker() as session:
+            await session.execute(text("DELETE FROM trips WHERE id = :id"), {"id": trip_id})
+            await session.commit()
+
+

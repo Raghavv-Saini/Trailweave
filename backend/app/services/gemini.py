@@ -1,5 +1,5 @@
 """
-Google GenAI (Gemini Flash) Service & Tool Calling Interface
+Google GenAI (Gemini Flash) Service & Multi-Step Tool Calling Interface
 Used in Track 1 (Trip-to-Trail), Track 3 (Companion), and Track 4 (Hindi Voice Note Admin Brief & Structured Extraction).
 Spec: docs/API_SPEC.md §1.4, §1.5 & §2, ADR 0004, ADR 0005, ADR 0008, ADR 0010
 """
@@ -34,109 +34,333 @@ except ImportError:
 try:
     from app.engine.replan import UnifiedMutationEngine
     from app.schemas.replan import ReplanOperation, ValidationDiff
-    from app.services.planner import StartLocation
+    from app.services.planner import (
+        StartLocation,
+        compute_transit_minutes,
+        haversine_distance_meters,
+    )
 except ImportError:
     UnifiedMutationEngine = None  # type: ignore
     ReplanOperation = None  # type: ignore
     ValidationDiff = None  # type: ignore
     StartLocation = None  # type: ignore
+    compute_transit_minutes = None  # type: ignore
+    haversine_distance_meters = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
-COMPANION_SYSTEM_PROMPT = """
-You are the TrailWeave AI Travel Companion, a warm, knowledgeable, and cultured travel connoisseur intimately familiar with Udaipur ("The Cultured Local Friend").
-You speak with cultural warmth and genuine Rajasthani hospitality (always greeting with "Khamma Ghani!" or "Namaste").
-You know Udaipur inside out:
-- Lake Pichola, Gangaur Ghat, Ambrai Ghat, City Palace, Jagdish Temple, Jagdish Chowk alleys.
-- Fateh Sagar Lake: Fateh Sagar Paal promenade (Bombay Market stalls for hot kulhad chai and cold coffee), Nehru Park island boat ride, Rani Road lakeside cafes, Sukhadia Circle street food.
-- Verified artisan studios: Master Mohanlal (Pichwai & Miniature Painting in Jagdish Chowk), Kavita Kumhar (Mewar Terracotta Pottery on Chandpole Ghat Road), Babu Bhatt (Kathputli Traditional String Puppetry), Ramesh Chandra (Camel Leather & Juttis in Hathi Pole).
-- Lakeside dining & rooftop restaurants: Upre by 1559 AD, Ambrai Restaurant at Gangaur Ghat, Tribute, Jheel's Ginger Coffee Bar & Bakery, Raas Leela.
-- Local customs: shoe drop-offs at temples, conservative attire covering shoulders and knees, golden sunset hour (5:30-6:30 PM), evening Dharohar dance at Bagore Ki Haveli (7 PM).
-
-OPERATIONAL RULES:
-1. Active itinerary state (current stops, revision number, budget, and recent manual edits) is ALREADY provided in the prompt context.
-2. When the traveler asks for recommendations, options, food, lakeside restaurants, sunset points, cultural etiquette, or local tips (e.g. "Give me options nearby fatehsagar", "Find lakeside restaurant", "What should I wear?"):
-   - Respond with rich, specific, cultured recommendations directly in your text narrative.
-   - Do NOT give generic evasive stock replies. Name authentic Udaipur venues, describe their ambiance, what to order or do, and offer local curator tips!
-3. When the traveler requests itinerary changes (e.g., "skip the fort", "tired, want tea instead", "add pottery workshop", "reorder stops"):
-   - Call the `propose_trip_changes` tool so the Trip Engine can calculate transit and generate a provisional ReplanProposalCard.
-   - In the tool argument `response_narrative`, provide a warm Rajasthani explanation acknowledging prior actions and explaining the change.
-4. Acknowledge prior traveler actions warmly whenever relevant.
-
-CANONICAL PLACE CATALOG (You MUST use these exact place IDs when calling propose_trip_changes):
-- "place_leather_craft": Mewar Royal Leather & Jutti Craft Studio (Ramesh Chandra Parmar in Hathi Pole Bazaar - camel leather juttis & mojari)
-- "place_bagore_haveli": Bagore Ki Haveli (Gangaur Ghat & Ambrai Ghat waterfront on Lake Pichola, evening Dharohar dance)
-- "place_sukhadia_circle": Sukhadia Circle Street Food (Fateh Sagar food hub, Bombay Market tea, pav bhaji, rabdi)
-- "place_mohanlal_studio": Master Mohanlal Miniature Art Studio (14 Jagdish Chowk - Pichwai & stone pigment painting)
-- "place_pottery_studio": Kavita Terracotta Pottery & Clay Studio (Chandpole Ghat Road - wheel throwing & terracotta sculpting)
-- "place_puppetry_workshop": Udaipur Traditional Kathputli Puppetry Workshop (Gangaur Ghat Road - wooden string puppet theater)
-- "place_city_palace": City Palace Udaipur (heritage)
-- "place_jagdish_temple": Jagdish Temple (heritage)
-- "place_saheliyon_bari": Saheliyon Ki Bari (attraction)
-
-When proposing to add Ramesh Chandra's leather studio or Hathi Pole, you MUST pass place_id="place_leather_craft".
-When proposing to add Ambrai Ghat or Bagore Ki Haveli, you MUST pass place_id="place_bagore_haveli".
-"""
-
-def normalize_place_id(place_id: Optional[str], context_text: str = "") -> str:
-    """
-    Normalizes a place_id or text mention to canonical place IDs in the PostgreSQL catalog.
-    """
-    combined = f"{place_id or ''} {context_text or ''}".lower()
-    if any(k in combined for k in ["leather", "jutti", "ramesh", "chandra", "parmar", "mojari", "hathi pole", "hathipole"]):
-        return "place_leather_craft"
-    if any(k in combined for k in ["ambrai", "ghat", "bagore", "haveli", "gangaur", "dharohar"]):
-        return "place_bagore_haveli"
-    if any(k in combined for k in ["mohanlal", "miniature", "pichwai", "sharma"]):
-        return "place_mohanlal_studio"
-    if any(k in combined for k in ["pottery", "clay", "kavita", "terracotta", "kumhar"]):
-        return "place_pottery_studio"
-    if any(k in combined for k in ["puppet", "kathputli", "babu", "bhatt"]):
-        return "place_puppetry_workshop"
-    if any(k in combined for k in ["sukhadia", "circle", "fatehsagar", "fateh sagar", "snack", "chaat", "tea", "chai", "coffee", "bombay market"]):
-        return "place_sukhadia_circle"
-    if any(k in combined for k in ["saheli", "bari"]):
-        return "place_saheliyon_bari"
-    if any(k in combined for k in ["jagdish", "temple", "mandir"]):
-        return "place_jagdish_temple"
-    if any(k in combined for k in ["city palace", "palace"]):
-        return "place_city_palace"
-
-    valid_ids = {
-        "place_city_palace", "place_jagdish_temple", "place_saheliyon_bari",
-        "place_bagore_haveli", "place_sukhadia_circle", "place_mohanlal_studio",
-        "place_pottery_studio", "place_puppetry_workshop", "place_leather_craft"
-    }
-    if place_id in valid_ids:
-        return place_id
-    return "place_sukhadia_circle"
-
-
-PRIMARY_GEMINI_MODEL = "gemini-3.1-flash-lite"
+PRIMARY_GEMINI_MODEL = "gemini-3-flash-preview"
 FALLBACK_GEMINI_MODEL = "gemini-3.5-flash"
+FALLBACK_GEMINI_MODELS = [
+    "gemini-3-flash-preview",
+    "gemini-3.5-flash",
+    "gemini-flash-lite-latest",
+    "gemini-3.1-flash-lite",
+]
+
+# Comprehensive Udaipur Gazetteer for accurate coordinates, categories, and custom stop creation
+UDAIPUR_GAZETTEER: Dict[str, Dict[str, Any]] = {
+    "place_city_palace": {
+        "id": "place_city_palace",
+        "name": "City Palace Udaipur",
+        "category": "heritage",
+        "latitude": 24.5764,
+        "longitude": 73.6835,
+        "address": "Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 330.0,
+        "typical_duration_minutes": 120,
+        "keywords": ["city palace", "badi pol", "royal palace"],
+    },
+    "place_jagdish_temple": {
+        "id": "place_jagdish_temple",
+        "name": "Jagdish Temple",
+        "category": "heritage",
+        "latitude": 24.5794,
+        "longitude": 73.6841,
+        "address": "1 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 30,
+        "keywords": ["jagdish temple", "jagdish mandir"],
+    },
+    "place_bagore_haveli": {
+        "id": "place_bagore_haveli",
+        "name": "Bagore Ki Haveli",
+        "category": "heritage",
+        "latitude": 24.5798,
+        "longitude": 73.6800,
+        "address": "Gangaur Ghat Marg, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 100.0,
+        "typical_duration_minutes": 90,
+        "keywords": ["bagore ki haveli", "bagore haveli", "gangaur ghat", "dharohar"],
+    },
+    "place_saheliyon_bari": {
+        "id": "place_saheliyon_bari",
+        "name": "Saheliyon Ki Bari",
+        "category": "attraction",
+        "latitude": 24.6019,
+        "longitude": 73.6853,
+        "address": "Saheli Marg, New Vidhya Nagar, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 50.0,
+        "typical_duration_minutes": 60,
+        "keywords": ["saheliyon ki bari", "saheliyon", "fountain garden"],
+    },
+    "place_sukhadia_circle": {
+        "id": "place_sukhadia_circle",
+        "name": "Sukhadia Circle Street Food",
+        "category": "dining",
+        "latitude": 24.6035,
+        "longitude": 73.6885,
+        "address": "Sukhadia Circle, Panchwati, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["sukhadia circle", "sukhadia"],
+    },
+    "place_mohanlal_studio": {
+        "id": "place_mohanlal_studio",
+        "name": "Master Mohanlal Miniature Art Studio",
+        "category": "artisan_studio",
+        "latitude": 24.5796,
+        "longitude": 73.6844,
+        "address": "14 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["mohanlal", "miniature", "pichwai"],
+    },
+    "place_pottery_studio": {
+        "id": "place_pottery_studio",
+        "name": "Kavita Terracotta Pottery & Clay Studio",
+        "category": "artisan_studio",
+        "latitude": 24.5815,
+        "longitude": 73.6820,
+        "address": "22 Chandpole Ghat Road, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["kavita", "pottery", "terracotta", "clay studio"],
+    },
+    "place_puppetry_workshop": {
+        "id": "place_puppetry_workshop",
+        "name": "Udaipur Traditional Kathputli Puppetry Workshop",
+        "category": "artisan_studio",
+        "latitude": 24.5788,
+        "longitude": 73.6815,
+        "address": "Gangaur Ghat Road, Old City, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["puppet", "kathputli", "babu bhatt"],
+    },
+    "place_leather_craft": {
+        "id": "place_leather_craft",
+        "name": "Mewar Royal Leather & Jutti Craft Studio",
+        "category": "artisan_studio",
+        "latitude": 24.5840,
+        "longitude": 73.6865,
+        "address": "Hathi Pole Bazaar, Udaipur, Rajasthan 313001",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 30,
+        "keywords": ["ramesh chandra", "leather", "jutti", "mojari", "hathi pole", "hathipole"],
+    },
+    "place_custom_ambrai_ghat": {
+        "id": "place_custom_ambrai_ghat",
+        "name": "Ambrai Ghat & Lakeside Waterfront",
+        "category": "attraction",
+        "latitude": 24.5789,
+        "longitude": 73.6791,
+        "address": "Chandpole Maji Ka Mandir, Pichola, Udaipur",
+        "entry_fee_inr": 20.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["ambrai ghat", "hanuman ghat"],
+    },
+    "place_custom_ambrai_restaurant": {
+        "id": "place_custom_ambrai_restaurant",
+        "name": "Ambrai Restaurant (Amet Haveli)",
+        "category": "dining",
+        "latitude": 24.5790,
+        "longitude": 73.6790,
+        "address": "Outside Chandpole, Naga Nagri, Udaipur",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 75,
+        "keywords": ["ambrai restaurant", "amet haveli"],
+    },
+    "place_custom_upre": {
+        "id": "place_custom_upre",
+        "name": "Upre by 1559 AD Rooftop Lounge",
+        "category": "dining",
+        "latitude": 24.5782,
+        "longitude": 73.6795,
+        "address": "Lake Pichola Hotel, Outside Chandpole, Udaipur",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 75,
+        "keywords": ["upre", "1559 ad"],
+    },
+    "place_custom_jheels_cafe": {
+        "id": "place_custom_jheels_cafe",
+        "name": "Jheel's Ginger Coffee Bar & Bakery",
+        "category": "dining",
+        "latitude": 24.5797,
+        "longitude": 73.6803,
+        "address": "52 Gangaur Ghat Marg, Old City, Udaipur",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+        "keywords": ["jheel", "ginger coffee", "rooftop tea", "rooftop cafe", "tea shop", "coffee bar"],
+    },
+    "place_custom_fateh_sagar": {
+        "id": "place_custom_fateh_sagar",
+        "name": "Fateh Sagar Lake Promenade (Paal & Bombay Market)",
+        "category": "attraction",
+        "latitude": 24.6006,
+        "longitude": 73.6782,
+        "address": "Fateh Sagar Paal, Udaipur, Rajasthan",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 60,
+        "keywords": ["fateh sagar", "fatehsagar", "bombay market", "nehru park"],
+    },
+    "place_custom_monsoon_palace": {
+        "id": "place_custom_monsoon_palace",
+        "name": "Sajjangarh Monsoon Palace",
+        "category": "heritage",
+        "latitude": 24.5937,
+        "longitude": 73.6396,
+        "address": "Sajjangarh Sanctuary, Udaipur, Rajasthan",
+        "entry_fee_inr": 165.0,
+        "typical_duration_minutes": 90,
+        "keywords": ["sajjangarh", "monsoon palace"],
+    },
+    "place_custom_karni_mata": {
+        "id": "place_custom_karni_mata",
+        "name": "Shri Manshapurna Karni Mata Temple & Ropeway",
+        "category": "attraction",
+        "latitude": 24.5625,
+        "longitude": 73.6852,
+        "address": "Doodh Talai, Pichola, Udaipur",
+        "entry_fee_inr": 150.0,
+        "typical_duration_minutes": 60,
+        "keywords": ["karni mata", "doodh talai", "ropeway"],
+    },
+    "place_custom_badi_lake": {
+        "id": "place_custom_badi_lake",
+        "name": "Badi Lake & Bahubali Hills Viewpoint",
+        "category": "attraction",
+        "latitude": 24.6245,
+        "longitude": 73.6211,
+        "address": "Badi Village, Udaipur, Rajasthan",
+        "entry_fee_inr": 20.0,
+        "typical_duration_minutes": 90,
+        "keywords": ["badi lake", "bahubali hills"],
+    },
+}
+
+
+def resolve_udaipur_place(
+    place_id: Optional[str] = None,
+    name_or_query: Optional[str] = None,
+    stops: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    """
+    Resolves a place_id or place name against active trip stops, UDAIPUR_GAZETTEER,
+    or synthesizes a custom Udaipur place entry without blindly overwriting to Sukhadia Circle.
+    """
+    if place_id and place_id in UDAIPUR_GAZETTEER:
+        return dict(UDAIPUR_GAZETTEER[place_id])
+
+    search_str = f"{place_id or ''} {name_or_query or ''}".strip().lower()
+
+    if stops:
+        for s in stops:
+            s_name = (s.get("name") or "").lower()
+            s_pid = (s.get("place_id") or "").lower()
+            s_id = (s.get("id") or "").lower()
+            if (
+                (place_id and place_id.lower() in (s_pid, s_id))
+                or (s_name and (s_name in search_str or search_str in s_name))
+            ):
+                return {
+                    "id": s.get("place_id") or s.get("id"),
+                    "stop_id": s.get("id"),
+                    "name": s.get("name") or "Stop",
+                    "category": s.get("category") or "attraction",
+                    "latitude": float(s.get("latitude") or 24.5794),
+                    "longitude": float(s.get("longitude") or 73.6841),
+                    "address": s.get("address") or "Udaipur, Rajasthan",
+                    "entry_fee_inr": float(s.get("entry_fee_inr") or 0.0),
+                    "typical_duration_minutes": int(s.get("suggested_duration_minutes") or 45),
+                }
+
+    for pid, meta in UDAIPUR_GAZETTEER.items():
+        if meta["name"].lower() in search_str or any(kw in search_str for kw in meta.get("keywords", [])):
+            return dict(meta)
+
+    clean_title = (name_or_query or place_id or "Custom Udaipur Venue").strip()
+    slug = re.sub(r"[^a-z0-9]+", "_", clean_title.lower()).strip("_")[:24]
+    custom_id = place_id if (place_id and place_id.startswith("place_")) else f"place_custom_{slug or uuid.uuid4().hex[:6]}"
+    cat = "dining" if any(w in search_str for w in ["cafe", "restaurant", "tea", "coffee", "food", "dinner", "lunch", "rooftop"]) else (
+        "artisan_studio" if any(w in search_str for w in ["studio", "workshop", "craft", "art"]) else "attraction"
+    )
+    return {
+        "id": custom_id,
+        "name": clean_title if not clean_title.startswith("place_") else clean_title.replace("place_", "").replace("_", " ").title(),
+        "category": cat,
+        "latitude": 24.5795,
+        "longitude": 73.6825,
+        "address": "Old City / Lakeside, Udaipur, Rajasthan",
+        "entry_fee_inr": 0.0,
+        "typical_duration_minutes": 45,
+    }
+
+
+COMPANION_SYSTEM_PROMPT = """
+You are the TrailWeave AI Travel Companion, an intelligent, logical, and culturally insightful travel assistant for Udaipur ("The Cultured Local Companion").
+You greet warmly ("Khamma Ghani!" or "Namaste") and think like a real human concierge and itinerary planner.
+
+CRITICAL REASONING & BEHAVIORAL RULES:
+1. NEVER give canned, repetitive, or pre-scripted responses. Answer ONLY what the traveler is actually asking about. Do NOT bring up pre-loaded itinerary stops (such as Jagdish Temple shoe rules, Fateh Sagar, or random workshops) unless the traveler asks about them or they are directly affected by a route change.
+2. You have full access to the traveler's live itinerary (stops, arrival/departure times, durations, travel mode, budget, and recent manual edits) and backend tools.
+3. MULTI-STEP LOGICAL THINKING & CONVERSATIONAL CONFIRMATION:
+   - When the traveler mentions wanting to travel from one place to another by a specific transport mode (e.g., "I need to travel from City Palace to Bagore Ki Haveli by auto", "Can we take a cab to Saheliyon Ki Bari?", "How long to walk between stops?"):
+     a) First call `calculate_transit_route` to compute the real distance, transit minutes across walking/auto_rickshaw/cab (powered by Google Routes API), and estimated auto/cab fare in INR.
+     b) If the traveler has NOT confirmed changing the itinerary yet, present the exact transit time, distance, and estimated fare clearly, explain how it affects their stop timings, and ask for confirmation (e.g., "Would you like me to switch that leg / your itinerary to auto-rickshaw and update your schedule?").
+   - When the traveler CONFIRMS a discussed change (e.g., "Yes", "Yes please", "Change it", "Go ahead", "Confirm", "Sure") in a follow-up message:
+     a) Check the conversation history to see what change was just discussed (e.g., changing travel mode to `auto_rickshaw`, adding a stop, skipping a stop, changing duration/time).
+     b) Call `propose_trip_changes` with `auto_commit=True` so the itinerary is immediately updated in the database to the next revision, and confirm to the traveler that their itinerary has been updated!
+   - When the traveler directly requests an immediate itinerary change in a single turn (e.g., "I'm tired, can we skip the haveli and find a rooftop tea shop nearby?", "Add Master Mohanlal studio after lunch", "Spend 60 minutes at Jagdish Temple instead of 30", "Move Bagore Ki Haveli to 5:30 PM", "Remove Saheliyon Ki Bari"):
+     a) Call `propose_trip_changes` (with `auto_commit=False` so an interactive 1-Tap Proposal Card is generated for review, OR `auto_commit=True` if they explicitly say "apply/commit it now").
+     b) If there are recent manual edits in `Recent traveler actions acknowledged`, warmly acknowledge them in your `response_narrative` (e.g. "I see you skipped ... earlier, so I've kept that in mind!").
+4. FULL ITINERARY MANAGEMENT CAPABILITIES:
+   You can manage every aspect of the itinerary via `propose_trip_changes` and `execute_direct_trip_action`:
+   - `update_travel_mode`: Change transit mode (`walking`, `auto_rickshaw`, `cab`) for a specific stop leg (`stop_id`) or the entire trip.
+   - `update_stop_duration`: Change how many minutes (`duration_minutes`) the traveler spends at any stop.
+   - `reschedule_stop`: Change the `planned_arrival_time` (e.g. `"17:30"`) of any stop.
+   - `add_stop`: Add any canonical place from the catalog OR any custom Udaipur restaurant, cafe, ghat, or attraction using `custom_place_name`, `custom_category`, and `duration_minutes`.
+   - `skip_stop` / `remove_stop` / `reorder_stops` / `pin_stop`: Skip, remove, reorder, or pin stops.
+   - `update_budget`: Change the trip's budget cap (`budget_inr`).
+   - `execute_direct_trip_action`: Mark a stop as visited (`mark_visited`) or checked out (`mark_checkout`), or update `artisan_preference` (`workshop`, `store`, `both`).
+"""
 
 
 async def call_gemini_api(
     api_key: str,
     payload: Dict[str, Any],
-    timeout: float = 20.0
+    timeout: float = 18.0
 ) -> Optional[Dict[str, Any]]:
-    """Helper to query Gemini API with model fallback and error resilience."""
+    """Helper to query Gemini API with fast model fallback and error resilience."""
     if not api_key or not httpx:
         return None
-    models = [PRIMARY_GEMINI_MODEL, FALLBACK_GEMINI_MODEL]
-    for model in models:
+
+    for model in FALLBACK_GEMINI_MODELS:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
         try:
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code == 200:
                     return resp.json()
-                elif resp.status_code in (404, 503):
-                    logger.warning("Gemini model %s returned status %d, trying fallback...", model, resp.status_code)
-                    continue
-                else:
-                    logger.warning("Gemini model %s returned unexpected status %d: %s", model, resp.status_code, resp.text[:200])
+                elif resp.status_code == 400 and "thinkingConfig" in json.dumps(payload.get("generationConfig", {})):
+                    clean_payload = dict(payload)
+                    gen_cfg = dict(clean_payload.get("generationConfig", {}))
+                    gen_cfg.pop("thinkingConfig", None)
+                    clean_payload["generationConfig"] = gen_cfg
+                    resp_retry = await client.post(url, json=clean_payload)
+                    if resp_retry.status_code == 200:
+                        return resp_retry.json()
+                logger.warning("Gemini model %s returned status %d, trying next model...", model, resp.status_code)
         except Exception as e:
             logger.warning("Gemini API call failed for %s: %s", model, e)
             continue
@@ -148,13 +372,17 @@ DEMO_TRIP_FALLBACK: Dict[str, Any] = {
     "title": "Udaipur Living Heritage & Crafts Walk",
     "revision": 1,
     "budget_inr": 2500.0,
-    "status": "planned",
+    "travel_mode": "auto_rickshaw",
+    "artisan_preference": "both",
+    "status": "in_progress",
     "stops": [
         {
             "id": "stop_cp",
             "place_id": "place_city_palace",
             "name": "City Palace Udaipur",
             "category": "heritage",
+            "latitude": 24.5764,
+            "longitude": 73.6835,
             "day_number": 1,
             "sequence_in_day": 1,
             "planned_arrival": "2026-10-31T09:30:00Z",
@@ -171,6 +399,8 @@ DEMO_TRIP_FALLBACK: Dict[str, Any] = {
             "place_id": "place_mohanlal_studio",
             "name": "Master Mohanlal Miniature Art Studio",
             "category": "artisan_studio",
+            "latitude": 24.5796,
+            "longitude": 73.6844,
             "day_number": 1,
             "sequence_in_day": 2,
             "planned_arrival": "2026-10-31T11:45:00Z",
@@ -187,6 +417,8 @@ DEMO_TRIP_FALLBACK: Dict[str, Any] = {
             "place_id": "place_jagdish_temple",
             "name": "Jagdish Temple",
             "category": "heritage",
+            "latitude": 24.5794,
+            "longitude": 73.6841,
             "day_number": 1,
             "sequence_in_day": 3,
             "planned_arrival": "2026-10-31T12:35:00Z",
@@ -203,6 +435,8 @@ DEMO_TRIP_FALLBACK: Dict[str, Any] = {
             "place_id": "place_bagore_haveli",
             "name": "Bagore Ki Haveli",
             "category": "heritage",
+            "latitude": 24.5798,
+            "longitude": 73.6800,
             "day_number": 1,
             "sequence_in_day": 4,
             "planned_arrival": "2026-10-31T16:00:00Z",
@@ -221,7 +455,7 @@ DEMO_TRIP_FALLBACK: Dict[str, Any] = {
 GEMINI_TOOL_DECLARATIONS = [
     {
         "name": "get_current_trip",
-        "description": "Fetches the current authoritative trip state, current revision number, active stops, and traveler budget/preference constraints.",
+        "description": "Fetches the current authoritative trip state, current revision number, active stops, travel mode, and traveler budget/preference constraints.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -253,13 +487,13 @@ GEMINI_TOOL_DECLARATIONS = [
     },
     {
         "name": "search_places",
-        "description": "Searches canonical places and verified local artisan studios in Udaipur by keyword, category, or proximity to current coordinates.",
+        "description": "Searches canonical places, restaurants, cafes, lakes, and verified local artisan studios in Udaipur by keyword, category, or fee constraint.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "query": {
                     "type": "STRING",
-                    "description": "Search term, e.g. 'pottery', 'miniature painting', 'rooftop tea', 'dining'."
+                    "description": "Search term, e.g. 'pottery', 'miniature painting', 'rooftop tea', 'lakeside dining', 'Fateh Sagar'."
                 },
                 "category": {
                     "type": "STRING",
@@ -269,64 +503,111 @@ GEMINI_TOOL_DECLARATIONS = [
                 "max_fee_inr": {
                     "type": "INTEGER",
                     "description": "Maximum entry or workshop fee allowed."
-                },
-                "max_detour_minutes": {
-                    "type": "INTEGER",
-                    "description": "Maximum travel detour time in minutes."
                 }
             }
         }
     },
     {
         "name": "get_place_details",
-        "description": "Fetches verified operational details of a specific canonical place or artisan studio, including hours, workshop pricing, and address.",
+        "description": "Fetches verified operational details of a specific canonical place or artisan studio, including hours, workshop pricing, coordinates, and address.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
                 "place_id": {
                     "type": "STRING",
-                    "description": "The unique place identifier."
+                    "description": "The unique place identifier or place name."
                 }
             },
             "required": ["place_id"]
         }
     },
     {
-        "name": "propose_trip_changes",
-        "description": "Submits candidate itinerary modifications to the deterministic Trip Engine and generates a provisional ReplanProposal for tourist preview and approval.",
+        "name": "calculate_transit_route",
+        "description": "Calculates live transit duration, road distance, and estimated fare between two stops or Udaipur locations across walking, auto_rickshaw, and cab using Google Routes API.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
-                "trip_id": {
+                "origin": {
                     "type": "STRING",
-                    "description": "The unique trip identifier."
+                    "description": "Origin stop name, stop_id, or place name (e.g. 'City Palace Udaipur')."
                 },
-                "base_revision": {
-                    "type": "INTEGER",
-                    "description": "The latest trip revision number the AI is proposing changes against."
+                "destination": {
+                    "type": "STRING",
+                    "description": "Destination stop name, stop_id, or place name (e.g. 'Bagore Ki Haveli')."
                 },
+                "preferred_mode": {
+                    "type": "STRING",
+                    "enum": ["walking", "auto_rickshaw", "cab"],
+                    "description": "Requested travel mode to highlight."
+                }
+            },
+            "required": ["origin", "destination"]
+        }
+    },
+    {
+        "name": "propose_trip_changes",
+        "description": "Submits itinerary modifications (add/skip/remove/reorder/pin stops, change travel mode, update stop duration, reschedule stop arrival time, or update budget) to the deterministic Trip Engine.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
                 "operations": {
                     "type": "ARRAY",
-                    "description": "Ordered sequence of candidate operations.",
+                    "description": "Ordered sequence of itinerary operations.",
                     "items": {
                         "type": "OBJECT",
                         "properties": {
                             "type": {
                                 "type": "STRING",
-                                "enum": ["add_stop", "remove_stop", "skip_stop", "reorder_stops", "pin_stop"],
+                                "enum": [
+                                    "add_stop",
+                                    "remove_stop",
+                                    "skip_stop",
+                                    "reorder_stops",
+                                    "pin_stop",
+                                    "update_travel_mode",
+                                    "update_stop_duration",
+                                    "reschedule_stop",
+                                    "update_budget"
+                                ],
                                 "description": "The mutation action to perform."
-                            },
-                            "place_id": {
-                                "type": "STRING",
-                                "description": "Canonical place ID for add_stop operations."
                             },
                             "stop_id": {
                                 "type": "STRING",
-                                "description": "Existing stop ID for skip, remove, or pin operations."
+                                "description": "Target stop ID or stop name for skip, remove, reorder, pin, update_stop_duration, reschedule_stop, or per-leg update_travel_mode."
+                            },
+                            "place_id": {
+                                "type": "STRING",
+                                "description": "Place ID for add_stop (e.g. 'place_city_palace', 'place_bagore_haveli', 'place_mohanlal_studio', 'place_pottery_studio', 'place_puppetry_workshop', 'place_leather_craft', 'place_sukhadia_circle', 'place_saheliyon_bari', or custom ID)."
+                            },
+                            "custom_place_name": {
+                                "type": "STRING",
+                                "description": "Name of the venue if adding a custom restaurant, cafe, or attraction (e.g. 'Ambrai Restaurant', 'Jheel's Ginger Coffee Bar', 'Fateh Sagar Paal')."
+                            },
+                            "custom_category": {
+                                "type": "STRING",
+                                "enum": ["attraction", "heritage", "dining", "artisan_studio"],
+                                "description": "Category for custom added stop."
                             },
                             "new_order": {
                                 "type": "INTEGER",
-                                "description": "Target sequence index within the day."
+                                "description": "Target 1-based sequence index within the day."
+                            },
+                            "travel_mode": {
+                                "type": "STRING",
+                                "enum": ["walking", "auto_rickshaw", "cab"],
+                                "description": "New travel mode for update_travel_mode or add_stop."
+                            },
+                            "duration_minutes": {
+                                "type": "INTEGER",
+                                "description": "New visit duration in minutes for update_stop_duration or add_stop."
+                            },
+                            "planned_arrival_time": {
+                                "type": "STRING",
+                                "description": "New arrival time in HH:MM (24-hour IST, e.g. '17:30') for reschedule_stop or add_stop."
+                            },
+                            "budget_inr": {
+                                "type": "NUMBER",
+                                "description": "New trip budget in INR for update_budget."
                             }
                         },
                         "required": ["type"]
@@ -334,10 +615,38 @@ GEMINI_TOOL_DECLARATIONS = [
                 },
                 "response_narrative": {
                     "type": "STRING",
-                    "description": "Warm, cultured explanation for the traveler with Rajasthani hospitality (Khamma Ghani) and reasoning for this itinerary adaptation."
+                    "description": "Natural, warm explanation for the traveler detailing the itinerary update."
+                },
+                "auto_commit": {
+                    "type": "BOOLEAN",
+                    "description": "Set to true ONLY when the traveler is explicitly confirming a change that was just proposed/discussed in the previous turn (e.g. 'Yes, change it') or explicitly asks to apply immediately."
                 }
             },
-            "required": ["trip_id", "base_revision", "operations"]
+            "required": ["operations", "response_narrative"]
+        }
+    },
+    {
+        "name": "execute_direct_trip_action",
+        "description": "Directly marks a stop as visited (check-in) or checked out, or updates trip-level artisan preferences.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action_type": {
+                    "type": "STRING",
+                    "enum": ["mark_visited", "mark_checkout", "update_artisan_preference"],
+                    "description": "Direct action to execute."
+                },
+                "stop_id": {
+                    "type": "STRING",
+                    "description": "Stop ID or stop name for mark_visited or mark_checkout."
+                },
+                "artisan_preference": {
+                    "type": "STRING",
+                    "enum": ["workshop", "store", "both", "none"],
+                    "description": "New artisan preference when action_type is update_artisan_preference."
+                }
+            },
+            "required": ["action_type"]
         }
     }
 ]
@@ -345,17 +654,153 @@ GEMINI_TOOL_DECLARATIONS = [
 
 class GeminiCompanionService:
     def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or settings.GEMINI_API_KEY
+        self.api_key = api_key if api_key is not None else (os.getenv("GEMINI_API_KEY", "") or settings.GEMINI_API_KEY)
         self.mutation_engine = UnifiedMutationEngine()
 
     async def generate_reply(self, message: str, trip_context: Dict[str, Any]) -> str:
-        """Conversational companion response generation fallback."""
-        return "I can help adjust your itinerary! Would you like me to look for a nearby artisan workshop?"
+        """Conversational companion response generation."""
+        res = await self.process_companion_chat(
+            trip_id=trip_context.get("trip_id", "trip_demo_udaipur"),
+            user_message=message,
+            db=None,
+            client_trip_state=trip_context,
+        )
+        return res.get("response_narrative", "")
 
-    async def execute_get_current_trip(self, trip_id: str, db: Optional[AsyncSession] = None) -> Dict[str, Any]:
-        """Fetch authoritative trip state, current revision, and active stops."""
+    async def ensure_trip_synced(
+        self,
+        trip_id: str,
+        db: Optional[AsyncSession],
+        client_trip_state: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        If the frontend is working on a custom or locally-hydrated trip not yet in PostgreSQL,
+        upserts the trip, version, and stops so tools and replanning operate on real DB rows.
+        """
+        if db is None or not client_trip_state:
+            return
+        try:
+            res = await db.execute(text("SELECT id FROM trips WHERE id = :id"), {"id": trip_id})
+            if res.fetchone():
+                return
+
+            title = client_trip_state.get("title") or "My Udaipur Itinerary"
+            rev = int(client_trip_state.get("revision") or 1)
+            budget = float(client_trip_state.get("budget_inr") or 2500.0)
+            stops = client_trip_state.get("stops") or []
+            ver_id = f"ver_{trip_id}_{rev}"
+
+            await db.execute(
+                text("""
+                    INSERT INTO trips (
+                        id, user_id, title, destination, duration_type, total_days,
+                        budget_inr, budget_mode, artisan_preference, revision,
+                        current_itinerary_version_id, status
+                    ) VALUES (
+                        :id, 'tourist_demo_user', :title, 'Udaipur', 'single_day', 1,
+                        :budget, 'total', 'both', :rev, :vid, 'in_progress'
+                    ) ON CONFLICT (id) DO NOTHING
+                """),
+                {"id": trip_id, "title": title, "budget": budget, "rev": rev, "vid": ver_id},
+            )
+            await db.execute(
+                text("""
+                    INSERT INTO itinerary_versions (
+                        id, trip_id, version_number, total_estimated_cost_inr, total_estimated_duration_minutes
+                    ) VALUES (:vid, :tid, :rev, 0, 240) ON CONFLICT (id) DO NOTHING
+                """),
+                {"vid": ver_id, "tid": trip_id, "rev": rev},
+            )
+            for idx, s in enumerate(stops):
+                pid = s.get("place_id") or f"place_custom_{idx}"
+                await db.execute(
+                    text("""
+                        INSERT INTO places (
+                            id, name, category, latitude, longitude, address,
+                            entry_fee_inr, typical_duration_minutes, data_status
+                        ) VALUES (
+                            :id, :name, :cat, :lat, :lon, :addr, :fee, :dur, 'verified'
+                        ) ON CONFLICT (id) DO NOTHING
+                    """),
+                    {
+                        "id": pid,
+                        "name": s.get("name") or pid,
+                        "cat": s.get("category") or "heritage",
+                        "lat": float(s.get("latitude") or 24.5794),
+                        "lon": float(s.get("longitude") or 73.6841),
+                        "addr": s.get("address") or "Udaipur, Rajasthan",
+                        "fee": float(s.get("entry_fee_inr") or 0.0),
+                        "dur": int(s.get("suggested_duration_minutes") or 45),
+                    },
+                )
+                stop_id = s.get("id") or f"stop_{trip_id}_{idx + 1}"
+                arr_val = s.get("planned_arrival")
+                dep_val = s.get("planned_departure")
+                if isinstance(arr_val, str):
+                    try:
+                        arr_val = datetime.fromisoformat(arr_val.replace("Z", "+00:00"))
+                    except Exception:
+                        arr_val = None
+                if isinstance(dep_val, str):
+                    try:
+                        dep_val = datetime.fromisoformat(dep_val.replace("Z", "+00:00"))
+                    except Exception:
+                        dep_val = None
+
+                await db.execute(
+                    text("""
+                        INSERT INTO trip_stops (
+                            id, trip_id, itinerary_version_id, place_id, day_number,
+                            sequence_in_day, planned_arrival, planned_departure,
+                            suggested_duration_minutes, actual_duration_minutes,
+                            is_pinned, visit_status
+                        ) VALUES (
+                            :id, :tid, :vid, :pid, :day, :seq, :arr, :dep, :dur, :act, :pin, :status
+                        ) ON CONFLICT (id) DO NOTHING
+                    """),
+                    {
+                        "id": stop_id,
+                        "tid": trip_id,
+                        "vid": ver_id,
+                        "pid": pid,
+                        "day": int(s.get("day_number") or 1),
+                        "seq": int(s.get("sequence_in_day") or (idx + 1)),
+                        "arr": arr_val,
+                        "dep": dep_val,
+                        "dur": int(s.get("suggested_duration_minutes") or 45),
+                        "act": s.get("actual_duration_minutes"),
+                        "pin": bool(s.get("is_pinned", False)),
+                        "status": s.get("visit_status") or "pending",
+                    },
+                )
+            await db.commit()
+        except Exception as e:
+            logger.warning("Failed to sync client_trip_state for %s: %s", trip_id, e)
+
+    async def execute_get_current_trip(
+        self,
+        trip_id: str,
+        db: Optional[AsyncSession] = None,
+        client_trip_state: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Fetch authoritative trip state, current revision, travel mode, and active stops."""
         if db is None:
+            if client_trip_state and client_trip_state.get("stops"):
+                return {
+                    "trip_id": trip_id,
+                    "title": client_trip_state.get("title", "Udaipur Cultural Journey"),
+                    "revision": int(client_trip_state.get("revision", 1)),
+                    "budget_inr": float(client_trip_state.get("budget_inr", 2500.0)),
+                    "travel_mode": client_trip_state.get("travel_mode", "auto_rickshaw"),
+                    "artisan_preference": client_trip_state.get("artisan_preference", "both"),
+                    "status": "in_progress",
+                    "stops": client_trip_state["stops"],
+                }
             return dict(DEMO_TRIP_FALLBACK)
+
+        if client_trip_state:
+            await self.ensure_trip_synced(trip_id, db, client_trip_state)
+
         trip_res = await db.execute(
             text("SELECT * FROM trips WHERE id = :id"),
             {"id": trip_id}
@@ -368,12 +813,39 @@ class GeminiCompanionService:
             trip = demo_res.fetchone()
 
         if not trip:
+            if client_trip_state and client_trip_state.get("stops"):
+                return {
+                    "trip_id": trip_id,
+                    "title": client_trip_state.get("title", "Udaipur Cultural Journey"),
+                    "revision": int(client_trip_state.get("revision", 1)),
+                    "budget_inr": float(client_trip_state.get("budget_inr", 2500.0)),
+                    "travel_mode": client_trip_state.get("travel_mode", "auto_rickshaw"),
+                    "artisan_preference": client_trip_state.get("artisan_preference", "both"),
+                    "status": "in_progress",
+                    "stops": client_trip_state["stops"],
+                }
             if trip_id in ["trip_demo_udaipur", "trip_udaipur_heritage_01"]:
                 return dict(DEMO_TRIP_FALLBACK)
             return {"error": f"Trip {trip_id} not found"}
 
+        travel_mode = "auto_rickshaw"
         stops = []
         if trip.current_itinerary_version_id:
+            ver_res = await db.execute(
+                text("SELECT route_geometry FROM itinerary_versions WHERE id = :vid"),
+                {"vid": trip.current_itinerary_version_id},
+            )
+            ver_row = ver_res.fetchone()
+            if ver_row and getattr(ver_row, "route_geometry", None):
+                rg = ver_row.route_geometry
+                if isinstance(rg, str):
+                    try:
+                        rg = json.loads(rg)
+                    except Exception:
+                        rg = {}
+                if isinstance(rg, dict) and rg.get("travel_mode"):
+                    travel_mode = rg["travel_mode"]
+
             stops_res = await db.execute(
                 text("""
                     SELECT
@@ -381,7 +853,7 @@ class GeminiCompanionService:
                         s.planned_arrival, s.planned_departure,
                         s.suggested_duration_minutes, s.actual_duration_minutes,
                         s.visit_status, s.is_pinned,
-                        p.name, p.category, p.entry_fee_inr, p.address
+                        p.name, p.category, p.entry_fee_inr, p.address, p.latitude, p.longitude
                     FROM trip_stops s
                     LEFT JOIN places p ON s.place_id = p.id
                     WHERE s.itinerary_version_id = :vid
@@ -395,6 +867,8 @@ class GeminiCompanionService:
                     "place_id": r.place_id,
                     "name": r.name,
                     "category": r.category,
+                    "latitude": float(r.latitude) if r.latitude is not None else 24.5794,
+                    "longitude": float(r.longitude) if r.longitude is not None else 73.6841,
                     "day_number": r.day_number,
                     "sequence_in_day": r.sequence_in_day,
                     "planned_arrival": r.planned_arrival.isoformat() if r.planned_arrival else None,
@@ -412,6 +886,8 @@ class GeminiCompanionService:
             "title": trip.title,
             "revision": trip.revision,
             "budget_inr": float(trip.budget_inr or 0),
+            "travel_mode": travel_mode,
+            "artisan_preference": getattr(trip, "artisan_preference", "both") or "both",
             "status": trip.status,
             "stops": stops
         }
@@ -445,107 +921,228 @@ class GeminiCompanionService:
         category: Optional[str] = None,
         max_fee_inr: Optional[int] = None
     ) -> List[Dict[str, Any]]:
-        """Search canonical places and verified artisan studios."""
-        if db is None:
-            catalog = [
-                {"id": "place_sukhadia_circle", "name": "Sukhadia Circle Street Food & Chai", "category": "dining", "address": "Sukhadia Circle, Udaipur", "entry_fee_inr": 0.0},
-                {"id": "place_mohanlal_studio", "name": "Master Mohanlal Miniature Art Studio", "category": "artisan_studio", "address": "14 Jagdish Chowk, Udaipur", "entry_fee_inr": 0.0},
-                {"id": "place_pottery_studio", "name": "Kavita Terracotta Pottery & Clay Studio", "category": "artisan_studio", "address": "22 Chandpole Ghat Road, Udaipur", "entry_fee_inr": 0.0},
-                {"id": "place_puppetry_workshop", "name": "Udaipur Traditional Kathputli Puppetry Workshop", "category": "artisan_studio", "address": "Gangaur Ghat Road, Udaipur", "entry_fee_inr": 0.0},
-                {"id": "place_bagore_haveli", "name": "Bagore Ki Haveli", "category": "heritage", "address": "Gangaur Ghat, Udaipur", "entry_fee_inr": 100.0},
-            ]
-            if category:
-                catalog = [p for p in catalog if p.get("category") == category]
+        """Search canonical places, Udaipur gazetteer venues, and verified artisan studios."""
+        results: List[Dict[str, Any]] = []
+        seen_ids = set()
+
+        if db is not None:
+            conditions = ["1=1"]
+            params: Dict[str, Any] = {}
+
             if query:
-                catalog = [p for p in catalog if query.lower() in p["name"].lower() or query.lower() in p["category"].lower()]
-            return catalog
+                conditions.append("(p.name ILIKE :q OR p.category ILIKE :q OR p.address ILIKE :q OR a.craft_type ILIKE :q OR a.artisan_name ILIKE :q)")
+                params["q"] = f"%{query}%"
 
-        conditions = ["1=1"]
-        params: Dict[str, Any] = {}
+            if category:
+                conditions.append("p.category = :category")
+                params["category"] = category
 
-        if query:
-            conditions.append("(p.name ILIKE :q OR p.category ILIKE :q OR p.address ILIKE :q OR a.craft_type ILIKE :q)")
-            params["q"] = f"%{query}%"
+            if max_fee_inr is not None:
+                conditions.append("p.entry_fee_inr <= :max_fee")
+                params["max_fee"] = max_fee_inr
 
-        if category:
-            conditions.append("p.category = :category")
-            params["category"] = category
-
-        if max_fee_inr is not None:
-            conditions.append("p.entry_fee_inr <= :max_fee")
-            params["max_fee"] = max_fee_inr
-
-        where_clause = " AND ".join(conditions)
-        sql = f"""
-            SELECT
-                p.id, p.name, p.category, p.latitude, p.longitude, p.address,
-                p.entry_fee_inr, p.typical_duration_minutes, p.opening_time, p.closing_time,
-                a.artisan_name, a.craft_type, a.has_workshop, a.workshop_fee_inr
-            FROM places p
-            LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
-            WHERE {where_clause}
-            ORDER BY p.name ASC
-            LIMIT 10
-        """
-        res = await db.execute(text(sql), params)
-        results = []
-        for r in res.fetchall():
-            results.append({
-                "id": r.id,
-                "name": r.name,
-                "category": r.category,
-                "address": r.address,
-                "entry_fee_inr": float(r.entry_fee_inr or 0),
-                "typical_duration_minutes": r.typical_duration_minutes,
-                "opening_time": str(r.opening_time) if r.opening_time else None,
-                "closing_time": str(r.closing_time) if r.closing_time else None,
-                "artisan_name": r.artisan_name,
-                "craft_type": r.craft_type,
-                "has_workshop": bool(r.has_workshop) if r.has_workshop is not None else False,
-                "workshop_fee_inr": float(r.workshop_fee_inr or 0)
-            })
-        return results
-
-    async def execute_get_place_details(self, place_id: str, db: AsyncSession) -> Dict[str, Any]:
-        """Fetch verified place details."""
-        res = await db.execute(
-            text("""
+            where_clause = " AND ".join(conditions)
+            sql = f"""
                 SELECT
-                    p.*,
-                    a.id AS artisan_id, a.artisan_name, a.craft_type, a.phone_number,
-                    a.has_workshop, a.workshop_fee_inr, a.workshop_duration_minutes,
-                    a.workshop_description
+                    p.id, p.name, p.category, p.latitude, p.longitude, p.address,
+                    p.entry_fee_inr, p.typical_duration_minutes, p.opening_time, p.closing_time,
+                    a.artisan_name, a.craft_type, a.has_workshop, a.workshop_fee_inr
                 FROM places p
                 LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
-                WHERE p.id = :pid
-            """),
-            {"pid": place_id}
-        )
-        r = res.fetchone()
-        if not r:
-            return {"error": f"Place {place_id} not found"}
+                WHERE {where_clause}
+                ORDER BY p.name ASC
+                LIMIT 12
+            """
+            try:
+                res = await db.execute(text(sql), params)
+                for r in res.fetchall():
+                    seen_ids.add(r.id)
+                    results.append({
+                        "id": r.id,
+                        "name": r.name,
+                        "category": r.category,
+                        "address": r.address,
+                        "latitude": float(r.latitude) if r.latitude is not None else 24.5794,
+                        "longitude": float(r.longitude) if r.longitude is not None else 73.6841,
+                        "entry_fee_inr": float(r.entry_fee_inr or 0),
+                        "typical_duration_minutes": r.typical_duration_minutes,
+                        "opening_time": str(r.opening_time) if r.opening_time else None,
+                        "closing_time": str(r.closing_time) if r.closing_time else None,
+                        "artisan_name": r.artisan_name,
+                        "craft_type": r.craft_type,
+                        "has_workshop": bool(r.has_workshop) if r.has_workshop is not None else False,
+                        "workshop_fee_inr": float(r.workshop_fee_inr or 0)
+                    })
+            except Exception as e:
+                logger.warning("DB search_places failed: %s", e)
+
+        q_lower = (query or "").lower()
+        for pid, meta in UDAIPUR_GAZETTEER.items():
+            if pid in seen_ids:
+                continue
+            if category and meta.get("category") != category:
+                continue
+            if max_fee_inr is not None and float(meta.get("entry_fee_inr", 0)) > max_fee_inr:
+                continue
+            if not q_lower or (
+                q_lower in meta["name"].lower()
+                or q_lower in meta["category"].lower()
+                or q_lower in meta["address"].lower()
+                or any(q_lower in kw or kw in q_lower for kw in meta.get("keywords", []))
+            ):
+                results.append(dict(meta))
+
+        return results[:12]
+
+    async def execute_get_place_details(self, place_id: str, db: Optional[AsyncSession] = None) -> Dict[str, Any]:
+        """Fetch verified place details from PostgreSQL or Udaipur Gazetteer."""
+        if db is not None:
+            try:
+                res = await db.execute(
+                    text("""
+                        SELECT
+                            p.*,
+                            a.id AS artisan_id, a.artisan_name, a.craft_type, a.phone_number,
+                            a.has_workshop, a.workshop_fee_inr, a.workshop_duration_minutes,
+                            a.workshop_description
+                        FROM places p
+                        LEFT JOIN artisans a ON a.place_id = p.id AND a.profile_status = 'approved'
+                        WHERE p.id = :pid OR p.name ILIKE :pname
+                    """),
+                    {"pid": place_id, "pname": f"%{place_id}%"}
+                )
+                r = res.fetchone()
+                if r:
+                    return {
+                        "id": r.id,
+                        "name": r.name,
+                        "category": r.category,
+                        "latitude": float(r.latitude),
+                        "longitude": float(r.longitude),
+                        "address": r.address,
+                        "entry_fee_inr": float(r.entry_fee_inr or 0),
+                        "typical_duration_minutes": r.typical_duration_minutes,
+                        "opening_time": str(r.opening_time) if r.opening_time else None,
+                        "closing_time": str(r.closing_time) if r.closing_time else None,
+                        "artisan": {
+                            "id": r.artisan_id,
+                            "name": r.artisan_name,
+                            "craft_type": r.craft_type,
+                            "phone_number": r.phone_number,
+                            "has_workshop": bool(r.has_workshop),
+                            "workshop_fee_inr": float(r.workshop_fee_inr or 0),
+                            "workshop_duration_minutes": r.workshop_duration_minutes,
+                            "workshop_description": r.workshop_description
+                        } if r.artisan_id else None
+                    }
+            except Exception as e:
+                logger.warning("DB get_place_details error: %s", e)
+
+        return resolve_udaipur_place(place_id=place_id, name_or_query=place_id)
+
+    async def execute_calculate_transit_route(
+        self,
+        origin: str,
+        destination: str,
+        preferred_mode: str = "auto_rickshaw",
+        stops: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Calculates transit duration (via Google Routes API v2 / Distance Matrix / Haversine)
+        and estimated fares between two stops or Udaipur places across walking, auto_rickshaw, and cab.
+        """
+        orig_meta = resolve_udaipur_place(name_or_query=origin, stops=stops)
+        dest_meta = resolve_udaipur_place(name_or_query=destination, stops=stops)
+        lat1, lon1 = float(orig_meta["latitude"]), float(orig_meta["longitude"])
+        lat2, lon2 = float(dest_meta["latitude"]), float(dest_meta["longitude"])
+
+        dist_m = haversine_distance_meters(lat1, lon1, lat2, lon2) if haversine_distance_meters else 1200.0
+        road_dist_km = round(max(0.2, (dist_m * 1.3) / 1000.0), 2)
+        now_dt = datetime.now(timezone.utc)
+
+        walk_mins = await compute_transit_minutes(lat1, lon1, lat2, lon2, "walking", now_dt, settings.GOOGLE_MAPS_API_KEY)
+        auto_mins = await compute_transit_minutes(lat1, lon1, lat2, lon2, "auto_rickshaw", now_dt, settings.GOOGLE_MAPS_API_KEY)
+        cab_mins = await compute_transit_minutes(lat1, lon1, lat2, lon2, "cab", now_dt, settings.GOOGLE_MAPS_API_KEY)
+
+        auto_fare_inr = max(40, int(round(30 + road_dist_km * 18, -1)))
+        cab_fare_inr = max(120, int(round(80 + road_dist_km * 25, -1)))
 
         return {
-            "id": r.id,
-            "name": r.name,
-            "category": r.category,
-            "latitude": float(r.latitude),
-            "longitude": float(r.longitude),
-            "address": r.address,
-            "entry_fee_inr": float(r.entry_fee_inr or 0),
-            "typical_duration_minutes": r.typical_duration_minutes,
-            "opening_time": str(r.opening_time) if r.opening_time else None,
-            "closing_time": str(r.closing_time) if r.closing_time else None,
-            "artisan": {
-                "id": r.artisan_id,
-                "name": r.artisan_name,
-                "craft_type": r.craft_type,
-                "phone_number": r.phone_number,
-                "has_workshop": bool(r.has_workshop),
-                "workshop_fee_inr": float(r.workshop_fee_inr or 0),
-                "workshop_duration_minutes": r.workshop_duration_minutes,
-                "workshop_description": r.workshop_description
-            } if r.artisan_id else None
+            "origin": {
+                "name": orig_meta["name"],
+                "place_id": orig_meta.get("id"),
+                "stop_id": orig_meta.get("stop_id"),
+            },
+            "destination": {
+                "name": dest_meta["name"],
+                "place_id": dest_meta.get("id"),
+                "stop_id": dest_meta.get("stop_id"),
+            },
+            "road_distance_km": road_dist_km,
+            "preferred_mode": preferred_mode,
+            "modes": {
+                "walking": {"duration_minutes": walk_mins, "estimated_fare_inr": 0},
+                "auto_rickshaw": {"duration_minutes": auto_mins, "estimated_fare_inr": auto_fare_inr},
+                "cab": {"duration_minutes": cab_mins, "estimated_fare_inr": cab_fare_inr},
+            },
+        }
+
+    async def execute_direct_trip_action(
+        self,
+        trip_id: str,
+        action_type: str,
+        stops: List[Dict[str, Any]],
+        stop_id: Optional[str] = None,
+        artisan_preference: Optional[str] = None,
+        db: Optional[AsyncSession] = None,
+    ) -> Dict[str, Any]:
+        """Executes direct check-in, check-out, or preference updates requested via chat."""
+        target_stop = None
+        if stop_id:
+            target_stop = next(
+                (
+                    s
+                    for s in stops
+                    if s.get("id") == stop_id
+                    or s.get("place_id") == stop_id
+                    or stop_id.lower() in (s.get("name") or "").lower()
+                ),
+                None,
+            )
+        if not target_stop and stops:
+            pending = [s for s in stops if s.get("visit_status") == "pending"]
+            target_stop = pending[0] if pending else stops[0]
+
+        if db is not None:
+            if action_type == "mark_visited" and target_stop:
+                await db.execute(
+                    text("UPDATE trip_stops SET visit_status = 'visited' WHERE id = :sid"),
+                    {"sid": target_stop["id"]},
+                )
+                await db.commit()
+                return {"success": True, "action": "mark_visited", "stop_id": target_stop["id"], "stop_name": target_stop["name"]}
+            elif action_type == "mark_checkout" and target_stop:
+                dur = int(target_stop.get("suggested_duration_minutes") or 45)
+                await db.execute(
+                    text("UPDATE trip_stops SET visit_status = 'visited', actual_duration_minutes = :dur WHERE id = :sid"),
+                    {"sid": target_stop["id"], "dur": dur},
+                )
+                await db.commit()
+                return {"success": True, "action": "mark_checkout", "stop_id": target_stop["id"], "stop_name": target_stop["name"]}
+            elif action_type == "update_artisan_preference" and artisan_preference:
+                await db.execute(
+                    text("UPDATE trips SET artisan_preference = :pref, updated_at = NOW() WHERE id = :tid"),
+                    {"pref": artisan_preference, "tid": trip_id},
+                )
+                await db.commit()
+                return {"success": True, "action": "update_artisan_preference", "artisan_preference": artisan_preference}
+
+        return {
+            "success": True,
+            "action": action_type,
+            "stop_id": target_stop["id"] if target_stop else stop_id,
+            "stop_name": target_stop["name"] if target_stop else stop_id,
+            "artisan_preference": artisan_preference,
         }
 
     async def execute_propose_trip_changes(
@@ -553,37 +1150,91 @@ class GeminiCompanionService:
         trip_id: str,
         base_revision: int,
         operations: List[Dict[str, Any]],
-        db: AsyncSession
+        db: Optional[AsyncSession],
+        auto_commit: bool = False,
+        fallback_stops: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """
         Dispatches candidate operations to the deterministic Trip Engine and
-        stores provisional proposal in replan_proposals.
+        stores provisional proposal in replan_proposals. If auto_commit=True,
+        also commits the proposal atomically to Revision N+1.
         """
+        parsed_ops: List[ReplanOperation] = []
+        for op in operations:
+            op_type = op.get("type")
+            place_id = op.get("place_id")
+            custom_name = op.get("custom_place_name")
+            custom_cat = op.get("custom_category")
+            custom_lat = op.get("custom_latitude")
+            custom_lon = op.get("custom_longitude")
+            custom_addr = op.get("custom_address")
+            custom_fee = op.get("custom_entry_fee_inr")
+
+            if op_type == "add_stop":
+                resolved = resolve_udaipur_place(place_id=place_id, name_or_query=custom_name or place_id)
+                place_id = resolved["id"]
+                custom_name = custom_name or resolved["name"]
+                custom_cat = custom_cat or resolved["category"]
+                custom_lat = custom_lat if custom_lat is not None else resolved["latitude"]
+                custom_lon = custom_lon if custom_lon is not None else resolved["longitude"]
+                custom_addr = custom_addr or resolved["address"]
+                custom_fee = custom_fee if custom_fee is not None else resolved["entry_fee_inr"]
+
+            parsed_ops.append(
+                ReplanOperation(
+                    type=op_type,
+                    place_id=place_id,
+                    stop_id=op.get("stop_id"),
+                    new_order=op.get("new_order"),
+                    day_number=op.get("day_number", 1),
+                    is_pinned=op.get("is_pinned"),
+                    travel_mode=op.get("travel_mode"),
+                    duration_minutes=op.get("duration_minutes"),
+                    planned_arrival_time=op.get("planned_arrival_time"),
+                    custom_place_name=custom_name,
+                    custom_category=custom_cat,
+                    custom_address=custom_addr,
+                    custom_latitude=custom_lat,
+                    custom_longitude=custom_lon,
+                    custom_entry_fee_inr=custom_fee,
+                    budget_inr=op.get("budget_inr"),
+                )
+            )
+
         if db is None:
+            current_stops = fallback_stops or DEMO_TRIP_FALLBACK["stops"]
+            places_catalog = dict(UDAIPUR_GAZETTEER)
+            start_location = StartLocation(name="Hotel Swaroop Vilas", latitude=24.5854, longitude=73.6812)
+            eval_result = await self.mutation_engine.evaluate_mutation(
+                current_stops=current_stops,
+                operations=parsed_ops,
+                trip_id=trip_id,
+                base_revision=base_revision,
+                budget_limit=2500.0,
+                start_location=start_location,
+                start_datetime=datetime.now(timezone.utc),
+                travel_mode="auto_rickshaw",
+                artisan_preference="both",
+                places_catalog=places_catalog,
+                google_maps_api_key=settings.GOOGLE_MAPS_API_KEY,
+            )
             proposal_id = f"prop_ai_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-            skipped_ids = [op.get("stop_id") for op in operations if op.get("type") == "skip_stop" and op.get("stop_id")]
-            added_pids = [op.get("place_id") for op in operations if op.get("type") == "add_stop" and op.get("place_id")]
-            diff = {
-                "cost_delta_inr": 0.0,
-                "duration_delta_minutes": 0,
-                "stops_added": added_pids,
-                "stops_skipped": skipped_ids,
-                "stops_removed": [],
-                "closing_hour_conflicts": []
-            }
             return {
                 "proposal_id": proposal_id,
                 "base_revision": base_revision,
-                "is_feasible": True,
-                "validation_diff": diff,
-                "candidate_stops": DEMO_TRIP_FALLBACK["stops"],
-                "total_cost_inr": 2500.0,
-                "total_duration_minutes": 270,
-                "expires_at": expires_at.isoformat()
+                "is_feasible": eval_result["is_feasible"],
+                "validation_diff": eval_result["validation_diff"].model_dump(),
+                "candidate_stops": eval_result["candidate_stops"],
+                "total_cost_inr": eval_result["total_estimated_cost_inr"],
+                "total_duration_minutes": eval_result["total_estimated_duration_minutes"],
+                "expires_at": expires_at.isoformat(),
+                "auto_committed": auto_commit,
+                "new_revision": (base_revision + 1) if auto_commit else None,
             }
 
-        from app.api.v1.replan import _fetch_trip_active_stops, _fetch_places_catalog
+        from app.api.v1.replan import _fetch_trip_active_stops, _fetch_places_catalog, accept_replan
+        from app.schemas.replan import ReplanAcceptRequest
 
         trip_res = await db.execute(text("SELECT * FROM trips WHERE id = :id"), {"id": trip_id})
         trip = trip_res.fetchone()
@@ -592,44 +1243,43 @@ class GeminiCompanionService:
             trip = demo_res.fetchone()
 
         if not trip or not getattr(trip, "current_itinerary_version_id", None):
+            current_stops = fallback_stops or DEMO_TRIP_FALLBACK["stops"]
+            places_catalog = dict(UDAIPUR_GAZETTEER)
+            start_location = StartLocation(name="Hotel Swaroop Vilas", latitude=24.5854, longitude=73.6812)
+            eval_result = await self.mutation_engine.evaluate_mutation(
+                current_stops=current_stops,
+                operations=parsed_ops,
+                trip_id=trip_id,
+                base_revision=base_revision,
+                budget_limit=2500.0,
+                start_location=start_location,
+                start_datetime=datetime.now(timezone.utc),
+                travel_mode="auto_rickshaw",
+                artisan_preference="both",
+                places_catalog=places_catalog,
+                google_maps_api_key=settings.GOOGLE_MAPS_API_KEY,
+            )
             proposal_id = f"prop_ai_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{uuid.uuid4().hex[:6]}"
             expires_at = datetime.now(timezone.utc) + timedelta(minutes=15)
-            skipped_ids = [op.get("stop_id") for op in operations if op.get("type") == "skip_stop" and op.get("stop_id")]
-            added_pids = [op.get("place_id") for op in operations if op.get("type") == "add_stop" and op.get("place_id")]
-            diff = {
-                "cost_delta_inr": 0.0,
-                "duration_delta_minutes": 0,
-                "stops_added": added_pids,
-                "stops_skipped": skipped_ids,
-                "stops_removed": [],
-                "closing_hour_conflicts": []
-            }
             return {
                 "proposal_id": proposal_id,
                 "base_revision": base_revision,
-                "is_feasible": True,
-                "validation_diff": diff,
-                "candidate_stops": DEMO_TRIP_FALLBACK["stops"],
-                "total_cost_inr": 2500.0,
-                "total_duration_minutes": 270,
-                "expires_at": expires_at.isoformat()
+                "is_feasible": eval_result["is_feasible"],
+                "validation_diff": eval_result["validation_diff"].model_dump(),
+                "candidate_stops": eval_result["candidate_stops"],
+                "total_cost_inr": eval_result["total_estimated_cost_inr"],
+                "total_duration_minutes": eval_result["total_estimated_duration_minutes"],
+                "expires_at": expires_at.isoformat(),
+                "auto_committed": auto_commit,
+                "new_revision": (base_revision + 1) if auto_commit else None,
             }
 
-        parsed_ops = [
-            ReplanOperation(
-                type=op.get("type"),
-                place_id=op.get("place_id"),
-                stop_id=op.get("stop_id"),
-                new_order=op.get("new_order"),
-                day_number=op.get("day_number", 1),
-                is_pinned=op.get("is_pinned")
-            )
-            for op in operations
-        ]
-
-        current_stops = await _fetch_trip_active_stops(db, trip_id, trip.current_itinerary_version_id)
+        current_stops = await _fetch_trip_active_stops(db, trip.id, trip.current_itinerary_version_id)
         added_place_ids = [op.place_id for op in parsed_ops if op.type == "add_stop" and op.place_id]
         places_catalog = await _fetch_places_catalog(db, added_place_ids)
+        for k, v in UDAIPUR_GAZETTEER.items():
+            if k not in places_catalog:
+                places_catalog[k] = dict(v)
 
         start_location = StartLocation(name="Hotel Swaroop Vilas", latitude=24.5854, longitude=73.6812)
         start_dt = getattr(trip, "start_datetime", None)
@@ -646,9 +1296,9 @@ class GeminiCompanionService:
         eval_result = await self.mutation_engine.evaluate_mutation(
             current_stops=current_stops,
             operations=parsed_ops,
-            trip_id=trip_id,
+            trip_id=trip.id,
             base_revision=base_revision,
-            budget_limit=float(trip.budget_inr),
+            budget_limit=float(trip.budget_inr or 2500.0),
             start_location=start_location,
             start_datetime=start_dt,
             travel_mode=getattr(trip, "travel_mode", "auto_rickshaw") or "auto_rickshaw",
@@ -666,6 +1316,29 @@ class GeminiCompanionService:
         total_cost: float = eval_result["total_estimated_cost_inr"]
         total_duration: int = eval_result["total_estimated_duration_minutes"]
 
+        for s in candidate_stops_raw:
+            pid = s["place_id"]
+            await db.execute(
+                text("""
+                    INSERT INTO places (
+                        id, name, category, latitude, longitude, address,
+                        entry_fee_inr, typical_duration_minutes, data_status
+                    ) VALUES (
+                        :id, :name, :cat, :lat, :lon, :addr, :fee, :dur, 'reported'
+                    ) ON CONFLICT (id) DO NOTHING
+                """),
+                {
+                    "id": pid,
+                    "name": s.get("name") or pid,
+                    "cat": s.get("category") or "attraction",
+                    "lat": float(s.get("latitude") or 24.5795),
+                    "lon": float(s.get("longitude") or 73.6835),
+                    "addr": s.get("address") or "Udaipur, Rajasthan",
+                    "fee": float(s.get("entry_fee_inr") or 0.0),
+                    "dur": int(s.get("suggested_duration_minutes") or 45),
+                },
+            )
+
         proposal_payload = {
             "candidate_stops": candidate_stops_raw,
             "total_estimated_cost_inr": total_cost,
@@ -673,7 +1346,6 @@ class GeminiCompanionService:
             "route_geometry": eval_result.get("route_geometry", {}),
         }
 
-        # Persist provisional proposal in database
         await db.execute(
             text("""
                 INSERT INTO replan_proposals (
@@ -688,7 +1360,7 @@ class GeminiCompanionService:
             """),
             {
                 "id": proposal_id,
-                "trip_id": trip_id,
+                "trip_id": trip.id,
                 "base_rev": base_revision,
                 "ops": json.dumps([op.model_dump() for op in parsed_ops], default=str),
                 "stops": json.dumps(proposal_payload, default=str),
@@ -699,6 +1371,19 @@ class GeminiCompanionService:
         )
         await db.commit()
 
+        new_rev = None
+        if auto_commit:
+            try:
+                accept_res = await accept_replan(
+                    trip_id=trip.id,
+                    body=ReplanAcceptRequest(proposal_id=proposal_id, expected_revision=base_revision),
+                    db=db,
+                )
+                if hasattr(accept_res, "new_revision"):
+                    new_rev = accept_res.new_revision
+            except Exception as e:
+                logger.warning("Auto-commit of proposal %s failed: %s", proposal_id, e)
+
         return {
             "proposal_id": proposal_id,
             "base_revision": base_revision,
@@ -707,7 +1392,9 @@ class GeminiCompanionService:
             "candidate_stops": candidate_stops_raw,
             "total_cost_inr": total_cost,
             "total_duration_minutes": total_duration,
-            "expires_at": expires_at.isoformat()
+            "expires_at": expires_at.isoformat(),
+            "auto_committed": bool(new_rev is not None),
+            "new_revision": new_rev,
         }
 
     def _extract_recent_event_acknowledgments(self, recent_events: List[Dict[str, Any]]) -> List[str]:
@@ -804,21 +1491,28 @@ class GeminiCompanionService:
         self,
         trip_id: str,
         user_message: str,
-        db: AsyncSession
+        db: AsyncSession,
+        history: Optional[List[Dict[str, str]]] = None,
+        client_trip_state: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Core conversational orchestration:
-        1. Injects fresh PostgreSQL trip state & recent events from trip_events.
-        2. Detects prior manual edits to acknowledge.
-        3. Executes Gemini tool calling (or deterministic fallback) to generate proposal.
-        4. Returns cultured narrative + typed ReplanProposalCard data.
+        Core conversational orchestration with multi-turn Gemini tool calling (up to 4 rounds):
+        1. Syncs client trip state if needed & injects fresh PostgreSQL trip state + recent events.
+        2. Preserves multi-turn conversation history so confirmations ("Yes, change it") work seamlessly.
+        3. Executes all 7 Gemini tools (`get_current_trip`, `get_recent_trip_events`, `search_places`,
+           `get_place_details`, `calculate_transit_route`, `propose_trip_changes`, `execute_direct_trip_action`).
+        4. Never uses biased/canned keyword responses.
         """
-        trip_data = await self.execute_get_current_trip(trip_id, db)
+        trip_data = await self.execute_get_current_trip(
+            trip_id, db=db, client_trip_state=client_trip_state
+        )
         if "error" in trip_data:
             return {
-                "response_narrative": f"Khamma Ghani! I couldn't locate your trip ({trip_id}). Please ensure the trip is active.",
+                "response_narrative": f"Khamma Ghani! I couldn't locate your trip ({trip_id}). Please ensure your trip is active.",
                 "replan_proposal": None,
-                "acknowledged_events": []
+                "acknowledged_events": [],
+                "trip_updated": False,
+                "new_revision": None,
             }
 
         recent_events = await self.execute_get_recent_trip_events(trip_id, limit=5, db=db)
@@ -826,303 +1520,335 @@ class GeminiCompanionService:
 
         base_revision = trip_data.get("revision", 1)
         stops = trip_data.get("stops", [])
-        pending_stops = [s for s in stops if s["visit_status"] == "pending"]
 
-        msg_lower = user_message.lower()
-        is_alteration_request = any(k in msg_lower for k in [
-            "skip", "drop", "tired", "remove", "change", "tea", "rooftop",
-            "cafe", "workshop", "pottery", "artisan", "replace", "add",
-            "studio", "ramesh", "chandra", "leather", "jutti", "ambrai",
-            "ghat", "craft", "plan", "stop", "itinerary", "route", "include"
-        ])
+        stops_summary = "\n".join([
+            (
+                f"  {idx + 1}. Stop ID: '{s['id']}' | Place ID: '{s.get('place_id')}' | Name: '{s['name']}' "
+                f"| Category: {s.get('category')} | Status: {s['visit_status']} "
+                f"| Time: {s.get('planned_arrival_time')} - {s.get('planned_departure_time')} "
+                f"| Duration: {s.get('duration_minutes', 60)} min | Prev Leg Transit: {s.get('transit_minutes_from_prev', 15)} min "
+                f"| Fee: ₹{int(s.get('entry_fee_inr', 0))}"
+            )
+            for idx, s in enumerate(stops)
+        ]) or "  (No stops currently in itinerary)"
 
-        ack_phrase = ""
-        if is_alteration_request and acknowledged:
-            ack_phrase = f"{acknowledged[0]}, so I've noted that! "
+        recent_summary = "; ".join(acknowledged) if acknowledged else "None"
 
-        # 1. Native Gemini Tool Calling Orchestration
-        if self.api_key:
-            try:
-                stops_summary = "\n".join([
-                    f"- Stop ID: '{s['id']}', Place ID: '{s.get('place_id')}', Name: '{s['name']}', Category: {s.get('category')}, Status: {s['visit_status']}, Fee: ₹{int(s.get('entry_fee_inr', 0))}"
-                    for s in stops
-                ])
-                recent_summary = "; ".join(acknowledged) if acknowledged else "None"
-                user_prompt = (
-                    f"Active Trip ID: {trip_id} (Title: '{trip_data.get('title')}', Revision: {base_revision}, Budget: ₹{int(trip_data.get('budget_inr', 2500))})\n"
-                    f"Authoritative Trip Stops:\n{stops_summary}\n"
-                    f"Recent traveler actions acknowledged: {recent_summary}\n\n"
-                    f"Traveler says: \"{user_message}\""
-                )
-                gemini_tools = [{
-                    "functionDeclarations": [
-                        {
-                            "name": "propose_trip_changes",
-                            "description": "Propose itinerary modifications (skip stop, add stop, reorder stops) to the Trip Engine and return a cultured Rajasthani explanation for the traveler.",
-                            "parameters": {
-                                "type": "OBJECT",
-                                "properties": {
-                                    "operations": {
-                                        "type": "ARRAY",
-                                        "description": "Ordered sequence of candidate operations.",
-                                        "items": {
-                                            "type": "OBJECT",
-                                            "properties": {
-                                                "type": {
-                                                    "type": "STRING",
-                                                    "enum": ["skip_stop", "add_stop", "remove_stop", "reorder_stops", "pin_stop"],
-                                                    "description": "The mutation action to perform."
-                                                },
-                                                "stop_id": {
-                                                    "type": "STRING",
-                                                    "description": "Existing stop ID to skip or modify (e.g. 'stop_cp', 'stop_ms', 'stop_jt', 'stop_bh')."
-                                                },
-                                                "place_id": {
-                                                    "type": "STRING",
-                                                    "enum": [
-                                                        "place_city_palace",
-                                                        "place_jagdish_temple",
-                                                        "place_saheliyon_bari",
-                                                        "place_bagore_haveli",
-                                                        "place_sukhadia_circle",
-                                                        "place_mohanlal_studio",
-                                                        "place_pottery_studio",
-                                                        "place_puppetry_workshop",
-                                                        "place_leather_craft"
-                                                    ],
-                                                    "description": "Exact canonical place ID: 'place_leather_craft' (Ramesh Chandra leather studio), 'place_bagore_haveli' (Ambrai Ghat waterfront), 'place_sukhadia_circle' (Fateh Sagar / street food), 'place_mohanlal_studio' (miniature painting), 'place_pottery_studio' (pottery), 'place_puppetry_workshop' (puppetry)."
-                                                },
-                                                "new_order": {
-                                                    "type": "INTEGER",
-                                                    "description": "Target sequence index within the day."
-                                                }
-                                            },
-                                            "required": ["type"]
-                                        }
-                                    },
-                                    "response_narrative": {
-                                        "type": "STRING",
-                                        "description": "Warm, cultured explanation for the traveler with Rajasthani hospitality (Khamma Ghani) and rationale for this change."
-                                    }
-                                },
-                                "required": ["operations", "response_narrative"]
-                            }
-                        }
-                    ]
-                }]
+        context_header = (
+            f"=== ACTIVE AUTHORITATIVE TRIP CONTEXT ===\n"
+            f"Trip ID: {trip_id}\n"
+            f"Title: {trip_data.get('title')}\n"
+            f"Revision: {base_revision}\n"
+            f"Default Travel Mode: {trip_data.get('travel_mode', 'walking')}\n"
+            f"Total Budget: ₹{int(trip_data.get('budget_inr', 2500))} (Mode: {trip_data.get('budget_mode', 'total')})\n"
+            f"Artisan Preference: {trip_data.get('artisan_preference', 'both')}\n"
+            f"Current Itinerary Stops ({len(stops)} total):\n{stops_summary}\n"
+            f"Recent Traveler Actions Acknowledged: {recent_summary}\n"
+            f"=========================================\n"
+        )
 
+        contents: List[Dict[str, Any]] = []
+        if history:
+            for idx, turn in enumerate(history[-12:]):
+                role = "model" if turn.get("role") in ("ai", "assistant", "model") else "user"
+                text_val = (turn.get("text") or turn.get("content") or "").strip()
+                if not text_val:
+                    continue
+                if idx == 0 and role == "model":
+                    # Gemini API requires the first turn in contents to have role 'user'
+                    contents.append({
+                        "role": "user",
+                        "parts": [{"text": f"{context_header}\n(Conversation started)"}]
+                    })
+                contents.append({
+                    "role": role,
+                    "parts": [{"text": text_val}]
+                })
+
+        user_turn_text = f"{context_header}\nTraveler says: \"{user_message}\""
+        if contents and contents[-1]["role"] == "user":
+            contents[-1]["parts"].append({"text": user_turn_text})
+        else:
+            contents.append({
+                "role": "user",
+                "parts": [{"text": user_turn_text}]
+            })
+
+        replan_proposal: Optional[Dict[str, Any]] = None
+        trip_updated: bool = False
+        new_revision: Optional[int] = None
+        final_narrative: str = ""
+
+        if not self.api_key:
+            return {
+                "response_narrative": (
+                    "Khamma Ghani! The Gemini API key is not configured in the environment. "
+                    "Please verify GEMINI_API_KEY in your .env file so I can assist with your itinerary."
+                ),
+                "replan_proposal": None,
+                "acknowledged_events": acknowledged,
+                "trip_updated": False,
+                "new_revision": None,
+            }
+
+        try:
+            max_rounds = 4
+            for _round in range(max_rounds):
                 payload = {
-                    "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
+                    "contents": contents,
                     "systemInstruction": {"parts": [{"text": COMPANION_SYSTEM_PROMPT}]},
-                    "tools": gemini_tools,
+                    "tools": [{"functionDeclarations": GEMINI_TOOL_DECLARATIONS}],
                     "generationConfig": {
-                        "thinkingConfig": {"thinkingBudget": 0},
-                        "temperature": 0.4
-                    }
+                        "temperature": 0.35,
+                    },
                 }
 
-                gemini_resp = await call_gemini_api(self.api_key, payload, timeout=15.0)
-                if gemini_resp and "candidates" in gemini_resp and gemini_resp["candidates"]:
-                    candidate_parts = gemini_resp["candidates"][0].get("content", {}).get("parts", [])
-                    for part in candidate_parts:
-                        if "functionCall" in part and part["functionCall"].get("name") == "propose_trip_changes":
-                            fn_call = part["functionCall"]
-                            args = fn_call.get("args") or {}
-                            raw_ops = args.get("operations") or []
-                            gemini_narrative = args.get("response_narrative") or ""
+                gemini_resp = await call_gemini_api(self.api_key, payload, timeout=22.0)
+                if not gemini_resp or "candidates" not in gemini_resp or not gemini_resp["candidates"]:
+                    break
 
-                            normalized_ops = []
-                            for op in raw_ops:
-                                op_type = op.get("type")
-                                stop_id = op.get("stop_id")
-                                place_id = op.get("place_id")
-                                new_order = op.get("new_order")
+                candidate_content = gemini_resp["candidates"][0].get("content") or {}
+                candidate_parts = candidate_content.get("parts") or []
+                if not candidate_parts:
+                    break
 
-                                if op_type == "skip_stop":
-                                    if not stop_id and pending_stops:
-                                        stop_id = pending_stops[0]["id"]
-                                    elif stop_id:
-                                        matched_stop = next((s for s in stops if s["id"] == stop_id or s["name"].lower() in stop_id.lower() or stop_id.lower() in s["name"].lower()), None)
-                                        if matched_stop:
-                                            stop_id = matched_stop["id"]
-                                        elif pending_stops:
-                                            stop_id = pending_stops[0]["id"]
-                                    normalized_ops.append({"type": "skip_stop", "stop_id": stop_id})
+                # Append model turn to conversation history for multi-step tool loop
+                contents.append({
+                    "role": "model",
+                    "parts": candidate_parts,
+                })
 
-                                elif op_type == "add_stop":
-                                    place_id = normalize_place_id(place_id, f"{user_message} {gemini_narrative}")
-                                    if not new_order:
-                                        new_order = pending_stops[0]["sequence_in_day"] if pending_stops else (len(stops) + 1)
-                                    normalized_ops.append({
-                                        "type": "add_stop",
-                                        "place_id": place_id,
-                                        "new_order": new_order,
-                                        "day_number": 1
-                                    })
-                                else:
-                                    normalized_ops.append(op)
+                fn_calls = [p["functionCall"] for p in candidate_parts if "functionCall" in p]
+                text_parts = [p.get("text", "").strip() for p in candidate_parts if "text" in p and p.get("text", "").strip()]
 
-                            if normalized_ops:
-                                proposal = await self.execute_propose_trip_changes(
-                                    trip_id=trip_id,
-                                    base_revision=base_revision,
-                                    operations=normalized_ops,
-                                    db=db
+                if text_parts:
+                    final_narrative = "\n\n".join(text_parts)
+
+                if not fn_calls:
+                    # Model finished tool execution and produced its final answer
+                    break
+
+                function_response_parts: List[Dict[str, Any]] = []
+                for fn_call in fn_calls:
+                    fn_name = fn_call.get("name", "")
+                    fn_args = fn_call.get("args") or {}
+                    tool_result: Dict[str, Any] = {}
+
+                    if fn_name == "get_current_trip":
+                        trip_data = await self.execute_get_current_trip(trip_id, db)
+                        base_revision = trip_data.get("revision", base_revision)
+                        stops = trip_data.get("stops", stops)
+                        tool_result = trip_data
+
+                    elif fn_name == "get_recent_trip_events":
+                        ev_limit = int(fn_args.get("limit") or 5)
+                        events_res = await self.execute_get_recent_trip_events(trip_id, limit=ev_limit, db=db)
+                        tool_result = {"events": events_res}
+
+                    elif fn_name == "search_places":
+                        places_res = await self.execute_search_places(
+                            category=fn_args.get("category"),
+                            query=fn_args.get("query"),
+                            max_fee_inr=fn_args.get("max_fee_inr"),
+                            db=db,
+                        )
+                        tool_result = {"places": places_res, "count": len(places_res)}
+
+                    elif fn_name == "get_place_details":
+                        p_id = fn_args.get("place_id") or ""
+                        tool_result = await self.execute_get_place_details(p_id, db=db)
+
+                    elif fn_name == "calculate_transit_route":
+                        origin_q = fn_args.get("origin") or fn_args.get("origin_name_or_stop_id") or ""
+                        dest_q = fn_args.get("destination") or fn_args.get("destination_name_or_stop_id") or ""
+                        t_mode = fn_args.get("preferred_mode") or fn_args.get("travel_mode") or trip_data.get("travel_mode", "auto_rickshaw")
+                        tool_result = await self.execute_calculate_transit_route(
+                            origin=origin_q,
+                            destination=dest_q,
+                            preferred_mode=t_mode,
+                            stops=stops,
+                        )
+
+                    elif fn_name == "execute_direct_trip_action":
+                        act_res = await self.execute_direct_trip_action(
+                            trip_id=trip_id,
+                            action_type=fn_args.get("action_type") or "",
+                            stops=stops,
+                            stop_id=fn_args.get("stop_id"),
+                            artisan_preference=fn_args.get("artisan_preference"),
+                            db=db,
+                        )
+                        tool_result = act_res
+                        if act_res.get("success"):
+                            trip_updated = True
+                            trip_data = await self.execute_get_current_trip(trip_id, db)
+                            base_revision = trip_data.get("revision", base_revision)
+                            stops = trip_data.get("stops", stops)
+                            new_revision = base_revision
+
+                    elif fn_name == "propose_trip_changes":
+                        raw_ops = fn_args.get("operations") or []
+                        auto_commit = bool(fn_args.get("auto_commit", False))
+                        gemini_narrative = (fn_args.get("response_narrative") or "").strip()
+                        if gemini_narrative and not final_narrative:
+                            final_narrative = gemini_narrative
+
+                        # Refresh latest revision before proposing
+                        trip_data = await self.execute_get_current_trip(trip_id, db)
+                        base_revision = trip_data.get("revision", base_revision)
+                        stops = trip_data.get("stops", stops)
+                        pending_stops = [s for s in stops if s["visit_status"] == "pending"]
+
+                        normalized_ops: List[Dict[str, Any]] = []
+                        for op in raw_ops:
+                            op_copy = dict(op)
+                            op_type = op_copy.get("type")
+                            stop_id = op_copy.get("stop_id")
+
+                            # Match stop_id if model passed stop name or fuzzy identifier
+                            if stop_id:
+                                matched_stop = next(
+                                    (
+                                        s for s in stops
+                                        if s["id"] == stop_id
+                                        or s.get("place_id") == stop_id
+                                        or s["name"].lower() in stop_id.lower()
+                                        or stop_id.lower() in s["name"].lower()
+                                    ),
+                                    None,
                                 )
-                                narrative = gemini_narrative.strip()
-                                if not narrative.startswith("Khamma Ghani") and not narrative.startswith("Namaste"):
-                                    narrative = f"Khamma Ghani! {narrative}"
-                                if ack_phrase and not any(p in narrative.lower() for p in ["skipped", "earlier", "timeline", "noted", "kept that in mind"]):
-                                    narrative = f"Khamma Ghani! {ack_phrase}{narrative.replace('Khamma Ghani! ', '')}"
+                                if matched_stop:
+                                    op_copy["stop_id"] = matched_stop["id"]
+                                elif op_type == "skip_stop" and pending_stops:
+                                    op_copy["stop_id"] = pending_stops[0]["id"]
+                            elif op_type == "skip_stop" and pending_stops:
+                                op_copy["stop_id"] = pending_stops[0]["id"]
 
-                                return {
-                                    "response_narrative": narrative,
-                                    "replan_proposal": proposal,
-                                    "acknowledged_events": acknowledged
-                                }
+                            if op_type == "add_stop":
+                                raw_pid = op_copy.get("place_id")
+                                custom_name = op_copy.get("custom_place_name")
+                                resolved = resolve_udaipur_place(
+                                    place_id=raw_pid,
+                                    name_or_query=custom_name or raw_pid or user_message,
+                                    stops=stops,
+                                )
+                                if resolved:
+                                    op_copy["place_id"] = resolved["id"]
+                                    op_copy.setdefault("custom_place_name", resolved["name"])
+                                    op_copy.setdefault("custom_category", resolved["category"])
+                                    op_copy.setdefault("custom_address", resolved["address"])
+                                    op_copy.setdefault("custom_latitude", resolved["latitude"])
+                                    op_copy.setdefault("custom_longitude", resolved["longitude"])
+                                    op_copy.setdefault("custom_entry_fee_inr", resolved["entry_fee_inr"])
+                                    op_copy.setdefault(
+                                        "duration_minutes",
+                                        resolved.get("typical_duration_minutes", 45),
+                                    )
+                                if not op_copy.get("new_order"):
+                                    op_copy["new_order"] = len(stops) + 1
+                                op_copy.setdefault("day_number", 1)
 
-                        elif "text" in part:
-                            text_narrative = part["text"].strip()
-                            if text_narrative:
-                                if not text_narrative.startswith("Khamma Ghani") and not text_narrative.startswith("Namaste"):
-                                    text_narrative = f"Khamma Ghani! {text_narrative}"
-                                return {
-                                    "response_narrative": text_narrative,
-                                    "replan_proposal": None,
-                                    "acknowledged_events": acknowledged
-                                }
-            except Exception as e:
-                logger.warning("Gemini companion live orchestration fell back to deterministic logic: %s", e)
+                            normalized_ops.append(op_copy)
 
-        # 2. Deterministic Fallback Logic (used when offline, timeout, or rate-limited)
-        if is_alteration_request:
-            operations = []
+                        if normalized_ops:
+                            proposal = await self.execute_propose_trip_changes(
+                                trip_id=trip_id,
+                                base_revision=base_revision,
+                                operations=normalized_ops,
+                                db=db,
+                                auto_commit=auto_commit,
+                            )
+                            replan_proposal = proposal
+                            if proposal.get("committed"):
+                                trip_updated = True
+                                new_revision = proposal.get("new_revision")
+                                trip_data = await self.execute_get_current_trip(trip_id, db)
+                                base_revision = trip_data.get("revision", base_revision)
+                                stops = trip_data.get("stops", stops)
+                            tool_result = {
+                                "status": "committed" if proposal.get("committed") else "staged_proposal",
+                                "proposal_id": proposal.get("proposal_id"),
+                                "is_feasible": proposal.get("is_feasible"),
+                                "validation_diff": proposal.get("validation_diff"),
+                                "new_revision": proposal.get("new_revision"),
+                            }
+                        else:
+                            tool_result = {"error": "No valid operations provided to propose_trip_changes."}
+                    else:
+                        tool_result = {"error": f"Unknown tool '{fn_name}'."}
 
-            stop_to_skip = None
-            if any(k in msg_lower for k in ["skip", "drop", "tired", "remove", "replace", "cancel", "exhausted"]):
-                if "fort" in msg_lower or "palace" in msg_lower:
-                    stop_to_skip = next((s for s in pending_stops if "palace" in s["name"].lower() or "fort" in s["name"].lower()), None)
-                elif "haveli" in msg_lower:
-                    stop_to_skip = next((s for s in pending_stops if "haveli" in s["name"].lower()), None)
-                elif "temple" in msg_lower:
-                    stop_to_skip = next((s for s in pending_stops if "temple" in s["name"].lower()), None)
-                elif pending_stops:
-                    stop_to_skip = pending_stops[0]
+                    function_response_parts.append({
+                        "functionResponse": {
+                            "name": fn_name,
+                            "response": {"result": tool_result},
+                        }
+                    })
 
-            if stop_to_skip:
-                operations.append({
-                    "type": "skip_stop",
-                    "stop_id": stop_to_skip["id"]
+                if (
+                    replan_proposal is not None
+                    and final_narrative
+                    and all(fc.get("name") == "propose_trip_changes" for fc in fn_calls)
+                ):
+                    break
+
+                contents.append({
+                    "role": "user",
+                    "parts": function_response_parts,
                 })
 
-            place_to_add = None
-            if any(k in msg_lower for k in ["ramesh", "leather", "jutti", "hathi pole", "hathipole", "mojari"]):
-                place_to_add = {"id": "place_leather_craft", "name": "Mewar Royal Leather & Jutti Craft Studio (Ramesh Chandra)"}
-            elif any(k in msg_lower for k in ["ambrai", "ghat", "bagore", "haveli", "gangaur"]):
-                place_to_add = {"id": "place_bagore_haveli", "name": "Bagore Ki Haveli & Waterfront"}
-            elif any(k in msg_lower for k in ["miniature", "painting", "mohanlal", "pichwai"]):
-                place_to_add = {"id": "place_mohanlal_studio", "name": "Master Mohanlal Miniature Art Studio"}
-            elif any(k in msg_lower for k in ["pottery", "clay", "kavita", "terracotta"]):
-                place_to_add = {"id": "place_pottery_studio", "name": "Kavita Terracotta Pottery & Clay Studio"}
-            elif any(k in msg_lower for k in ["puppet", "kathputli", "babu"]):
-                place_to_add = {"id": "place_puppetry_workshop", "name": "Udaipur Traditional Kathputli Puppetry Workshop"}
-            elif any(k in msg_lower for k in ["tea", "rooftop", "cafe", "food", "snack", "sukhadia", "circle", "fateh"]):
-                place_to_add = {"id": "place_sukhadia_circle", "name": "Sukhadia Circle Street Food & Chai"}
+        except Exception as e:
+            logger.error("Gemini companion orchestration error: %s", e)
 
-            if place_to_add:
-                new_seq = stop_to_skip["sequence_in_day"] if stop_to_skip else (pending_stops[0]["sequence_in_day"] if pending_stops else (len(stops) + 1))
-                operations.append({
-                    "type": "add_stop",
-                    "place_id": place_to_add["id"],
-                    "new_order": new_seq,
-                    "day_number": 1
-                })
-
-            if operations:
-                proposal = await self.execute_propose_trip_changes(
-                    trip_id=trip_id,
-                    base_revision=base_revision,
-                    operations=operations,
-                    db=db
-                )
-
-                if stop_to_skip and place_to_add:
-                    narrative = (
-                        f"Khamma Ghani! I completely understand wanting a gentler pace. "
-                        f"I've prepared a proposal to skip {stop_to_skip['name']} and guide you toward {place_to_add['name']} where you can unwind. "
-                        f"The Trip Engine has recalculated your transit and verified your budget headroom. "
-                        f"Review the proposal card below and tap 'Accept' whenever you're ready to update your active route to Revision {base_revision + 1}."
-                    )
-                elif place_to_add:
-                    narrative = (
-                        f"Khamma Ghani! I would be delighted to weave {place_to_add['name']} into your Udaipur journey! "
-                        f"The Trip Engine has prepared an itinerary update with verified transit and timings. "
-                        f"Review the proposal card below and tap 'Accept' to add this stop to your active route (Revision {base_revision + 1})."
+        if not final_narrative:
+            if replan_proposal:
+                diff = replan_proposal.get("validation_diff") or {}
+                summary_bits = []
+                if diff.get("stops_added"):
+                    summary_bits.append(f"added {', '.join(diff['stops_added'])}")
+                if diff.get("stops_skipped"):
+                    summary_bits.append(f"removed/skipped {', '.join(diff['stops_skipped'])}")
+                if diff.get("travel_mode_changed"):
+                    summary_bits.append(f"updated transit mode ({', '.join(diff['travel_mode_changed'])})")
+                if diff.get("durations_updated"):
+                    summary_bits.append(f"adjusted duration ({', '.join(diff['durations_updated'])})")
+                if diff.get("rescheduled_stops"):
+                    summary_bits.append(f"rescheduled {', '.join(diff['rescheduled_stops'])}")
+                if diff.get("budget_updated_inr") is not None:
+                    summary_bits.append(f"updated budget to ₹{int(diff['budget_updated_inr'])}")
+                changes_str = "; ".join(summary_bits) if summary_bits else "updated your itinerary"
+                if replan_proposal.get("committed"):
+                    final_narrative = (
+                        f"Khamma Ghani! I have {changes_str} and committed the update to your active itinerary "
+                        f"(now at Revision {new_revision or (base_revision + 1)})."
                     )
                 else:
-                    narrative = (
-                        f"Khamma Ghani! I've prepared a proposal to skip {stop_to_skip['name']} and streamline your schedule. "
-                        f"Review the proposal card below and tap 'Accept' whenever you're ready to update your active route to Revision {base_revision + 1}."
+                    final_narrative = (
+                        f"Khamma Ghani! I have prepared an itinerary update that {changes_str}. "
+                        f"You can review the exact timings and transit details in the proposal card below and tap 'Accept' to apply it."
                     )
+            elif trip_updated:
+                final_narrative = (
+                    f"Khamma Ghani! I have applied your requested update to the active itinerary (Revision {new_revision or base_revision})."
+                )
+            else:
+                final_narrative = (
+                    "Khamma Ghani! I encountered a temporary issue connecting to the Gemini reasoning service. "
+                    "Please send your message again and I will take care of it right away."
+                )
 
-                return {
-                    "response_narrative": narrative,
-                    "replan_proposal": proposal,
-                    "acknowledged_events": acknowledged
-                }
+        if acknowledged and replan_proposal:
+            if not any(p in final_narrative.lower() for p in ["skipped", "earlier", "timeline", "noted", "kept that in mind"]):
+                final_narrative = f"I noted your earlier itinerary update ({acknowledged[0].lower()}). {final_narrative}"
 
-        if "fatehsagar" in msg_lower or "fateh sagar" in msg_lower:
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"Fateh Sagar Lake is wonderful for a breezy stroll and sunset views. Here are my favorite local spots there:\n\n"
-                f"1. **Fateh Sagar Paal (Bombay Market)**: Walk along the lakeside promenade for famous kulhad chai, cold coffee, and roasted corn (*bhutta*) while watching the speedboats.\n"
-                f"2. **Nehru Park**: Hop on a solar boat from the jetty to reach the island garden in the center of the lake with panoramic mountain vistas.\n"
-                f"3. **Rani Road Cafes & Tribute**: Head along scenic Rani Road for tranquil lakeside dining and open-air cafes away from old-city crowds.\n"
-                f"4. **Sukhadia Circle**: Just 5 minutes from the lake, famous for its grand fountain and evening street food (try the rabdi falooda!).\n\n"
-                f"Would you like me to adjust your route to add a stop near Fateh Sagar?"
-            )
-        elif any(k in msg_lower for k in ["lakeside", "restaurant", "dining", "dinner", "lunch", "eat", "food", "cafe", "rooftop"]):
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"For authentic lakeside dining and atmospheric rooftop views in Udaipur, I highly recommend:\n\n"
-                f"1. **Ambrai Restaurant (Amet Haveli)**: Waterfront seating at Gangaur Ghat with unmatched views of the illuminated City Palace and Lake Palace.\n"
-                f"2. **Upre by 1559 AD**: Elegant rooftop cabanas overlooking Lake Pichola with excellent traditional Mewari curries.\n"
-                f"3. **Jheel's Ginger Coffee Bar & Bakery**: Relaxed lakeside cafe right on Gangaur Ghat for morning espresso or afternoon tea watching the ripples.\n"
-                f"4. **Sukhadia Circle Street Food**: Bustling evening kiosks for hot pav bhaji, kulfi, and masala chai around the illuminated fountain.\n\n"
-                f"Let me know if you would like me to propose adding any of these venues to your active itinerary!"
-            )
-        elif any(k in msg_lower for k in ["artisan", "craft", "pottery", "painting", "miniature", "puppet", "workshop"]):
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"Udaipur is alive with master craft traditions preserved over generations:\n\n"
-                f"1. **Master Mohanlal Miniature Art Studio** (14 Jagdish Chowk): 4th generation painter using squirrel-hair brushes and natural stone pigments for Pichwai and miniature artworks.\n"
-                f"2. **Kavita Terracotta Pottery & Clay Studio** (22 Chandpole Ghat Road): Traditional Mewar wheel throwing and clay votive sculpting masterclasses.\n"
-                f"3. **Babu Bhatt Kathputli Puppetry Workshop** (Gangaur Ghat Road): 1,000-year-old wooden string puppetry theater and carving.\n\n"
-                f"Tell me which craft you'd like to try, and I will gladly weave a workshop into your route!"
-            )
-        elif "sunset" in msg_lower or "evening" in msg_lower:
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"For the finest sunset lighting over Lake Pichola, make sure you reach Gangaur Ghat or Ambrai Ghat by 5:45 PM. "
-                f"The golden reflection against the marble pavilions of Jag Mandir is truly breathtaking."
-            )
-        elif "wear" in msg_lower or "etiquette" in msg_lower or "temple" in msg_lower:
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"When visiting Udaipur's sacred spots like Jagdish Temple, modest clothing covering shoulders and knees is appreciated. "
-                f"You will be asked to leave shoes at the bottom of the marble staircase with the attendant (a ₹10 tip is customary)."
-            )
-        else:
-            narrative = (
-                f"Khamma Ghani! {ack_phrase}"
-                f"I am keeping an eye on your journey through Udaipur (Revision {base_revision}). "
-                f"Ask me anytime about lakeside dining, Fateh Sagar cafes, sunset vantage points, or verified Mewar artisan workshops in Jagdish Chowk!"
-            )
+        if not history and "khamma ghani" not in final_narrative.lower() and "namaste" not in final_narrative.lower():
+            final_narrative = f"Khamma Ghani! {final_narrative}"
 
         return {
-            "response_narrative": narrative,
-            "replan_proposal": None,
-            "acknowledged_events": acknowledged
+            "response_narrative": final_narrative,
+            "replan_proposal": replan_proposal,
+            "acknowledged_events": acknowledged,
+            "trip_updated": trip_updated,
+            "new_revision": new_revision,
         }
 
 

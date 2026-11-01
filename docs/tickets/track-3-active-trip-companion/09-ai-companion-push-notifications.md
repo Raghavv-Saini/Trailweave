@@ -58,3 +58,27 @@ An intelligent, cultured in-trip AI companion powered by Gemini Flash that deliv
 - `frontend`: Node test runner (`npm test`) passed all 5 unit tests (`basket.test.mjs` and `companion.test.mjs`).
 - `frontend`: Next.js production build (`npm run build`) succeeded with all static pages generated.
 - `backend`: AST syntax verification passed on all updated Python files (`gemini.py`, `assistant.py`, `trips.py`, `test_companion_api.py`).
+
+### Multi-Turn Agentic Travel Assistant & Expanded Itinerary Mutation Upgrade (2026-11-01)
+1. **Model Fallback & Unbiased Prompt (`backend/app/services/gemini.py`)**:
+   - Upgraded primary model from `gemini-3.1-flash-lite` (which was returning HTTP 503 under load) to `gemini-3-flash-preview` with automatic fallback across `["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"]`.
+   - Removed all hardcoded keyword-matching replies (`if "temple" in msg_lower`, `if "fatehsagar" in msg_lower`, etc.) in both `backend/app/services/gemini.py` and `frontend/context/TripContext.tsx` so pre-loaded stops (like Jagdish Temple or workshops) never bias the assistant into repeating canned answers.
+   - Added a 19-venue `UDAIPUR_GAZETTEER` plus dynamic custom place creation so `add_stop` never silently overwrites unknown venues to `place_sukhadia_circle`.
+
+2. **7-Tool Multi-Turn Agentic Loop (`backend/app/services/gemini.py`)**:
+   - Implemented an iterative multi-step tool-calling loop (up to 4 rounds per turn) supporting:
+     - `get_current_trip`
+     - `get_recent_trip_events`
+     - `search_places`
+     - `get_place_details`
+     - `calculate_transit_route` (live Google Routes API v2 transit time, distance, and INR fare calculation for `walking`, `auto_rickshaw`, and `cab` with Haversine road-factor fallback)
+     - `propose_trip_changes` (supports `auto_commit=True` when the user confirms a prior proposal)
+     - `execute_direct_trip_action` (`mark_visited`, `mark_checkout`, `update_budget`, `update_artisan_preference`)
+
+3. **Expanded Deterministic Mutation Engine (`backend/app/schemas/replan.py`, `backend/app/engine/replan.py`, `backend/app/api/v1/replan.py`)**:
+   - Added `update_travel_mode` (per-leg or trip-wide), `update_stop_duration`, `reschedule_stop`, `update_budget`, and custom place `add_stop` operations.
+   - Auto-upserts custom places into `places` on preview/accept and persists `transit_minutes_from_prev` and `budget_updated_inr`.
+
+4. **Stateful Multi-Turn Chat & Proposal UI (`frontend/context/TripContext.tsx`, `frontend/components/trip/AIChatDrawer.tsx`, `frontend/components/trip/ReplanProposalCard.tsx`)**:
+   - `AIChatDrawer` and `sendCompanionMessage` now pass conversation `history` and `client_trip_state` to `POST /api/trips/{trip_id}/assistant/messages` and automatically refresh the active trip when `trip_updated` is true.
+   - `ReplanProposalCard` renders diff badges for `travel_mode_changed`, `durations_updated`, `rescheduled_stops`, and `budget_updated_inr`.

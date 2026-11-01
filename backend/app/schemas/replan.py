@@ -5,12 +5,32 @@ from app.schemas.trips import TripStopResponse
 
 
 class ReplanOperation(BaseModel):
-    type: Literal["add_stop", "remove_stop", "skip_stop", "reorder_stops", "pin_stop"]
+    type: Literal[
+        "add_stop",
+        "remove_stop",
+        "skip_stop",
+        "reorder_stops",
+        "pin_stop",
+        "update_travel_mode",
+        "update_stop_duration",
+        "reschedule_stop",
+        "update_budget",
+    ]
     place_id: Optional[str] = None
     stop_id: Optional[str] = None
     new_order: Optional[int] = None
     day_number: Optional[int] = 1
     is_pinned: Optional[bool] = None
+    travel_mode: Optional[Literal["walking", "auto_rickshaw", "cab"]] = None
+    duration_minutes: Optional[int] = None
+    planned_arrival_time: Optional[str] = None
+    custom_place_name: Optional[str] = None
+    custom_category: Optional[str] = None
+    custom_address: Optional[str] = None
+    custom_latitude: Optional[float] = None
+    custom_longitude: Optional[float] = None
+    custom_entry_fee_inr: Optional[float] = None
+    budget_inr: Optional[float] = None
 
 
 class ReplanPreviewRequest(BaseModel):
@@ -26,6 +46,10 @@ class ValidationDiff(BaseModel):
     stops_skipped: List[str] = Field(default_factory=list)
     stops_removed: List[str] = Field(default_factory=list)
     closing_hour_conflicts: List[str] = Field(default_factory=list)
+    travel_mode_changed: List[str] = Field(default_factory=list)
+    durations_updated: List[str] = Field(default_factory=list)
+    rescheduled_stops: List[str] = Field(default_factory=list)
+    budget_updated_inr: Optional[float] = None
 
 
 class ReplanProposalResponse(BaseModel):
