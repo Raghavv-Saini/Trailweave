@@ -23,6 +23,7 @@ export interface TripStop {
   planned_arrival?: string;
   planned_departure?: string;
   suggested_duration_minutes: number;
+  transit_minutes_from_prev?: number;
   actual_duration_minutes?: number | null;
   visit_status: "pending" | "visited" | "skipped";
   is_pinned: boolean;
@@ -225,16 +226,17 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_city_palace,
     day_number: 1,
     sequence_in_day: 1,
-    planned_arrival: "2026-10-31T09:30:00Z",
-    planned_departure: "2026-10-31T11:30:00Z",
+    planned_arrival: "2026-10-31T09:30:00+05:30",
+    planned_departure: "2026-10-31T11:30:00+05:30",
     suggested_duration_minutes: 120,
+    transit_minutes_from_prev: 10,
     actual_duration_minutes: 120,
     visit_status: "visited",
     is_pinned: false,
     checkin_method: "geofence_proximity",
-    arrival_timestamp: "2026-10-31T09:32:00Z",
+    arrival_timestamp: "2026-10-31T09:32:00+05:30",
     checkout_method: "manual_tap",
-    departure_timestamp: "2026-10-31T11:30:00Z",
+    departure_timestamp: "2026-10-31T11:30:00+05:30",
     is_checked_out: true,
   },
   {
@@ -244,9 +246,10 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_mohanlal_studio,
     day_number: 1,
     sequence_in_day: 2,
-    planned_arrival: "2026-10-31T11:45:00Z",
-    planned_departure: "2026-10-31T12:30:00Z",
+    planned_arrival: "2026-10-31T11:45:00+05:30",
+    planned_departure: "2026-10-31T12:30:00+05:30",
     suggested_duration_minutes: 45,
+    transit_minutes_from_prev: 15,
     actual_duration_minutes: null,
     visit_status: "pending",
     is_pinned: true,
@@ -258,9 +261,10 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_jagdish_temple,
     day_number: 1,
     sequence_in_day: 3,
-    planned_arrival: "2026-10-31T12:40:00Z",
-    planned_departure: "2026-10-31T13:10:00Z",
+    planned_arrival: "2026-10-31T12:40:00+05:30",
+    planned_departure: "2026-10-31T13:10:00+05:30",
     suggested_duration_minutes: 30,
+    transit_minutes_from_prev: 10,
     actual_duration_minutes: null,
     visit_status: "pending",
     is_pinned: false,
@@ -272,9 +276,10 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_bagore_haveli,
     day_number: 1,
     sequence_in_day: 4,
-    planned_arrival: "2026-10-31T13:15:00Z",
-    planned_departure: "2026-10-31T14:45:00Z",
+    planned_arrival: "2026-10-31T13:15:00+05:30",
+    planned_departure: "2026-10-31T14:45:00+05:30",
     suggested_duration_minutes: 90,
+    transit_minutes_from_prev: 5,
     actual_duration_minutes: null,
     visit_status: "pending",
     is_pinned: false,
@@ -286,9 +291,10 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_saheliyon_bari,
     day_number: 1,
     sequence_in_day: 5,
-    planned_arrival: "2026-10-31T15:15:00Z",
-    planned_departure: "2026-10-31T16:15:00Z",
+    planned_arrival: "2026-10-31T15:15:00+05:30",
+    planned_departure: "2026-10-31T16:15:00+05:30",
     suggested_duration_minutes: 60,
+    transit_minutes_from_prev: 30,
     actual_duration_minutes: null,
     visit_status: "pending",
     is_pinned: false,
@@ -300,9 +306,10 @@ const INITIAL_DEMO_STOPS: TripStop[] = [
     ...PLACE_DEFAULTS.place_sukhadia_circle,
     day_number: 1,
     sequence_in_day: 6,
-    planned_arrival: "2026-10-31T17:00:00Z",
-    planned_departure: "2026-10-31T18:00:00Z",
+    planned_arrival: "2026-10-31T17:00:00+05:30",
+    planned_departure: "2026-10-31T18:00:00+05:30",
     suggested_duration_minutes: 60,
+    transit_minutes_from_prev: 15,
     actual_duration_minutes: null,
     visit_status: "pending",
     is_pinned: false,
@@ -399,55 +406,82 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         };
       });
 
-      let finalTripId = `trip_custom_${Date.now().toString(36)}`;
-      let finalRevision = 1;
+        let finalTripId = `trip_custom_${Date.now().toString(36)}`;
+        let finalRevision = 1;
+        let finalStops = generatedStops;
 
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/trips`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            user_id: "tourist_demo_user",
-            title: customTitle,
-            start_datetime: "2026-11-01T09:30:00+05:30",
-            total_days: totalDays,
-            budget_inr: input.budgetInr || 2500,
-            budget_mode: "total",
-            travel_mode: input.travelMode || "auto_rickshaw",
-            artisan_preference: "both",
-            start_location: {
-              name: "Udaipur Old City Center",
-              latitude: 24.5794,
-              longitude: 73.6841,
-            },
-            place_ids: candidatePlaces.map((p) => p.id),
-            optimize_route: true,
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.id) finalTripId = data.id;
-          if (data.revision) finalRevision = data.revision;
-        }
-      } catch {}
+        try {
+          const res = await fetch(`${API_BASE_URL}/api/trips`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              user_id: "tourist_demo_user",
+              title: customTitle,
+              start_datetime: "2026-11-01T09:30:00+05:30",
+              total_days: totalDays,
+              budget_inr: input.budgetInr || 2500,
+              budget_mode: "total",
+              travel_mode: input.travelMode || "auto_rickshaw",
+              artisan_preference: "both",
+              start_location: {
+                name: "Udaipur Old City Center",
+                latitude: 24.5794,
+                longitude: 73.6841,
+              },
+              place_ids: candidatePlaces.map((p) => p.id),
+              optimize_route: true,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.id) finalTripId = data.id;
+            if (data.revision) finalRevision = data.revision;
+            if (data.active_version?.stops?.length) {
+              finalStops = data.active_version.stops.map((s: Record<string, unknown>, idx: number) => {
+                const placeId = String(s.place_id || "");
+                const defaults = PLACE_DEFAULTS[placeId] || {};
+                return {
+                  id: String(s.id || `stop_${placeId}_${idx + 1}`),
+                  place_id: placeId,
+                  name: String(s.name || placeId),
+                  address: String(s.address || defaults.address || "Udaipur, Rajasthan"),
+                  latitude: Number(s.latitude || defaults.latitude || 24.5854),
+                  longitude: Number(s.longitude || defaults.longitude || 73.6812),
+                  category: String(s.category || defaults.category || "heritage"),
+                  entry_fee_inr: Number(s.entry_fee_inr ?? defaults.entry_fee_inr ?? 0),
+                  image_url: String(defaults.image_url || s.image_url || ""),
+                  day_number: Number(s.day_number || 1),
+                  sequence_in_day: Number(s.sequence_in_day || idx + 1),
+                  planned_arrival: typeof s.planned_arrival === "string" ? s.planned_arrival : undefined,
+                  planned_departure: typeof s.planned_departure === "string" ? s.planned_departure : undefined,
+                  suggested_duration_minutes: Number(s.suggested_duration_minutes || 45),
+                  transit_minutes_from_prev: typeof s.transit_minutes_from_prev === "number" ? s.transit_minutes_from_prev : (idx === 0 ? 10 : 15),
+                  actual_duration_minutes: null,
+                  visit_status: "pending",
+                  is_pinned: Boolean(s.is_pinned),
+                };
+              });
+            }
+          }
+        } catch {}
 
-      setTripId(finalTripId);
-      setTripTitle(customTitle);
-      setRevision(finalRevision);
-      setStops(generatedStops);
-      setAuditEvents([]);
+        setTripId(finalTripId);
+        setTripTitle(customTitle);
+        setRevision(finalRevision);
+        setStops(finalStops);
+        setAuditEvents([]);
 
-      try {
-        localStorage.setItem(
-          "trailweave_active_trip_v3",
-          JSON.stringify({
-            tripId: finalTripId,
-            tripTitle: customTitle,
-            revision: finalRevision,
-            stops: generatedStops,
-          })
-        );
-      } catch {}
+        try {
+          localStorage.setItem(
+            "trailweave_active_trip_v3",
+            JSON.stringify({
+              tripId: finalTripId,
+              tripTitle: customTitle,
+              revision: finalRevision,
+              stops: finalStops,
+            })
+          );
+        } catch {}
     },
     []
   );
@@ -492,6 +526,10 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
               planned_departure:
                 typeof s.planned_departure === "string" ? s.planned_departure : existing?.planned_departure,
               suggested_duration_minutes: Number(s.suggested_duration_minutes || 45),
+              transit_minutes_from_prev:
+                typeof s.transit_minutes_from_prev === "number"
+                  ? s.transit_minutes_from_prev
+                  : existing?.transit_minutes_from_prev ?? 15,
               actual_duration_minutes: actualDuration,
               visit_status: visitStatus,
               is_pinned: Boolean(s.is_pinned),

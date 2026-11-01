@@ -16,6 +16,7 @@ import { Header } from "@/components/common/Header";
 import { BottomNav } from "@/components/common/BottomNav";
 import { BasketDrawer } from "@/components/basket/BasketDrawer";
 import { FloatingBasketButton } from "@/components/basket/FloatingBasketButton";
+import { AIChatDrawer } from "@/components/trip/AIChatDrawer";
 import { useTrip } from "@/context/TripContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -25,6 +26,7 @@ export default function TouristHomePage() {
   const { tripTitle, stops, revision } = useTrip();
 
   const [isBasketOpen, setIsBasketOpen] = useState(false);
+  const [isGeminiCompanionOpen, setIsGeminiCompanionOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading) {
@@ -114,82 +116,13 @@ export default function TouristHomePage() {
           </div>
         </section>
 
-        {/* 2. Quick Navigation Flow Cards (3 Pillars for Tourists) */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
-          {/* Card 1: Community Trails */}
-          <Link
-            href="/trails"
-            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
-          >
-            <div className="space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-[#1E3A5F]/10 text-[#1E3A5F] flex items-center justify-center">
-                <Compass className="w-5 h-5 stroke-[1.8]" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
-                Browse Community Trails
-              </h3>
-              <p className="text-xs text-[#5A544B] leading-relaxed">
-                Explore authentic, traveler-completed itineraries on the dedicated Community Trails page. Adopt a whole trail or cherry-pick stops into your basket.
-              </p>
-            </div>
-            <div className="flex items-center text-xs font-bold text-[#1E3A5F] gap-1 pt-1">
-              <span>Open Community Trails (/trails)</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 2: Verified Artisan Studios */}
-          <Link
-            href="/artisans"
-            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
-          >
-            <div className="space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-[#9E7432]/10 text-[#9E7432] flex items-center justify-center">
-                <Palette className="w-5 h-5 stroke-[1.8]" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
-                Master Artisan Studios
-              </h3>
-              <p className="text-xs text-[#5A544B] leading-relaxed">
-                Discover verified Mewar miniature painters, terracotta potters, and block-printing workshops. Add hands-on craft sessions directly to your trip.
-              </p>
-            </div>
-            <div className="flex items-center text-xs font-bold text-[#9E7432] gap-1 pt-1">
-              <span>Explore Artisan Directory (/artisans)</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-
-          {/* Card 3: Active Companion & Publishing */}
-          <Link
-            href="/trip"
-            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
-          >
-            <div className="space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
-                <Navigation className="w-5 h-5 stroke-[1.8]" />
-              </div>
-              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
-                Active Companion & Publish
-              </h3>
-              <p className="text-xs text-[#5A544B] leading-relaxed">
-                Navigate your live itinerary, check in at stops, replan with the AI companion, and publish your completed journey back to Community Trails.
-              </p>
-            </div>
-            <div className="flex items-center text-xs font-bold text-emerald-800 gap-1 pt-1">
-              <span>Go to My Active Trip (/trip)</span>
-              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-            </div>
-          </Link>
-        </section>
-
-        {/* 3. Option C: Cultured Local Friend • AI Concierge & Udaipur District Explorer */}
+        {/* 2. TOP HERO: Cultured Local Companion & Udaipur Heritage District Explorer */}
         <section className="rounded-2xl border border-[#E8E4DC] bg-white p-6 sm:p-8 shadow-xs space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E4DC] pb-4">
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#9E7432] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#9E7432]" />
-                <span>Ask Your Cultured Local Friend • Udaipur AI Concierge</span>
+                <span>Ask Your Cultured Local Friend • Gemini Companion</span>
               </span>
               <h2 className="font-serif text-2xl text-[#191C1E] mt-0.5">
                 Explore Udaipur by Heritage District & Living Craft
@@ -199,13 +132,14 @@ export default function TouristHomePage() {
               </p>
             </div>
 
-            <Link
-              href="/trip"
-              className="px-4 py-2.5 rounded-xl bg-[#1E3A5F] text-white text-xs font-bold flex items-center gap-2 hover:bg-[#152842] transition-colors cursor-pointer shrink-0"
+            <button
+              type="button"
+              onClick={() => setIsGeminiCompanionOpen(true)}
+              className="px-4 py-2.5 rounded-xl bg-[#1E3A5F] text-white text-xs font-bold flex items-center gap-2 hover:bg-[#152842] transition-colors cursor-pointer shrink-0 shadow-2xs"
             >
               <MessageSquare className="w-4 h-4" />
-              <span>Open AI Companion</span>
-            </Link>
+              <span>Open Gemini Companion</span>
+            </button>
           </div>
 
           {/* District Highlights Grid */}
@@ -277,37 +211,84 @@ export default function TouristHomePage() {
               );
             })}
           </div>
+        </section>
 
-          {/* Quick Contextual Inquiry Prompt Chips */}
-          <div className="pt-4 border-t border-[#F0ECE1] space-y-2.5">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#191C1E]">
-              <Sparkles className="w-3.5 h-3.5 text-[#1E3A5F]" />
-              <span>Ask the Companion with 1-Tap Cultural Inquiries:</span>
+        {/* 3. Quick Navigation Flow Cards (3 Pillars for Tourists) */}
+        <section className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+          {/* Card 1: Community Trails */}
+          <Link
+            href="/trails"
+            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+          >
+            <div className="space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-[#1E3A5F]/10 text-[#1E3A5F] flex items-center justify-center">
+                <Compass className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
+                Browse Community Trails
+              </h3>
+              <p className="text-xs text-[#5A544B] leading-relaxed">
+                Explore authentic, traveler-completed itineraries on the dedicated Community Trails page. Adopt a whole trail or cherry-pick stops into your basket.
+              </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {[
-                "Find an authentic miniature painting workshop near Jagdish Chowk under ₹500",
-                "Suggest a scenic sunset walk along Gangaur Ghat avoiding afternoon heat",
-                "Show verified artisan studios with hands-on craft sessions",
-                "Recommend quiet rooftop tea overlooking Lake Pichola",
-                "Where can I find authentic Mewari street food around Sukhadia Circle?",
-              ].map((promptText) => (
-                <Link
-                  key={promptText}
-                  href={`/trip?prompt=${encodeURIComponent(promptText)}`}
-                  className="px-3.5 py-2 rounded-xl border border-[#E2DDD3] bg-white text-xs text-[#5A544B] hover:text-[#1E3A5F] hover:border-[#1E3A5F] hover:bg-[#1E3A5F]/5 transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer"
-                >
-                  <MessageSquare className="w-3 h-3 text-[#1E3A5F]/70 shrink-0" />
-                  <span>&ldquo;{promptText}&rdquo;</span>
-                </Link>
-              ))}
+            <div className="flex items-center text-xs font-bold text-[#1E3A5F] gap-1 pt-1">
+              <span>Open Community Trails (/trails)</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
             </div>
-          </div>
+          </Link>
+
+          {/* Card 2: Verified Artisan Studios */}
+          <Link
+            href="/artisans"
+            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+          >
+            <div className="space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-[#9E7432]/10 text-[#9E7432] flex items-center justify-center">
+                <Palette className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
+                Master Artisan Studios
+              </h3>
+              <p className="text-xs text-[#5A544B] leading-relaxed">
+                Discover verified Mewar miniature painters, terracotta potters, and block-printing workshops. Add hands-on craft sessions directly to your trip.
+              </p>
+            </div>
+            <div className="flex items-center text-xs font-bold text-[#9E7432] gap-1 pt-1">
+              <span>Explore Artisan Directory (/artisans)</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
+
+          {/* Card 3: Active Companion & Publishing */}
+          <Link
+            href="/trip"
+            className="p-5 rounded-2xl bg-white border border-[#E8E4DC] hover:border-[#1E3A5F] hover:shadow-md transition-all group flex flex-col justify-between space-y-3"
+          >
+            <div className="space-y-2">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-800 flex items-center justify-center">
+                <Navigation className="w-5 h-5 stroke-[1.8]" />
+              </div>
+              <h3 className="font-serif text-lg font-bold text-[#191C1E] group-hover:text-[#1E3A5F] transition-colors">
+                Active Companion & Publish
+              </h3>
+              <p className="text-xs text-[#5A544B] leading-relaxed">
+                Navigate your live itinerary, check in at stops, replan with the AI companion, and publish your completed journey back to Community Trails.
+              </p>
+            </div>
+            <div className="flex items-center text-xs font-bold text-emerald-800 gap-1 pt-1">
+              <span>Go to My Active Trip (/trip)</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+            </div>
+          </Link>
         </section>
       </main>
 
       <FloatingBasketButton onClick={() => setIsBasketOpen(true)} />
       <BasketDrawer isOpen={isBasketOpen} onClose={() => setIsBasketOpen(false)} />
+      <AIChatDrawer
+        isOpen={isGeminiCompanionOpen}
+        onClose={() => setIsGeminiCompanionOpen(false)}
+      />
       <BottomNav />
     </div>
   );

@@ -144,8 +144,35 @@ async def compute_transit_minutes(
     departure_time: datetime,
     google_maps_api_key: str = "",
 ) -> int:
-    """Fetch transit duration via Google Distance Matrix API if key is set, else fallback."""
+    """Fetch transit duration via Google Routes API v2 (or legacy Distance Matrix) if key is set, else fallback."""
     if google_maps_api_key and httpx is not None:
+        # 1. Primary: Google Routes API (v2 computeRoutes)
+        routes_url = "https://routes.googleapis.com/directions/v2:computeRoutes"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": google_maps_api_key,
+            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters",
+        }
+        routes_mode = "WALK" if travel_mode == "walking" else "DRIVE"
+        payload = {
+            "origin": {"location": {"latLng": {"latitude": lat1, "longitude": lon1}}},
+            "destination": {"location": {"latLng": {"latitude": lat2, "longitude": lon2}}},
+            "travelMode": routes_mode,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=4.0) as client:
+                resp = await client.post(routes_url, headers=headers, json=payload)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    routes = data.get("routes") or []
+                    if routes and "duration" in routes[0]:
+                        dur_str = str(routes[0]["duration"]).rstrip("s")
+                        secs = float(dur_str)
+                        return max(2, math.ceil(secs / 60.0))
+        except Exception:
+            pass
+
+        # 2. Secondary fallback: Legacy Google Distance Matrix API
         gmaps_mode = "walking" if travel_mode == "walking" else "driving"
         params: Dict[str, Any] = {
             "origins": f"{lat1},{lon1}",

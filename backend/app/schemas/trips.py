@@ -57,6 +57,7 @@ class TripStopResponse(BaseModel):
     planned_arrival: Optional[datetime] = None
     planned_departure: Optional[datetime] = None
     suggested_duration_minutes: int
+    transit_minutes_from_prev: Optional[int] = 0
     actual_duration_minutes: Optional[int] = None
     is_pinned: bool = False
     visit_status: str = "pending"
