@@ -337,6 +337,7 @@ async def create_planned_trip(
                 planned_arrival=s.planned_arrival,
                 planned_departure=s.planned_departure,
                 suggested_duration_minutes=s.suggested_duration_minutes,
+                transit_minutes_from_prev=s.transit_minutes_from_prev,
                 actual_duration_minutes=None,
                 is_pinned=False,
                 visit_status="pending",

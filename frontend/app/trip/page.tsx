@@ -108,6 +108,7 @@ export default function ActiveTripPage() {
     "watching" | "simulated" | "unavailable"
   >("watching");
   const [isSimOpen, setIsSimOpen] = useState(false);
+  const [showRawEndpoints, setShowRawEndpoints] = useState(false);
   const [statusBanner, setStatusBanner] = useState<{
     type: "checkin" | "checkout" | "grace_buffer";
     message: string;
@@ -572,27 +573,78 @@ export default function ActiveTripPage() {
                 />
               </div>
 
-              {/* API Method Audit Log */}
+              {/* Live Companion Sync & Activity Log */}
               {auditEvents.length > 0 && (
-                <div className="p-4 rounded-2xl bg-[#191C1E] text-neutral-100 space-y-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#9E7432] flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>Live Companion Engine Audit Stream</span>
-                  </h4>
-                  <div className="space-y-1.5 max-h-36 overflow-y-auto font-mono text-[11px]">
-                    {auditEvents.map((ev) => (
-                      <div
-                        key={ev.id}
-                        className="bg-neutral-800/90 px-3 py-1.5 rounded-lg flex items-center justify-between gap-2"
-                      >
-                        <span className="truncate text-neutral-200">
-                          {ev.endpoint}
-                        </span>
-                        <span className="shrink-0 px-1.5 py-0.5 rounded bg-[#9E7432]/30 text-amber-300 text-[10px]">
-                          {ev.method || ev.action}
-                        </span>
-                      </div>
-                    ))}
+                <div className="p-4 rounded-2xl bg-white border border-[#E8E4DC] shadow-xs space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-[#9E7432] flex items-center gap-1.5">
+                      <Activity className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                      <span>Live Companion Activity & Sync Log</span>
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setShowRawEndpoints((prev) => !prev)}
+                      className="text-[10px] font-semibold text-[#1E3A5F] hover:underline cursor-pointer"
+                    >
+                      {showRawEndpoints ? "Hide API Details" : "View API Details"}
+                    </button>
+                  </div>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {auditEvents.map((ev) => {
+                      const isGps = ev.method === "geofence_proximity";
+                      const isGrace = ev.method === "grace_buffer_timeout";
+                      const actionTitle =
+                        ev.action === "visit"
+                          ? `Checked in at ${ev.stopName}`
+                          : ev.action === "checkout"
+                          ? `Departed from ${ev.stopName}`
+                          : "Itinerary re-planned & synced";
+
+                      const methodBadge = isGps
+                        ? "Auto GPS (100m)"
+                        : isGrace
+                        ? "20m Grace Buffer"
+                        : ev.method === "manual_fallback" || ev.method === "manual_tap"
+                        ? "1-Tap Verified"
+                        : ev.method || ev.action;
+
+                      let timeStr = "";
+                      try {
+                        timeStr = new Date(ev.timestamp).toLocaleTimeString([], {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                          timeZone: "Asia/Kolkata",
+                        });
+                      } catch {}
+
+                      return (
+                        <div
+                          key={ev.id}
+                          className="p-2.5 rounded-xl bg-[#FAF8F5] border border-[#E8E4DC] text-xs space-y-1"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-[#191C1E] truncate">
+                              {actionTitle}
+                            </span>
+                            <span className="shrink-0 text-[10px] text-[#7A746B]">
+                              {timeStr}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#1E3A5F]/10 text-[#1E3A5F] text-[10px] font-bold">
+                              {isGps && <Radio className="w-2.5 h-2.5 text-emerald-600" />}
+                              {methodBadge}
+                            </span>
+                          </div>
+                          {showRawEndpoints && (
+                            <div className="pt-1 border-t border-[#E8E4DC]/60 text-[10px] font-mono text-[#7A746B] truncate">
+                              <code>{ev.endpoint}</code>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
