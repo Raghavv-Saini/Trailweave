@@ -11,8 +11,10 @@ import {
   SkipForward,
   Timer,
   Radio,
+  Car,
+  Footprints,
 } from "lucide-react";
-import { TripStop } from "@/context/TripContext";
+import { TripStop, useTrip } from "@/context/TripContext";
 
 interface TimelineListProps {
   stops: TripStop[];
@@ -44,6 +46,12 @@ export function TimelineList({
   onManualCheckin,
   onCheckout,
 }: TimelineListProps) {
+  const { travelMode } = useTrip();
+  const currentMode = travelMode || "auto_rickshaw";
+  const isWalkingMode = currentMode === "walking";
+  const isCabMode = currentMode === "cab";
+  const gmapsTravelMode = isWalkingMode ? "walking" : "driving";
+
   return (
     <div className="space-y-3">
       {stops.map((stop, idx) => {
@@ -56,14 +64,18 @@ export function TimelineList({
         const prevStop = idx > 0 ? stops[idx - 1] : null;
         const transitMinutes = stop.transit_minutes_from_prev || 15;
         const segmentDirectionsUrl = prevStop
-          ? `https://www.google.com/maps/dir/?api=1&origin=${prevStop.latitude},${prevStop.longitude}&destination=${stop.latitude},${stop.longitude}&travelmode=${
-              transitMinutes > 20 ? "driving" : "walking"
-            }`
+          ? `https://www.google.com/maps/dir/?api=1&origin=${prevStop.latitude},${prevStop.longitude}&destination=${stop.latitude},${stop.longitude}&travelmode=${gmapsTravelMode}`
           : null;
 
         const googleMapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(
           `${stop.latitude},${stop.longitude}`
-        )}&travelmode=walking`;
+        )}&travelmode=${gmapsTravelMode}`;
+
+        const modeDescription = isWalkingMode
+          ? "walk"
+          : isCabMode
+          ? "transit (Cab)"
+          : "transit (Auto Rickshaw)";
 
         return (
           <React.Fragment key={stop.id}>
@@ -72,15 +84,14 @@ export function TimelineList({
               <div className="flex items-center gap-3 pl-5 py-1 text-xs text-[#7A746B]">
                 <div className="w-0.5 h-6 bg-[#E8E4DC] ml-2 border-l border-dashed border-[#1E3A5F]/40" />
                 <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FAF8F5] border border-[#E8E4DC] text-[11px] font-medium shadow-2xs">
-                  {transitMinutes > 20 ? (
-                    <span className="flex items-center gap-1 text-[#1E3A5F] font-bold">
-                      🚗 ~{transitMinutes}m transit (Cab / Auto)
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[#1E3A5F] font-bold">
-                      🚶 ~{transitMinutes}m walk
-                    </span>
-                  )}
+                  <span className="flex items-center gap-1.5 text-[#1E3A5F] font-bold">
+                    {isWalkingMode ? (
+                      <Footprints className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                    ) : (
+                      <Car className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                    )}
+                    <span>~{transitMinutes}m {modeDescription}</span>
+                  </span>
                   {segmentDirectionsUrl && (
                     <>
                       <span className="text-[#A0988D]">•</span>

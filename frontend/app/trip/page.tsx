@@ -25,6 +25,10 @@ import {
   useTrip,
 } from "@/context/TripContext";
 import {
+  calculateMultiStopTransit,
+  formatMinutesToDuration,
+} from "@/lib/transit";
+import {
   Sparkles,
   Edit3,
   Compass,
@@ -38,6 +42,10 @@ import {
   LogOut,
   Activity,
   ArrowRight,
+  Footprints,
+  Car,
+  Clock,
+  Navigation,
 } from "lucide-react";
 
 /** Haversine distance in meters between two lat/lng coordinates */
@@ -68,6 +76,8 @@ export default function ActiveTripPage() {
     tripId,
     tripTitle,
     revision,
+    travelMode,
+    setTravelMode,
     stops,
     auditEvents,
     markVisited,
@@ -75,6 +85,18 @@ export default function ActiveTripPage() {
     resetDemoTrip,
     requestReplanPreview,
   } = useTrip();
+
+  // Transit and duration calculations across active trip stops
+  const transitSummary = useMemo(() => {
+    return calculateMultiStopTransit(
+      stops.map((s) => ({
+        latitude: s.latitude,
+        longitude: s.longitude,
+        suggested_duration_minutes: s.suggested_duration_minutes,
+      })),
+      travelMode
+    );
+  }, [stops, travelMode]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -570,16 +592,77 @@ export default function ActiveTripPage() {
                 </div>
               )}
 
-              {/* Today's Itinerary Timeline */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-[#7A746B]">
-                    Today&apos;s Itinerary Timeline
-                  </h3>
-                  <span className="text-[11px] text-[#7A746B] font-medium">
-                    Tap any card to inspect
-                  </span>
+              {/* Today's Itinerary Timeline & Transport Mode Bar */}
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-2xl bg-white border border-[#E8E4DC] shadow-2xs space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E4DC]/60 pb-2.5">
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#7A746B]">
+                        Today&apos;s Itinerary Timeline
+                      </h3>
+                      <p className="text-[11px] text-[#5A544B] mt-0.5">
+                        {stops.length} scheduled stops across Udaipur
+                      </p>
+                    </div>
+
+                    {/* Mode of Transport Selector */}
+                    <div className="flex items-center gap-1 bg-[#FAF8F5] p-1 rounded-xl border border-[#E8E4DC] self-start sm:self-auto">
+                      <button
+                        type="button"
+                        onClick={() => setTravelMode("walking")}
+                        className={`py-1 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          travelMode === "walking"
+                            ? "bg-[#1E3A5F] text-white shadow-2xs"
+                            : "text-[#5A544B] hover:text-[#191C1E]"
+                        }`}
+                        title="Calculate schedule based on walking speed (4.5 km/h)"
+                      >
+                        <Footprints className="w-3 h-3" />
+                        <span>Walk</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTravelMode("auto_rickshaw")}
+                        className={`py-1 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          travelMode === "auto_rickshaw"
+                            ? "bg-[#1E3A5F] text-white shadow-2xs"
+                            : "text-[#5A544B] hover:text-[#191C1E]"
+                        }`}
+                        title="Calculate schedule based on auto rickshaw speed (18 km/h)"
+                      >
+                        <Navigation className="w-3 h-3" />
+                        <span>Auto</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTravelMode("cab")}
+                        className={`py-1 px-2.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                          travelMode === "cab"
+                            ? "bg-[#1E3A5F] text-white shadow-2xs"
+                            : "text-[#5A544B] hover:text-[#191C1E]"
+                        }`}
+                        title="Calculate schedule based on cab speed (22 km/h)"
+                      >
+                        <Car className="w-3 h-3" />
+                        <span>Cab</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Journey Time Breakdown */}
+                  <div className="flex items-center justify-between text-xs font-semibold text-[#191C1E] flex-wrap gap-2 pt-0.5">
+                    <span className="flex items-center gap-1.5 text-[#1E3A5F]">
+                      <Clock className="w-3.5 h-3.5 text-[#1E3A5F]" />
+                      <span>
+                        Total Active Journey: {formatMinutesToDuration(transitSummary.totalTripMinutes)}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-[#7A746B] font-medium">
+                      {formatMinutesToDuration(transitSummary.totalVisitMinutes)} venues • {formatMinutesToDuration(transitSummary.totalTransitMinutes)} transit
+                    </span>
+                  </div>
                 </div>
+
                 <TimelineList
                   stops={stops}
                   activeStopId={activeStop?.id}

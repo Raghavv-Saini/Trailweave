@@ -953,9 +953,6 @@ export default function ArtisanOnboardAndCataloguePage() {
                     </span>
                     <span>हिंदी वॉइस नोट रिकॉर्ड करें (1-Tap Hindi Voice Note)</span>
                   </h3>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1E3A5F]/10 text-[#1E3A5F]">
-                    Google STT (hi-IN)
-                  </span>
                 </div>
 
                 <p className="text-[11px] text-[#5A544B] bg-[#FBF9F5] p-2.5 rounded-xl border border-[#E8E4DC] leading-relaxed">
@@ -1045,7 +1042,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                   <p className="text-[10px] text-neutral-500 mt-1 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span>
-                      <strong>Audio Privacy:</strong> Raw voice audio is discarded immediately after Google Cloud Speech-to-Text (`hi-IN`) transcription (`media_url = NULL`).
+                      <strong>Audio Privacy:</strong> Raw voice audio is processed securely and discarded immediately (`media_url = NULL`).
                     </span>
                   </p>
                 </div>
@@ -1177,7 +1174,7 @@ export default function ArtisanOnboardAndCataloguePage() {
                 <Sparkles className="w-4 h-4 text-amber-300" />
                 <span>
                   {isSubmittingOnboard
-                    ? "Google STT (hi-IN) व Gemini AI प्रोसेस हो रहा है..."
+                    ? "वॉइस नोट व जानकारी प्रोसेस हो रही है..."
                     : "पंजीकरण जमा करें (Submit Hindi Voice Onboarding)"}
                 </span>
               </button>

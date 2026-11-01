@@ -1,11 +1,28 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Trash2, ArrowRight, Clock, IndianRupee, Sparkles, Layers, Plus } from "lucide-react";
+import {
+  X,
+  Trash2,
+  ArrowRight,
+  Clock,
+  IndianRupee,
+  Sparkles,
+  Layers,
+  Plus,
+  Footprints,
+  Navigation,
+  Car,
+} from "lucide-react";
 import { useBasket } from "@/context/BasketContext";
 import { useTrip } from "@/context/TripContext";
 import { MOCK_PLACES, MOCK_ARTISANS } from "@/lib/mockData";
+import {
+  TravelMode,
+  calculateMultiStopTransit,
+  formatMinutesToDuration,
+} from "@/lib/transit";
 
 interface BasketDrawerProps {
   isOpen: boolean;
@@ -14,7 +31,8 @@ interface BasketDrawerProps {
 
 export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
   const router = useRouter();
-  const { createTripFromBuilder } = useTrip();
+  const { createTripFromBuilder, travelMode } = useTrip();
+  const [selectedMode, setSelectedMode] = useState<TravelMode>(travelMode || "auto_rickshaw");
   const {
     items,
     addItem,
@@ -22,8 +40,19 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
     clearBasket,
     totalCount,
     totalEstimatedCostInr,
-    totalEstimatedDurationMinutes,
   } = useBasket();
+
+  // Calculate realistic visit + transit duration across basket places
+  const transitSummary = useMemo(() => {
+    return calculateMultiStopTransit(
+      items.map((i) => ({
+        latitude: i.place.latitude,
+        longitude: i.place.longitude,
+        typical_duration_minutes: i.place.typical_duration_minutes,
+      })),
+      selectedMode
+    );
+  }, [items, selectedMode]);
 
   // Find candidate artisan recommendation that is not yet in the basket
   const recommendedArtisan = useMemo(() => {
@@ -50,18 +79,14 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
   const handleProceedToBuilder = async () => {
     await createTripFromBuilder({
       title: `My Curated Udaipur Itinerary (${items.length} Stops)`,
-      days: Math.max(1, Math.ceil(totalEstimatedDurationMinutes / 360)),
+      days: Math.max(1, Math.ceil(transitSummary.totalTripMinutes / 360)),
       budgetInr: Math.max(1500, totalEstimatedCostInr + 500),
-      travelMode: "auto_rickshaw",
+      travelMode: selectedMode,
       places: items.map((i) => i.place),
     });
     onClose();
     router.push("/trip");
   };
-
-  const hours = Math.floor(totalEstimatedDurationMinutes / 60);
-  const minutes = totalEstimatedDurationMinutes % 60;
-  const formattedDuration = hours > 0 ? `${hours}h ${minutes > 0 ? `${minutes}m` : ""}` : `${minutes}m`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-end bg-black/50 backdrop-blur-xs transition-opacity">
@@ -91,7 +116,9 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
           <div className="px-5 py-2.5 bg-[#FBF9F5] border-b border-[#E8E4DC] flex items-center justify-between text-xs font-semibold text-[#191C1E]">
             <span className="flex items-center gap-1 text-[#7A746B]">
               <Clock className="w-3.5 h-3.5 text-[#7A746B]" />
-              <span>Est. {formattedDuration} visit time</span>
+              <span>
+                {formatMinutesToDuration(transitSummary.totalTripMinutes)} total ({formatMinutesToDuration(transitSummary.totalVisitMinutes)} visit + {formatMinutesToDuration(transitSummary.totalTransitMinutes)} transit)
+              </span>
             </span>
             <span className="flex items-center gap-1 text-[#191C1E]">
               <IndianRupee className="w-3.5 h-3.5 stroke-[2.2]" />
@@ -206,12 +233,62 @@ export function BasketDrawer({ isOpen, onClose }: BasketDrawerProps) {
 
         {/* Drawer Actions */}
         {items.length > 0 && (
-          <div className="p-5 border-t border-[#E8E4DC] space-y-2.5 bg-[#FBF9F5]">
+          <div className="p-5 border-t border-[#E8E4DC] space-y-3 bg-[#FBF9F5]">
+            {/* Mode of Transport Selector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-[#7A746B]">
+                <span>Mode of Transport</span>
+                <span className="text-[#191C1E] font-bold">
+                  ~{formatMinutesToDuration(transitSummary.totalTransitMinutes)} transit
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-1.5 bg-white p-1 rounded-xl border border-[#E8E4DC]">
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode("walking")}
+                  className={`py-1.5 px-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedMode === "walking"
+                      ? "bg-[#1E3A5F] text-white shadow-2xs"
+                      : "text-[#5A544B] hover:text-[#191C1E]"
+                  }`}
+                >
+                  <Footprints className="w-3.5 h-3.5" />
+                  <span>Walk</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode("auto_rickshaw")}
+                  className={`py-1.5 px-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedMode === "auto_rickshaw"
+                      ? "bg-[#1E3A5F] text-white shadow-2xs"
+                      : "text-[#5A544B] hover:text-[#191C1E]"
+                  }`}
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Auto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMode("cab")}
+                  className={`py-1.5 px-2 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                    selectedMode === "cab"
+                      ? "bg-[#1E3A5F] text-white shadow-2xs"
+                      : "text-[#5A544B] hover:text-[#191C1E]"
+                  }`}
+                >
+                  <Car className="w-3.5 h-3.5" />
+                  <span>Cab</span>
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleProceedToBuilder}
               className="w-full py-3.5 px-4 rounded-xl bg-[#1E3A5F] hover:bg-[#152943] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs active:scale-[0.99] cursor-pointer"
             >
-              <span>Proceed to Trip Builder ({totalCount} stops)</span>
+              <span>
+                Proceed to Trip Builder ({totalCount} stops • {formatMinutesToDuration(transitSummary.totalTripMinutes)})
+              </span>
               <ArrowRight className="w-4 h-4" />
             </button>
             <button
