@@ -357,7 +357,7 @@ export const MOCK_ARTISANS: MockArtisan[] = [
     workshop_description:
       "Browse master leather embroidery and hand-stitching techniques.",
     catalogue_images: [
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+      "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
     ],
   },
 ];

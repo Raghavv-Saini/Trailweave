@@ -388,7 +388,7 @@ export default function ActiveTripPage() {
             longitude: 73.6865,
             address: "Hathi Pole Bazaar, Udaipur",
             image_url:
-              "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+              "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
             has_workshop: false,
           },
         ].filter((r) => !scheduledPlaces.has(r.place_id));
