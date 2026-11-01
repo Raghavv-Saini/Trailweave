@@ -47,12 +47,37 @@ describe("Role-Based Login (/login), Tourist Homepage (/), Connected Flows & Adm
       "Tourist Homepage must feature Cultured Local Friend AI Concierge & District Hub"
     );
     assert.ok(
+      homeSource.includes("Gemini Companion"),
+      "Tourist Homepage must reference Gemini Companion"
+    );
+    assert.ok(
+      homeSource.includes("<AIChatDrawer"),
+      "Tourist Homepage must include in-place AIChatDrawer overlay"
+    );
+    assert.ok(
       basketSource.includes("createTripFromBuilder"),
       "BasketDrawer must generate itinerary via createTripFromBuilder"
     );
     assert.ok(
       scratchSource.includes("createTripFromBuilder"),
       "PlanFromScratchModal must generate itinerary via createTripFromBuilder"
+    );
+
+    const timelineSource = fs.readFileSync(
+      path.resolve("components/trip/TimelineList.tsx"),
+      "utf-8"
+    );
+    assert.ok(
+      timelineSource.includes('timeZone: "Asia/Kolkata"'),
+      "TimelineList must format time in Asia/Kolkata (IST)"
+    );
+    assert.ok(
+      !timelineSource.includes("<code>{stop.checkin_method}</code>"),
+      "TimelineList must not display raw checkin_method code tags"
+    );
+    assert.ok(
+      timelineSource.includes("transitMinutes"),
+      "TimelineList must render transit segment minutes"
     );
   });
 

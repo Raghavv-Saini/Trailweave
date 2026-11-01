@@ -26,10 +26,10 @@ function formatTimeWindow(isoString?: string): string {
   try {
     const d = new Date(isoString);
     return d.toLocaleTimeString([], {
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
       hour12: true,
-      timeZone: "UTC",
+      timeZone: "Asia/Kolkata",
     });
   } catch {
     return "--:--";

@@ -40,6 +40,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,8 +49,18 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
   useEffect(() => {
     if (isOpen) {
       scrollToBottom();
+      inputRef.current?.focus();
     }
   }, [isOpen, messages]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -97,8 +108,14 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs">
-      <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200">
+    <div
+      className="fixed inset-0 z-50 flex justify-end bg-black/40 backdrop-blur-xs transition-opacity"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="px-5 py-4 border-b border-[#E8E4DC] flex items-center justify-between bg-[#FBF9F5]">
           <div className="flex items-center gap-2.5">
@@ -197,6 +214,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
         {/* Input box */}
         <div className="p-3 border-t border-[#E8E4DC] flex items-center gap-2 bg-white">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
