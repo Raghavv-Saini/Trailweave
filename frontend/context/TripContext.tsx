@@ -2,6 +2,11 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { dispatchTransitionNotification } from "@/lib/pushNotifications";
+import {
+  TravelMode,
+  recalculateTimelineSchedule,
+  calculateTransitMinutes,
+} from "@/lib/transit";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -45,11 +50,30 @@ export interface TripAuditEvent {
 }
 
 export interface ReplanOperation {
-  type: "add_stop" | "remove_stop" | "skip_stop" | "reorder_stops" | "pin_stop";
+  type:
+    | "add_stop"
+    | "remove_stop"
+    | "skip_stop"
+    | "reorder_stops"
+    | "pin_stop"
+    | "update_travel_mode"
+    | "update_stop_duration"
+    | "reschedule_stop"
+    | "update_budget";
   place_id?: string;
   stop_id?: string;
   new_order?: number;
   is_pinned?: boolean;
+  travel_mode?: "walking" | "auto_rickshaw" | "cab";
+  duration_minutes?: number;
+  planned_arrival_time?: string;
+  budget_inr?: number;
+  custom_place_name?: string;
+  custom_category?: string;
+  custom_address?: string;
+  custom_latitude?: number;
+  custom_longitude?: number;
+  custom_entry_fee_inr?: number;
 }
 
 export interface ValidationDiff {
@@ -59,6 +83,10 @@ export interface ValidationDiff {
   stops_skipped: string[];
   stops_removed: string[];
   closing_hour_conflicts: string[];
+  travel_mode_changed?: string[];
+  durations_updated?: string[];
+  rescheduled_stops?: string[];
+  budget_updated_inr?: number | null;
 }
 
 export interface ReplanProposal {
@@ -68,6 +96,8 @@ export interface ReplanProposal {
   validation_diff: ValidationDiff;
   candidate_stops: Array<Record<string, unknown>>;
   expires_at: string;
+  committed?: boolean;
+  new_revision?: number;
 }
 
 export interface ReplanAcceptResult {
@@ -83,6 +113,8 @@ export interface CompanionResponse {
   response_narrative: string;
   replan_proposal?: ReplanProposal | null;
   acknowledged_events?: string[];
+  trip_updated?: boolean;
+  new_revision?: number | null;
 }
 
 export interface TripBuilderInput {
@@ -106,6 +138,8 @@ interface TripContextType {
   tripId: string;
   tripTitle: string;
   revision: number;
+  travelMode: TravelMode;
+  setTravelMode: (mode: TravelMode) => void;
   stops: TripStop[];
   auditEvents: TripAuditEvent[];
   createTripFromBuilder: (input: TripBuilderInput) => Promise<void>;
@@ -125,7 +159,10 @@ interface TripContextType {
     finalStops: TripStop[]
   ) => Promise<ReplanAcceptResult>;
   simulateRemoteRevisionIncrement: () => void;
-  sendCompanionMessage: (message: string) => Promise<CompanionResponse>;
+  sendCompanionMessage: (
+    message: string,
+    history?: Array<{ role: string; text: string }>
+  ) => Promise<CompanionResponse>;
 }
 
 const PLACE_DEFAULTS: Record<
@@ -322,6 +359,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
   const [tripId, setTripId] = useState<string>("trip_demo_udaipur");
   const [tripTitle, setTripTitle] = useState<string>("Udaipur Living Heritage & Crafts Walk");
   const [revision, setRevision] = useState<number>(1);
+  const [travelMode, setTravelModeState] = useState<TravelMode>("auto_rickshaw");
   const [stops, setStops] = useState<TripStop[]>(INITIAL_DEMO_STOPS);
   const [auditEvents, setAuditEvents] = useState<TripAuditEvent[]>([]);
 
@@ -339,6 +377,9 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
           setTripId(parsed.tripId);
           setTripTitle(parsed.tripTitle || "My Udaipur Itinerary");
           setRevision(parsed.revision || 1);
+          if (parsed.travelMode) {
+            setTravelModeState(parsed.travelMode);
+          }
           const syncedStops = parsed.stops.map((s: TripStop) => {
             const def = PLACE_DEFAULTS[s.place_id];
             return def ? { ...s, image_url: def.image_url } : s;
@@ -350,6 +391,29 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
+  const setTravelMode = useCallback(
+    (mode: TravelMode) => {
+      setTravelModeState(mode);
+      setStops((prev) => {
+        const updated = recalculateTimelineSchedule(prev, mode);
+        try {
+          localStorage.setItem(
+            "trailweave_active_trip_v2",
+            JSON.stringify({
+              tripId,
+              tripTitle,
+              revision,
+              travelMode: mode,
+              stops: updated,
+            })
+          );
+        } catch {}
+        return updated;
+      });
+    },
+    [tripId, tripTitle, revision]
+  );
+
   const createTripFromBuilder = useCallback(
     async (input: TripBuilderInput) => {
       const totalDays = Math.max(1, input.days || 1);
@@ -358,6 +422,9 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         (totalDays === 1
           ? "Udaipur Single-Day Cultural Journey"
           : `Udaipur ${totalDays}-Day Heritage & Crafts Itinerary`);
+
+      const chosenMode: TravelMode = input.travelMode || travelMode || "auto_rickshaw";
+      setTravelModeState(chosenMode);
 
       const candidatePlaces =
         input.places && input.places.length > 0
@@ -371,19 +438,12 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
               { id: "place_sukhadia_circle", name: "Sukhadia Circle Street Food", typical_duration_minutes: 60 },
             ];
 
-      // Build deterministic multi-day schedule
-      const baseDate = new Date("2026-11-01T09:30:00Z");
-      const generatedStops: TripStop[] = candidatePlaces.map((p, idx) => {
+      // Build deterministic multi-day schedule using realistic transit calculation
+      const baseStops: TripStop[] = candidatePlaces.map((p, idx) => {
         const dayNum = (idx % totalDays) + 1;
         const seqInDay = Math.floor(idx / totalDays) + 1;
         const defaults = PLACE_DEFAULTS[p.id] || PLACE_DEFAULTS.place_city_palace;
         const durationMins = p.typical_duration_minutes || 60;
-        const arrivalDate = new Date(
-          baseDate.getTime() +
-            (dayNum - 1) * 24 * 60 * 60 * 1000 +
-            (seqInDay - 1) * (durationMins + 30) * 60 * 1000
-        );
-        const departureDate = new Date(arrivalDate.getTime() + durationMins * 60 * 1000);
 
         return {
           id: `stop_${p.id}_${idx + 1}`,
@@ -397,14 +457,18 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
           image_url: defaults.image_url,
           day_number: dayNum,
           sequence_in_day: seqInDay,
-          planned_arrival: arrivalDate.toISOString(),
-          planned_departure: departureDate.toISOString(),
           suggested_duration_minutes: durationMins,
           actual_duration_minutes: null,
           visit_status: "pending",
           is_pinned: false,
         };
       });
+
+      const generatedStops = recalculateTimelineSchedule(
+        baseStops,
+        chosenMode,
+        "2026-11-01T09:30:00+05:30"
+      );
 
         let finalTripId = `trip_custom_${Date.now().toString(36)}`;
         let finalRevision = 1;
@@ -421,7 +485,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
               total_days: totalDays,
               budget_inr: input.budgetInr || 2500,
               budget_mode: "total",
-              travel_mode: input.travelMode || "auto_rickshaw",
+              travel_mode: chosenMode,
               artisan_preference: "both",
               start_location: {
                 name: "Udaipur Old City Center",
@@ -478,12 +542,13 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
               tripId: finalTripId,
               tripTitle: customTitle,
               revision: finalRevision,
+              travelMode: chosenMode,
               stops: finalStops,
             })
           );
         } catch {}
     },
-    []
+    [travelMode]
   );
 
   const refreshTrip = useCallback(async () => {
@@ -855,100 +920,51 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
     setRevision((prev) => prev + 1);
   };
 
-  const sendCompanionMessage = async (message: string): Promise<CompanionResponse> => {
+  const sendCompanionMessage = async (
+    message: string,
+    history: Array<{ role: string; text: string }> = []
+  ): Promise<CompanionResponse> => {
     const endpoint = `/api/trips/${tripId}/assistant/messages`;
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          history,
+          client_trip_state: {
+            title: tripTitle,
+            revision,
+            stops,
+          },
+        }),
       });
       if (res.ok) {
         const data = await res.json();
+        if (data.trip_updated) {
+          await refreshTrip();
+        }
         return {
           response_narrative: data.response_narrative,
           replan_proposal: data.replan_proposal,
           acknowledged_events: data.acknowledged_events || [],
+          trip_updated: Boolean(data.trip_updated),
+          new_revision: data.new_revision ?? null,
         };
       }
     } catch {
-      // Offline / network fallback
-    }
-
-    // Local cultured companion evaluation fallback
-    const msgLower = message.toLowerCase();
-    const pending = stops.filter((s) => s.visit_status === "pending");
-    const hasPriorSkip = stops.some((s) => s.visit_status === "skipped");
-    const ackText = hasPriorSkip
-      ? "I see you skipped a stop earlier on your route, so I've taken that into account! "
-      : "";
-
-    const isReplanIntent = [
-      "skip", "drop", "tired", "tea", "rooftop", "workshop", "pottery", "add",
-      "ramesh", "leather", "jutti", "ambrai", "studio", "plan", "circle", "craft", "mojari"
-    ].some((k) => msgLower.includes(k));
-
-    if (isReplanIntent) {
-      let placeToAddId = "place_sukhadia_circle";
-      let placeToAddName = "Sukhadia Circle Street Food & Chai";
-
-      if (["ramesh", "leather", "jutti", "hathi pole", "mojari"].some((k) => msgLower.includes(k))) {
-        placeToAddId = "place_leather_craft";
-        placeToAddName = "Mewar Royal Leather & Jutti Craft Studio (Ramesh Chandra)";
-      } else if (["ambrai", "ghat", "bagore", "haveli", "gangaur"].some((k) => msgLower.includes(k))) {
-        placeToAddId = "place_bagore_haveli";
-        placeToAddName = "Bagore Ki Haveli & Waterfront";
-      } else if (["pottery", "clay", "kavita"].some((k) => msgLower.includes(k))) {
-        placeToAddId = "place_pottery_studio";
-        placeToAddName = "Kavita Terracotta Pottery & Clay Studio";
-      } else if (["miniature", "painting", "mohanlal", "pichwai"].some((k) => msgLower.includes(k))) {
-        placeToAddId = "place_mohanlal_studio";
-        placeToAddName = "Master Mohanlal Miniature Art Studio";
-      }
-
-      const wantsSkip = ["skip", "drop", "tired", "remove", "replace"].some((k) => msgLower.includes(k));
-      const stopToSkip = wantsSkip && pending.length > 0 ? pending[0] : null;
-
-      const ops: ReplanOperation[] = [];
-      if (stopToSkip) {
-        ops.push({ type: "skip_stop", stop_id: stopToSkip.id });
-      }
-      const newOrder = stopToSkip ? stopToSkip.sequence_in_day : (pending.length > 0 ? pending[0].sequence_in_day : stops.length + 1);
-      ops.push({ type: "add_stop", place_id: placeToAddId, new_order: newOrder });
-
-      const proposal = await requestReplanPreview(ops);
-
-      const narrative = stopToSkip
-        ? `Khamma Ghani! ${ackText}I completely understand wanting a gentler pace. I've prepared a proposal to skip ${stopToSkip.name} and guide you toward ${placeToAddName}. Review the proposal below and tap 'Accept' to update to Revision ${revision + 1}.`
-        : `Khamma Ghani! ${ackText}I would be delighted to weave ${placeToAddName} into your itinerary! Review the proposal card below and tap 'Accept' to update your active route to Revision ${revision + 1}.`;
-
-      return {
-        response_narrative: narrative,
-        replan_proposal: proposal,
-        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
-      };
-    }
-
-    if (["fatehsagar", "fateh sagar", "fateh"].some((k) => msgLower.includes(k))) {
-      return {
-        response_narrative: `Khamma Ghani! ${ackText}Fateh Sagar Lake is delightful for an afternoon or evening walk! Here are my favorite local spots there:\n\n1. **Fateh Sagar Paal (Bombay Market)**: Stroll along the promenade for famous kulhad chai, cold coffee, and roasted bhutta.\n2. **Nehru Park**: Hop on the boat from the jetty to reach the island garden in the center of the lake.\n3. **Rani Road Cafes**: Scenic cafes overlooking the water away from the city buzz.\n4. **Sukhadia Circle**: Just 5 minutes away, vibrant kiosks for pav bhaji and rabdi falooda!\n\nWould you like me to propose adding a stop near Fateh Sagar to your route?`,
-        replan_proposal: null,
-        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
-      };
-    }
-
-    if (["lakeside", "restaurant", "dining", "dinner", "lunch", "eat", "food", "cafe", "rooftop"].some((k) => msgLower.includes(k))) {
-      return {
-        response_narrative: `Khamma Ghani! ${ackText}For authentic lakeside dining and atmospheric views in Udaipur, I highly recommend:\n\n1. **Ambrai Restaurant (Amet Haveli)**: Waterfront dining with prime views of illuminated City Palace and Jag Mandir.\n2. **Upre by 1559 AD**: Romantic rooftop cabanas overlooking Lake Pichola with delectable Mewari curries.\n3. **Jheel's Ginger Coffee Bar & Bakery**: Relaxed lakeside cafe right on Gangaur Ghat for morning espresso or sunset views.\n4. **Sukhadia Circle Street Food**: Bustling evening kiosks around the illuminated fountain.\n\nLet me know if you would like me to propose adding any of these venues to your active itinerary!`,
-        replan_proposal: null,
-        acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
-      };
+      // Network error reaching backend
     }
 
     return {
-      response_narrative: `Khamma Ghani! ${ackText}I am keeping an eye on your journey through Udaipur (currently on Revision ${revision}). Feel free to ask me about lakeside dining, Fateh Sagar cafes, sunset vantage points, or verified Mewar artisan workshops in Jagdish Chowk!`,
+      response_narrative:
+        "Khamma Ghani! I couldn't reach the TrailWeave backend server at " +
+        API_BASE_URL +
+        ". Please ensure the backend service is running so I can manage your live itinerary and transit routes.",
       replan_proposal: null,
-      acknowledged_events: hasPriorSkip ? ["Acknowledged prior manual skip"] : [],
+      acknowledged_events: [],
+      trip_updated: false,
+      new_revision: null,
     };
   };
 
@@ -958,6 +974,8 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
         tripId,
         tripTitle,
         revision,
+        travelMode,
+        setTravelMode,
         stops,
         auditEvents,
         createTripFromBuilder,

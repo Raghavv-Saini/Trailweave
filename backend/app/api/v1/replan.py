@@ -241,9 +241,31 @@ async def preview_replan(
     total_duration: int = eval_result["total_estimated_duration_minutes"]
     route_geometry: Dict[str, Any] = eval_result["route_geometry"]
 
-    # Format candidate stops as TripStopResponse
+    # Format candidate stops as TripStopResponse and ensure any custom places exist in DB
     candidate_stop_responses: List[TripStopResponse] = []
     for s in candidate_stops_raw:
+        pid = s["place_id"]
+        if pid not in places_catalog or str(pid).startswith("place_custom_"):
+            await db.execute(
+                text("""
+                    INSERT INTO places (
+                        id, name, category, latitude, longitude, address,
+                        entry_fee_inr, typical_duration_minutes, data_status
+                    ) VALUES (
+                        :id, :name, :cat, :lat, :lon, :addr, :fee, :dur, 'reported'
+                    ) ON CONFLICT (id) DO NOTHING
+                """),
+                {
+                    "id": pid,
+                    "name": s.get("name") or "Custom Stop",
+                    "cat": s.get("category") or "attraction",
+                    "lat": float(s.get("latitude") or 24.5795),
+                    "lon": float(s.get("longitude") or 73.6835),
+                    "addr": s.get("address") or "Udaipur, Rajasthan",
+                    "fee": float(s.get("entry_fee_inr") or 0.0),
+                    "dur": int(s.get("suggested_duration_minutes") or 45),
+                },
+            )
         candidate_stop_responses.append(
             TripStopResponse(
                 id=s["id"],
@@ -261,6 +283,7 @@ async def preview_replan(
                 planned_arrival=s.get("planned_arrival"),
                 planned_departure=s.get("planned_departure"),
                 suggested_duration_minutes=s.get("suggested_duration_minutes", 45),
+                transit_minutes_from_prev=s.get("transit_minutes_from_prev"),
                 actual_duration_minutes=s.get("actual_duration_minutes"),
                 is_pinned=s.get("is_pinned", False),
                 visit_status=s.get("visit_status", "pending"),
@@ -407,9 +430,30 @@ async def accept_replan(
         }
     )
 
-    # 2. Insert new trip_stops snapshot
+    # 2. Insert new trip_stops snapshot (ensuring place exists in places table)
     for s in candidate_stops:
         stop_id = f"stop_{uuid.uuid4().hex[:10]}"
+        pid = s["place_id"]
+        await db.execute(
+            text("""
+                INSERT INTO places (
+                    id, name, category, latitude, longitude, address,
+                    entry_fee_inr, typical_duration_minutes, data_status
+                ) VALUES (
+                    :id, :name, :cat, :lat, :lon, :addr, :fee, :dur, 'reported'
+                ) ON CONFLICT (id) DO NOTHING
+            """),
+            {
+                "id": pid,
+                "name": s.get("name") or pid.replace("place_", "").replace("_", " ").title(),
+                "cat": s.get("category") or "attraction",
+                "lat": float(s.get("latitude") or 24.5795),
+                "lon": float(s.get("longitude") or 73.6835),
+                "addr": s.get("address") or "Udaipur, Rajasthan",
+                "fee": float(s.get("entry_fee_inr") or 0.0),
+                "dur": int(s.get("suggested_duration_minutes") or 45),
+            },
+        )
         arr_val = s.get("planned_arrival")
         dep_val = s.get("planned_departure")
 
@@ -458,16 +502,31 @@ async def accept_replan(
         )
 
     # 3. Update trips table atomically
-    await db.execute(
-        text("""
-            UPDATE trips
-            SET revision = :new_rev,
-                current_itinerary_version_id = :new_vid,
-                updated_at = NOW()
-            WHERE id = :trip_id
-        """),
-        {"new_rev": new_revision, "new_vid": new_version_id, "trip_id": trip_id}
-    )
+    diff_obj = proposal.validation_diff if isinstance(proposal.validation_diff, dict) else (json.loads(proposal.validation_diff) if proposal.validation_diff else {})
+    new_budget = diff_obj.get("budget_updated_inr")
+    if new_budget is not None:
+        await db.execute(
+            text("""
+                UPDATE trips
+                SET revision = :new_rev,
+                    current_itinerary_version_id = :new_vid,
+                    budget_inr = :new_budget,
+                    updated_at = NOW()
+                WHERE id = :trip_id
+            """),
+            {"new_rev": new_revision, "new_vid": new_version_id, "new_budget": float(new_budget), "trip_id": trip_id}
+        )
+    else:
+        await db.execute(
+            text("""
+                UPDATE trips
+                SET revision = :new_rev,
+                    current_itinerary_version_id = :new_vid,
+                    updated_at = NOW()
+                WHERE id = :trip_id
+            """),
+            {"new_rev": new_revision, "new_vid": new_version_id, "trip_id": trip_id}
+        )
 
     # 4. Mark proposal as accepted
     await db.execute(

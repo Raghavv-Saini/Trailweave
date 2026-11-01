@@ -21,12 +21,16 @@ PUSH_SUBSCRIPTIONS: Dict[str, Dict[str, Any]] = {}
 
 class CompanionMessageRequest(BaseModel):
     message: str
+    history: List[Dict[str, str]] = Field(default_factory=list)
+    client_trip_state: Optional[Dict[str, Any]] = None
 
 
 class CompanionMessageResponse(BaseModel):
     response_narrative: str
     replan_proposal: Optional[Dict[str, Any]] = None
     acknowledged_events: List[str] = Field(default_factory=list)
+    trip_updated: bool = False
+    new_revision: Optional[int] = None
 
 
 class PushSubscriptionKeys(BaseModel):
@@ -77,12 +81,16 @@ async def chat_with_companion(
     res = await companion_service.process_companion_chat(
         trip_id=target_trip_id,
         user_message=body.message,
-        db=db
+        db=db,
+        history=body.history,
+        client_trip_state=body.client_trip_state,
     )
     return CompanionMessageResponse(
         response_narrative=res["response_narrative"],
         replan_proposal=res.get("replan_proposal"),
-        acknowledged_events=res.get("acknowledged_events", [])
+        acknowledged_events=res.get("acknowledged_events", []),
+        trip_updated=bool(res.get("trip_updated", False)),
+        new_revision=res.get("new_revision"),
     )
 
 

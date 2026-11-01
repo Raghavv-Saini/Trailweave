@@ -322,14 +322,32 @@ Commits an approved proposal. Enforces strict optimistic concurrency locking.
 ```
 
 #### `POST /api/trips/{trip_id}/assistant/messages`
-Sends conversational guidance or alteration requests to the Gemini Flash companion.
+Sends conversational guidance, transit route queries, or itinerary alteration requests to the Gemini companion (`gemini-3-flash-preview` with automatic fallback to `gemini-3.5-flash` / `gemini-flash-lite-latest`). Supports multi-turn conversation history (`history`) and client trip state sync (`client_trip_state`).
 - **Request Body**:
 ```json
 {
-  "message": "I'm feeling a bit tired after the palace. Can we skip the haveli and add a quiet rooftop tea spot nearby under ₹200?"
+  "message": "I need to travel from City Palace to Bagore Ki Haveli by auto",
+  "history": [
+    { "role": "user", "text": "What is my next stop?" },
+    { "role": "ai", "text": "Khamma Ghani! Your next stop is Jagdish Temple at 12:40 PM." }
+  ],
+  "client_trip_state": {
+    "title": "Udaipur Living Heritage & Crafts Walk",
+    "revision": 2,
+    "stops": []
+  }
 }
 ```
-- **Response `200 OK`**: Returns AI response narrative and an optional embedded interactive `ReplanProposalCard` ready for 1-tap review and acceptance.
+- **Response `200 OK`**: Returns AI response narrative, an optional embedded interactive `ReplanProposalCard` (or auto-committed revision update when confirming a prior proposal), and `trip_updated` / `new_revision` flags.
+```json
+{
+  "response_narrative": "Khamma Ghani! Traveling from City Palace to Bagore Ki Haveli by auto-rickshaw covers 1.4 km and takes about 7 minutes (estimated fare ₹50). Would you like me to update this leg in your itinerary to auto-rickshaw and adjust your arrival timings?",
+  "replan_proposal": null,
+  "acknowledged_events": [],
+  "trip_updated": false,
+  "new_revision": null
+}
+```
 
 #### `POST /api/trips/{trip_id}/draft-trail-content`
 Prompts Gemini Flash to compose an engaging trail title, markdown overview, estimated budget, and relevant tags from confirmed visited stops (Trip-to-Trail AI draft).
@@ -536,19 +554,34 @@ The Gemini assistant is conditioned as a "Cultured Local Companion" and strictly
     }
   },
   {
-    "name": "propose_trip_changes",
-    "description": "Submits candidate itinerary modifications to the deterministic Trip Engine and generates a provisional ReplanProposal for tourist preview and approval.",
+    "name": "calculate_transit_route",
+    "description": "Calculates live distance, transit duration (via Google Routes API v2 or Haversine road-factor fallback), and estimated fare in INR between two stops or Udaipur places for a given travel mode ('walking', 'auto_rickshaw', or 'cab').",
     "parameters": {
       "type": "OBJECT",
       "properties": {
-        "trip_id": {
+        "origin_name_or_stop_id": {
           "type": "STRING",
-          "description": "The unique trip identifier."
+          "description": "Origin stop ID or place name (e.g. 'City Palace')."
         },
-        "base_revision": {
-          "type": "INTEGER",
-          "description": "The latest trip revision number the AI is proposing changes against."
+        "destination_name_or_stop_id": {
+          "type": "STRING",
+          "description": "Destination stop ID or place name (e.g. 'Bagore Ki Haveli')."
         },
+        "travel_mode": {
+          "type": "STRING",
+          "enum": ["walking", "auto_rickshaw", "cab"],
+          "description": "Travel mode to evaluate."
+        }
+      },
+      "required": ["origin_name_or_stop_id", "destination_name_or_stop_id", "travel_mode"]
+    }
+  },
+  {
+    "name": "propose_trip_changes",
+    "description": "Submits candidate itinerary modifications to the deterministic Trip Engine and generates a provisional ReplanProposal for tourist preview and approval (or commits immediately when auto_commit=true after explicit user confirmation).",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
         "operations": {
           "type": "ARRAY",
           "description": "Ordered sequence of candidate operations.",
@@ -557,27 +590,94 @@ The Gemini assistant is conditioned as a "Cultured Local Companion" and strictly
             "properties": {
               "type": {
                 "type": "STRING",
-                "enum": ["add_stop", "remove_stop", "skip_stop", "reorder_stops", "pin_stop"],
+                "enum": [
+                  "add_stop",
+                  "remove_stop",
+                  "skip_stop",
+                  "reorder_stops",
+                  "pin_stop",
+                  "update_travel_mode",
+                  "update_stop_duration",
+                  "reschedule_stop",
+                  "update_budget"
+                ],
                 "description": "The mutation action to perform."
               },
               "place_id": {
                 "type": "STRING",
-                "description": "Canonical place ID for add_stop operations."
+                "description": "Canonical or Udaipur gazetteer place ID for add_stop operations."
+              },
+              "custom_place_name": {
+                "type": "STRING",
+                "description": "Display name when adding a custom or non-canonical Udaipur venue."
               },
               "stop_id": {
                 "type": "STRING",
-                "description": "Existing stop ID for skip, remove, or pin operations."
+                "description": "Existing stop ID for skip, remove, pin, duration, reschedule, or leg-specific travel mode operations."
               },
               "new_order": {
                 "type": "INTEGER",
                 "description": "Target sequence index within the day."
+              },
+              "travel_mode": {
+                "type": "STRING",
+                "enum": ["walking", "auto_rickshaw", "cab"],
+                "description": "New travel mode for update_travel_mode."
+              },
+              "duration_minutes": {
+                "type": "INTEGER",
+                "description": "New duration in minutes for update_stop_duration."
+              },
+              "planned_arrival_time": {
+                "type": "STRING",
+                "description": "Target arrival time in HH:MM (24h) or ISO-8601 format for reschedule_stop."
+              },
+              "budget_inr": {
+                "type": "NUMBER",
+                "description": "Updated trip budget in INR for update_budget."
               }
             },
             "required": ["type"]
           }
+        },
+        "auto_commit": {
+          "type": "BOOLEAN",
+          "description": "Set to true when the user is explicitly confirming a previously discussed change or requesting an immediate direct edit."
+        },
+        "response_narrative": {
+          "type": "STRING",
+          "description": "Clear, helpful explanation for the traveler."
         }
       },
-      "required": ["trip_id", "base_revision", "operations"]
+      "required": ["operations", "response_narrative"]
+    }
+  },
+  {
+    "name": "execute_direct_trip_action",
+    "description": "Directly marks a stop as visited/checked-in, marks a stop as checked-out, or updates trip budget/artisan preferences when requested by the traveler in chat.",
+    "parameters": {
+      "type": "OBJECT",
+      "properties": {
+        "action_type": {
+          "type": "STRING",
+          "enum": ["mark_visited", "mark_checkout", "update_budget", "update_artisan_preference"],
+          "description": "Direct trip status or preference update to perform."
+        },
+        "stop_id": {
+          "type": "STRING",
+          "description": "Target stop ID or stop name for mark_visited or mark_checkout."
+        },
+        "budget_inr": {
+          "type": "NUMBER",
+          "description": "New trip budget in INR."
+        },
+        "artisan_preference": {
+          "type": "STRING",
+          "enum": ["workshop", "shopping", "both"],
+          "description": "New artisan preference."
+        }
+      },
+      "required": ["action_type"]
     }
   }
 ]

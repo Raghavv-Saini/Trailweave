@@ -324,3 +324,190 @@ async def test_replan_flags_closing_hour_conflict(
 
     assert res["is_feasible"] is False
     assert len(res["validation_diff"].closing_hour_conflicts) > 0
+
+
+@pytest.mark.asyncio
+async def test_replan_update_travel_mode_duration_reschedule_and_budget(
+    mutation_engine, start_location, base_trip_stops, places_catalog
+):
+    ops = [
+        ReplanOperation(
+            type="update_travel_mode",
+            stop_id="stop_3",
+            travel_mode="auto_rickshaw",
+        ),
+        ReplanOperation(
+            type="update_stop_duration",
+            stop_id="stop_2",
+            duration_minutes=45,
+        ),
+        ReplanOperation(
+            type="reschedule_stop",
+            stop_id="stop_3",
+            planned_arrival_time="15:00",
+        ),
+        ReplanOperation(
+            type="update_budget",
+            budget_inr=3500.0,
+        ),
+        ReplanOperation(
+            type="add_stop",
+            custom_place_name="Sajjangarh Monsoon Palace",
+            custom_category="heritage",
+            custom_address="Kodiyat Road, Udaipur",
+            custom_latitude=24.5936,
+            custom_longitude=73.6391,
+            custom_entry_fee_inr=165.0,
+            duration_minutes=90,
+            new_order=4,
+            day_number=1,
+        ),
+    ]
+    start_dt = datetime(2026, 11, 1, 9, 0, tzinfo=timezone.utc)
+
+    res = await mutation_engine.evaluate_mutation(
+        current_stops=base_trip_stops,
+        operations=ops,
+        trip_id="trip_test",
+        base_revision=1,
+        budget_limit=2000.0,
+        start_location=start_location,
+        start_datetime=start_dt,
+        travel_mode="walking",
+        places_catalog=places_catalog,
+        now_override=start_dt,
+    )
+
+    assert res["is_feasible"] is True
+    diff = res["validation_diff"]
+    assert len(diff.travel_mode_changed) == 1
+    assert "auto_rickshaw" in diff.travel_mode_changed[0]
+    assert len(diff.durations_updated) == 1
+    assert "45m" in diff.durations_updated[0]
+    assert len(diff.rescheduled_stops) == 1
+    assert "15:00" in diff.rescheduled_stops[0]
+    assert diff.budget_updated_inr == 3500.0
+
+    stops = res["candidate_stops"]
+    assert len(stops) == 4
+    stop_2 = next(s for s in stops if s["id"] == "stop_2")
+    assert stop_2["suggested_duration_minutes"] == 45
+    stop_3 = next(s for s in stops if s["id"] == "stop_3")
+    assert stop_3["planned_arrival"].hour == 15
+    assert stop_3["planned_arrival"].minute == 0
+    assert stops[3]["name"] == "Sajjangarh Monsoon Palace"
+    assert stops[3]["entry_fee_inr"] == 165.0
+
+
+@pytest.mark.asyncio
+async def test_companion_multi_turn_transit_and_proposal_orchestration(monkeypatch):
+    """
+    Tests GeminiCompanionService multi-turn tool calling:
+    1. Turn 1: User asks to travel from City Palace to Bagore Ki Haveli by auto -> calls calculate_transit_route -> asks confirmation.
+    2. Turn 2: User confirms ("Yes, change it") -> calls propose_trip_changes(update_travel_mode) -> returns proposal.
+    """
+    from app.services import gemini as gemini_mod
+
+    service = gemini_mod.GeminiCompanionService(api_key="test_key")
+
+    call_count = {"n": 0}
+
+    async def fake_call_gemini(api_key, payload, timeout=18.0):
+        call_count["n"] += 1
+        # Turn 1 Round 1: model calls calculate_transit_route
+        if call_count["n"] == 1:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "functionCall": {
+                                        "name": "calculate_transit_route",
+                                        "args": {
+                                            "origin": "City Palace Udaipur",
+                                            "destination": "Bagore Ki Haveli",
+                                            "preferred_mode": "auto_rickshaw",
+                                        },
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        # Turn 1 Round 2: model receives transit route result and asks confirmation
+        if call_count["n"] == 2:
+            return {
+                "candidates": [
+                    {
+                        "content": {
+                            "parts": [
+                                {
+                                    "text": (
+                                        "Khamma Ghani! Traveling from City Palace Udaipur to Bagore Ki Haveli by auto-rickshaw "
+                                        "takes about 5 minutes (~₹40 fare). Would you like me to switch that leg to auto-rickshaw in your itinerary?"
+                                    )
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        # Turn 2 Round 1: user confirmed, model calls propose_trip_changes
+        return {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "functionCall": {
+                                    "name": "propose_trip_changes",
+                                    "args": {
+                                        "operations": [
+                                            {
+                                                "type": "update_travel_mode",
+                                                "stop_id": "stop_bh",
+                                                "travel_mode": "auto_rickshaw",
+                                            }
+                                        ],
+                                        "auto_commit": True,
+                                        "response_narrative": (
+                                            "Khamma Ghani! I have updated the travel mode to Bagore Ki Haveli to auto-rickshaw "
+                                            "and recalculated your arrival schedule."
+                                        ),
+                                    },
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+
+    monkeypatch.setattr(gemini_mod, "call_gemini_api", fake_call_gemini)
+
+    # Turn 1
+    res1 = await service.process_companion_chat(
+        trip_id="trip_demo_udaipur",
+        user_message="I need to travel from City Palace to Bagore Ki Haveli by auto",
+        db=None,
+        history=[],
+    )
+    assert "auto-rickshaw" in res1["response_narrative"].lower()
+    assert res1["replan_proposal"] is None
+
+    # Turn 2 (with history)
+    res2 = await service.process_companion_chat(
+        trip_id="trip_demo_udaipur",
+        user_message="Yes, please change it in my itinerary",
+        db=None,
+        history=[
+            {"role": "user", "text": "I need to travel from City Palace to Bagore Ki Haveli by auto"},
+            {"role": "ai", "text": res1["response_narrative"]},
+        ],
+    )
+    assert res2["replan_proposal"] is not None
+    assert "auto_rickshaw" in str(res2["replan_proposal"]["validation_diff"]["travel_mode_changed"])
+
+

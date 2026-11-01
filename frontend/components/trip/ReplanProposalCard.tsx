@@ -15,9 +15,15 @@ export interface ReplanProposalData {
     stops_skipped: string[];
     stops_removed?: string[];
     closing_hour_conflicts?: string[];
+    travel_mode_changed?: string[];
+    durations_updated?: string[];
+    rescheduled_stops?: string[];
+    budget_updated_inr?: number | null;
   };
   candidate_stops?: Array<Record<string, unknown>>;
   expires_at?: string;
+  committed?: boolean;
+  new_revision?: number;
 }
 
 interface ReplanProposalCardProps {
@@ -28,7 +34,7 @@ interface ReplanProposalCardProps {
 export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardProps) {
   const { revision, commitReplan, refreshTrip, stops } = useTrip();
   const [isCommitting, setIsCommitting] = useState(false);
-  const [isAccepted, setIsAccepted] = useState(false);
+  const [isAccepted, setIsAccepted] = useState(Boolean(proposal.committed));
   const [conflictMessage, setConflictMessage] = useState<string | null>(null);
 
   const diff = proposal.validation_diff;
@@ -37,6 +43,10 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
   const stopsAdded = diff.stops_added || [];
   const stopsSkipped = diff.stops_skipped || [];
   const stopsRemoved = diff.stops_removed || [];
+  const travelModeChanged = diff.travel_mode_changed || [];
+  const durationsUpdated = diff.durations_updated || [];
+  const rescheduledStops = diff.rescheduled_stops || [];
+  const budgetUpdatedInr = diff.budget_updated_inr;
 
   const handleAccept = async () => {
     setIsCommitting(true);
@@ -59,6 +69,10 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
           planned_arrival: typeof s.planned_arrival === "string" ? s.planned_arrival : undefined,
           planned_departure: typeof s.planned_departure === "string" ? s.planned_departure : undefined,
           suggested_duration_minutes: Number(s.suggested_duration_minutes || 45),
+          transit_minutes_from_prev:
+            typeof s.transit_minutes_from_prev === "number"
+              ? s.transit_minutes_from_prev
+              : 15,
           actual_duration_minutes: typeof s.actual_duration_minutes === "number" ? s.actual_duration_minutes : null,
           visit_status: (s.visit_status as TripStop["visit_status"]) || "pending",
           is_pinned: Boolean(s.is_pinned),
@@ -179,6 +193,42 @@ export function ReplanProposalCard({ proposal, onAccepted }: ReplanProposalCardP
               Remove
             </span>
             <span>Removed {stopsRemoved.length} stop(s)</span>
+          </div>
+        )}
+
+        {travelModeChanged.length > 0 && (
+          <div className="flex items-center gap-1.5 text-[#1E3A5F] font-medium">
+            <span className="px-1.5 py-0.5 rounded-md bg-[#1E3A5F]/10 text-[#1E3A5F] font-semibold text-[10px]">
+              Transit
+            </span>
+            <span>{travelModeChanged.join(", ")}</span>
+          </div>
+        )}
+
+        {durationsUpdated.length > 0 && (
+          <div className="flex items-center gap-1.5 text-amber-800 font-medium">
+            <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-semibold text-[10px]">
+              Duration
+            </span>
+            <span>{durationsUpdated.join(", ")}</span>
+          </div>
+        )}
+
+        {rescheduledStops.length > 0 && (
+          <div className="flex items-center gap-1.5 text-indigo-800 font-medium">
+            <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-800 font-semibold text-[10px]">
+              Schedule
+            </span>
+            <span>{rescheduledStops.join(", ")}</span>
+          </div>
+        )}
+
+        {budgetUpdatedInr !== undefined && budgetUpdatedInr !== null && (
+          <div className="flex items-center gap-1.5 text-emerald-800 font-medium">
+            <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-semibold text-[10px]">
+              Budget
+            </span>
+            <span>Updated total budget to ₹{budgetUpdatedInr}</span>
           </div>
         )}
       </div>

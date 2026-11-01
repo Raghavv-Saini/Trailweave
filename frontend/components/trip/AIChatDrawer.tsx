@@ -20,10 +20,10 @@ interface AIChatDrawerProps {
 }
 
 const QUICK_PROMPTS = [
-  "I'm tired, can we skip the fort and find a rooftop tea shop nearby?",
-  "Add Master Mohanlal miniature art studio after lunch",
-  "What is the dress etiquette for Jagdish Temple?",
-  "Where is the best sunset spot near Lake Pichola?",
+  "I want to travel from City Palace to Bagore Ki Haveli by auto",
+  "Add Sajjangarh Monsoon Palace around 5:00 PM for sunset",
+  "Change Jagdish Temple duration to 45 minutes",
+  "Skip the next stop and suggest a lakeside rooftop cafe",
 ];
 
 export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
@@ -33,7 +33,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
     {
       id: "initial_welcome",
       sender: "ai",
-      text: "Khamma Ghani! I'm your cultured Udaipur companion. How can I adapt your route, skip a stop, or find hidden artisan workshops for you today?",
+      text: "Khamma Ghani! I'm your Udaipur travel assistant. Ask me to calculate auto/cab routes between stops, add or reorder venues, adjust timings, or check local etiquette.",
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     },
   ]);
@@ -75,12 +75,23 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
 
+    const historyPayload = messages
+      .filter((m) => m.id !== "initial_welcome")
+      .map((m) => ({
+        role: m.sender,
+        text: m.text,
+      }));
+
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
 
     try {
-      const response = await sendCompanionMessage(textToSend);
+      const response = await sendCompanionMessage(textToSend, historyPayload);
+
+      if (response.trip_updated) {
+        await refreshTrip();
+      }
 
       const aiMsg: ChatMessage = {
         id: `msg_ai_${Date.now()}`,
@@ -163,7 +174,7 @@ export function AIChatDrawer({ isOpen, onClose }: AIChatDrawerProps) {
                       : "bg-[#FBF9F5] text-[#191C1E] rounded-bl-xs border border-[#E8E4DC]"
                   }`}
                 >
-                  <p>{m.text}</p>
+                  <p className="whitespace-pre-line">{m.text}</p>
 
                   {/* Embedded interactive ReplanProposalCard */}
                   {m.replan_proposal && (
