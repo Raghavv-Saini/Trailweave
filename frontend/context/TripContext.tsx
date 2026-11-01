@@ -328,9 +328,11 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
   // Hydrate saved user-generated trip if present
   useEffect(() => {
     try {
-      const saved =
-        localStorage.getItem("trailweave_active_trip_v2") ||
-        localStorage.getItem("trailweave_active_trip_v1");
+      // Clear legacy cached keys so stale image URLs never persist across deployments
+      localStorage.removeItem("trailweave_active_trip_v1");
+      localStorage.removeItem("trailweave_active_trip_v2");
+
+      const saved = localStorage.getItem("trailweave_active_trip_v3");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed?.tripId && Array.isArray(parsed?.stops) && parsed.stops.length > 0) {
@@ -447,7 +449,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
                   longitude: Number(s.longitude || defaults.longitude || 73.6812),
                   category: String(s.category || defaults.category || "heritage"),
                   entry_fee_inr: Number(s.entry_fee_inr ?? defaults.entry_fee_inr ?? 0),
-                  image_url: String(s.image_url || defaults.image_url || ""),
+                  image_url: String(defaults.image_url || s.image_url || ""),
                   day_number: Number(s.day_number || 1),
                   sequence_in_day: Number(s.sequence_in_day || idx + 1),
                   planned_arrival: typeof s.planned_arrival === "string" ? s.planned_arrival : undefined,
@@ -471,7 +473,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
 
         try {
           localStorage.setItem(
-            "trailweave_active_trip_v2",
+            "trailweave_active_trip_v3",
             JSON.stringify({
               tripId: finalTripId,
               tripTitle: customTitle,
@@ -516,7 +518,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
               longitude: Number(s.longitude || defaults.longitude || existing?.longitude || 73.6812),
               category: String(s.category || defaults.category || existing?.category || "heritage"),
               entry_fee_inr: Number(s.entry_fee_inr ?? defaults.entry_fee_inr ?? 0),
-              image_url: String(s.image_url || defaults.image_url || existing?.image_url || ""),
+              image_url: String(defaults.image_url || s.image_url || existing?.image_url || ""),
               day_number: Number(s.day_number || 1),
               sequence_in_day: Number(s.sequence_in_day || 1),
               planned_arrival:
@@ -670,6 +672,13 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetDemoTrip = () => {
+    try {
+      localStorage.removeItem("trailweave_active_trip_v1");
+      localStorage.removeItem("trailweave_active_trip_v2");
+      localStorage.removeItem("trailweave_active_trip_v3");
+    } catch {}
+    setTripId("trip_demo_udaipur");
+    setTripTitle("Udaipur Living Heritage & Crafts Walk");
     setStops(INITIAL_DEMO_STOPS);
     setRevision(1);
     setAuditEvents([]);

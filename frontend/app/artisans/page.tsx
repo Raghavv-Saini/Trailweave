@@ -77,9 +77,22 @@ export default function ArtisansDirectoryPage() {
       }
 
       if (isMounted) {
-        const baseList = backendData.length > 0 ? backendData : MOCK_ARTISANS;
+        const canonicalImageMap = new Map(
+          MOCK_ARTISANS.map((a) => [a.id, a.catalogue_images])
+        );
+        const syncArtisanImages = (a: MockArtisan): MockArtisan => {
+          const canonicalImgs = canonicalImageMap.get(a.id);
+          if (canonicalImgs && canonicalImgs.length > 0) {
+            return { ...a, catalogue_images: canonicalImgs };
+          }
+          return a;
+        };
+
+        const baseList = (backendData.length > 0 ? backendData : MOCK_ARTISANS).map(
+          syncArtisanImages
+        );
         // Merge localApproved at the top, deduplicating by id
-        const merged: MockArtisan[] = [...localApproved];
+        const merged: MockArtisan[] = localApproved.map(syncArtisanImages);
         const seenIds = new Set(localApproved.map((a) => a.id));
         for (const item of baseList) {
           if (!seenIds.has(item.id)) {
