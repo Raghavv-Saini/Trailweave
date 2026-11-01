@@ -188,7 +188,7 @@ IN_MEMORY_APPROVED_ARTISANS: Dict[str, Dict[str, Any]] = {
         "raw_transcript": "नमस्ते, मैं रमेश चंद्र परमार हूँ। हाथीपोल बाजार में हमारी चमड़े की मोजड़ी और डायरी की दुकान है।",
         "pin_hash": hash_pin("1234"),
         "catalogue_images": [
-            "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+            "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
         ],
     },
 }

@@ -142,7 +142,7 @@ const PLACE_DEFAULTS: Record<
     category: "heritage",
     entry_fee_inr: 330,
     image_url:
-      "https://images.unsplash.com/photo-1599661046289-e31897846e41?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1615836245337-f5b9b2303f10?auto=format&fit=crop&w=900&q=80",
   },
   place_mohanlal_studio: {
     address: "14 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
@@ -178,7 +178,7 @@ const PLACE_DEFAULTS: Record<
     category: "artisan_studio",
     entry_fee_inr: 0,
     image_url:
-      "https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=900&q=80",
+      "https://images.pexels.com/photos/4427645/pexels-photo-4427645.jpeg?auto=compress&cs=tinysrgb&w=900",
   },
   place_jagdish_temple: {
     address: "1 Jagdish Chowk, Old City, Udaipur, Rajasthan 313001",
@@ -187,7 +187,7 @@ const PLACE_DEFAULTS: Record<
     category: "heritage",
     entry_fee_inr: 0,
     image_url:
-      "https://images.unsplash.com/photo-1524492412937-b28074a5d7da?auto=format&fit=crop&w=900&q=80",
+      "https://images.pexels.com/photos/15534239/pexels-photo-15534239.jpeg?auto=compress&cs=tinysrgb&w=900",
   },
   place_bagore_haveli: {
     address: "Gangaur Ghat Marg, Old City, Udaipur, Rajasthan 313001",
@@ -196,7 +196,7 @@ const PLACE_DEFAULTS: Record<
     category: "heritage",
     entry_fee_inr: 100,
     image_url:
-      "https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1722080711528-095791cd14d4?auto=format&fit=crop&w=900&q=80",
   },
   place_saheliyon_bari: {
     address: "Saheli Marg, New Vidhya Nagar, Udaipur, Rajasthan 313001",
@@ -205,7 +205,7 @@ const PLACE_DEFAULTS: Record<
     category: "attraction",
     entry_fee_inr: 50,
     image_url:
-      "https://images.unsplash.com/photo-1587474260584-136574528ed5?auto=format&fit=crop&w=900&q=80",
+      "https://images.unsplash.com/photo-1651306614297-9c1301ad460e?auto=format&fit=crop&w=900&q=80",
   },
   place_sukhadia_circle: {
     address: "Sukhadia Circle, Panchwati, Udaipur, Rajasthan 313001",
@@ -328,14 +328,20 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
   // Hydrate saved user-generated trip if present
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("trailweave_active_trip_v1");
+      const saved =
+        localStorage.getItem("trailweave_active_trip_v2") ||
+        localStorage.getItem("trailweave_active_trip_v1");
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed?.tripId && Array.isArray(parsed?.stops) && parsed.stops.length > 0) {
           setTripId(parsed.tripId);
           setTripTitle(parsed.tripTitle || "My Udaipur Itinerary");
           setRevision(parsed.revision || 1);
-          setStops(parsed.stops);
+          const syncedStops = parsed.stops.map((s: TripStop) => {
+            const def = PLACE_DEFAULTS[s.place_id];
+            return def ? { ...s, image_url: def.image_url } : s;
+          });
+          setStops(syncedStops);
           return;
         }
       }
@@ -465,7 +471,7 @@ export function TripProvider({ children }: { children: React.ReactNode }) {
 
         try {
           localStorage.setItem(
-            "trailweave_active_trip_v1",
+            "trailweave_active_trip_v2",
             JSON.stringify({
               tripId: finalTripId,
               tripTitle: customTitle,
