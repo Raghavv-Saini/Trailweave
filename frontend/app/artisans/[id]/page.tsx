@@ -34,6 +34,10 @@ export default function ArtisanDetailPage() {
   const artisanId = (params?.id as string) || "artisan_mohanlal";
 
   const { addItem, removeItem, isInBasket } = useBasket();
+  const canonicalArtisan = useMemo(
+    () => MOCK_ARTISANS.find((a) => a.id === artisanId),
+    [artisanId]
+  );
   const [artisan, setArtisan] = useState<MockArtisan>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -41,7 +45,12 @@ export default function ArtisanDetailPage() {
         if (saved) {
           const parsed: MockArtisan[] = JSON.parse(saved);
           const found = parsed.find((a) => a.id === artisanId);
-          if (found) return found;
+          if (found) {
+            const seeded = MOCK_ARTISANS.find((a) => a.id === artisanId);
+            return seeded?.catalogue_images?.length
+              ? { ...found, catalogue_images: seeded.catalogue_images }
+              : found;
+          }
         }
       } catch {
         // Fall back
@@ -57,13 +66,18 @@ export default function ArtisanDetailPage() {
   // Fetch updated artisan data from backend
   useEffect(() => {
     let isMounted = true;
+    const syncImages = (data: MockArtisan): MockArtisan =>
+      canonicalArtisan?.catalogue_images?.length
+        ? { ...data, catalogue_images: canonicalArtisan.catalogue_images }
+        : data;
+
     async function loadArtisan() {
       try {
         const res = await fetch(`/api/artisans/${artisanId}`);
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data?.id) {
-            setArtisan(data);
+            setArtisan(syncImages(data));
             return;
           }
         }
@@ -78,7 +92,7 @@ export default function ArtisanDetailPage() {
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data?.id) {
-            setArtisan(data);
+            setArtisan(syncImages(data));
             return;
           }
         }
@@ -94,7 +108,7 @@ export default function ArtisanDetailPage() {
             const parsed: MockArtisan[] = JSON.parse(saved);
             const found = parsed.find((a) => a.id === artisanId);
             if (found && isMounted) {
-              setArtisan(found);
+              setArtisan(syncImages(found));
             }
           }
         } catch {
@@ -106,7 +120,7 @@ export default function ArtisanDetailPage() {
     return () => {
       isMounted = false;
     };
-  }, [artisanId]);
+  }, [artisanId, canonicalArtisan]);
 
   const placeId = artisan.place_id || artisan.id;
   const inBasket = isInBasket(placeId);
